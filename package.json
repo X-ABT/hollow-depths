@@ -1,0 +1,21 @@
+{
+  "name": "hollow-depths",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Hollow Depths - a zero-backend browser survivor roguelite built with PixiJS v8",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "pixi.js": "8.20.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21"
+  }
+}

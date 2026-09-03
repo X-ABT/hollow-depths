@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0A0713" />
+    <meta name="color-scheme" content="dark" />
+    <meta
+      name="description"
+      content="Hollow Depths 幽墟幸存者 —— 纯前端、零后端的浏览器幸存者类 Roguelite。打开即玩，无需下载与注册。"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Hollow Depths · 幽墟幸存者</title>
+  </head>
+  <body>
+    <!-- 游戏世界（PixiJS Canvas 挂载点） -->
+    <div id="stage" aria-hidden="true"></div>
+
+    <!-- UI 覆盖层：标题页 / HUD / 升级三选一 / 结算页 -->
+    <div id="ui-root"></div>
+
+    <!-- 首帧加载遮罩：Assets 与 Application 初始化完成前显示 -->
+    <div id="boot">
+      <div class="boot-mark">
+        <div class="boot-rune"></div>
+        <div class="boot-title">HOLLOW DEPTHS</div>
+        <div class="boot-sub">幽墟幸存者</div>
+        <div class="boot-bar"><i></i></div>
+        <div class="boot-hint">正在点亮幽墟……</div>
+      </div>
+    </div>
+
+    <noscript>
+      <div class="noscript">本游戏需要启用 JavaScript 才能运行。</div>
+    </noscript>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

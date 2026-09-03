@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.vite
+npm-debug.log*
+yarn-error.log*
+*.tsbuildinfo
+
+# playwright-cli / 自动化测试残留
+.playwright-cli/
+/game*.png
+/result.yml
+/play*.yml
+dev.log
+dev.err
