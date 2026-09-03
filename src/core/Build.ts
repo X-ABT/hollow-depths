@@ -164,6 +164,9 @@ export class Build {
     // 2) 武器：新武器 + 已有武器升级
     const weaponPool: UpgradeOption[] = [];
     for (const def of POOL_WEAPONS) {
+      // 已进化过的武器不再重复提供：该基础武器的进化形态已被持有，
+      // 说明它已升级满并合成到进化形态，不应再让玩家拿到第二把原版。
+      if (def.evolved && this.hasWeapon(def.evolved)) continue;
       const owned = this.weaponById(def.id);
       if (!owned) {
         if (this.weapons.length >= MAX_WEAPON_SLOTS) continue;
