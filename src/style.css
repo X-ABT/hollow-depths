@@ -1037,7 +1037,12 @@ body.is-touch .touch-only {
   display: block;
 }
 
-.stick-zone {
+/* 注意：这些选择器必须以 #ui-root 为前缀提高优先级——
+ * 因为全局规则 #ui-root > * { pointer-events:auto } 会用 ID 特异性覆盖单类选择器，
+ * 若不加前缀，.stick 会被强制成 pointer-events:auto，从而在自身圆形上吞掉触摸，
+ * 导致"按住可见摇杆本身无法拖动"。
+ */
+#ui-root > .stick-zone {
   /* 事件捕获区：覆盖屏幕下方居中的一块，作为摇杆操作范围 */
   position: fixed;
   left: 18%;
@@ -1050,12 +1055,14 @@ body.is-touch .touch-only {
 }
 
 /* 对局中才开启捕获，避免标题/升级/结算页按钮被摇杆层抢走点击 */
-.stick-zone.enabled {
+#ui-root > .stick-zone.enabled {
   pointer-events: auto;
 }
 
-.stick {
-  /* 视觉底座：直接挂 ui-root（全屏，坐标 = 视口），常显半透明供定位 */
+#ui-root > .stick {
+  /* 视觉底座：直接挂 ui-root（全屏，坐标 = 视口），常显半透明供定位。
+   * 必须是 pointer-events:none：否则底座的 118px 圆会自己吃掉触摸，
+   * 让"手指按在摇杆上拖动"失效（事件到不了底下的 .stick-zone）。 */
   position: absolute;
   width: 118px;
   height: 118px;
@@ -1076,11 +1083,11 @@ body.is-touch .touch-only {
 }
 
 /* 非对局状态隐藏底座（标题/升级/结算时不让它盖在界面上） */
-.stick:not(.enabled) {
+#ui-root > .stick:not(.enabled) {
   visibility: hidden;
 }
 
-.stick.is-on {
+#ui-root > .stick.is-on {
   opacity: 0.95;
   border-color: rgba(67, 224, 255, 0.8);
   box-shadow:
