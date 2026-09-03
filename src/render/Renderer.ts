@@ -97,6 +97,14 @@ export class WorldRenderer {
   /** 上一帧可见实体数（性能面板） */
   visibleCount = 0;
 
+  /** 视野缩放因子：>1 放大（看得更近、更细），<1 缩小（视野更开阔） */
+  zoom = 1;
+  /** 缩放下限：此值越小地板基线需要越大，通常取 0.7 */
+  private static readonly ZOOM_MIN = 0.7;
+  private static readonly ZOOM_MAX = 1.5;
+  private viewW = 0;
+  private viewH = 0;
+
   init(renderer: PixiRenderer): void {
     this.world.addChild(this.arenaRing);
     this.world.addChild(this.pickLayer);
@@ -150,6 +158,8 @@ export class WorldRenderer {
   }
 
   resize(w: number, h: number): void {
+    this.viewW = w;
+    this.viewH = h;
     if (this.floor) {
       this.floor.width = w;
       this.floor.height = h;
@@ -160,17 +170,33 @@ export class WorldRenderer {
     }
   }
 
+  /** 设定视野缩放（0.7~1.5）。实际投影在 sync() 中按 cam 应用。 */
+  setZoom(z: number): void {
+    this.zoom =
+      z < WorldRenderer.ZOOM_MIN
+        ? WorldRenderer.ZOOM_MIN
+        : z > WorldRenderer.ZOOM_MAX
+          ? WorldRenderer.ZOOM_MAX
+          : z;
+  }
+
   /** 每渲染帧调用：alpha 为固定步长的插值系数 */
   sync(world: World, alpha: number, cam: Camera, viewW: number, viewH: number): void {
     const cx = cam.viewX;
     const cy = cam.viewY;
-    const halfW = viewW * 0.5 + CULL_PAD;
-    const halfH = viewH * 0.5 + CULL_PAD;
+    const z = this.zoom;
+    // 视野缩放：世界半宽随 zoom 变化（zoom>1 放大时看得更近更少）
+    const halfW = (viewW * 0.5) / z + CULL_PAD;
+    const halfH = (viewH * 0.5) / z + CULL_PAD;
 
-    this.world.position.set(viewW * 0.5 - cx, viewH * 0.5 - cy);
+    // 实体层：世界点 w 投影到屏 = viewW/2 + (w - cam) * zoom
+    this.world.scale.set(z, z);
+    this.world.position.set(viewW * 0.5 - cx * z, viewH * 0.5 - cy * z);
 
     if (this.floor) {
-      this.floor.tilePosition.set(-cx + viewW * 0.5, -cy + viewH * 0.5);
+      // 地板平铺周期与相位也按 zoom 缩放，使砖块随实体一起放大/缩小
+      this.floor.tileScale.set(z, z);
+      this.floor.tilePosition.set(-cx * z + viewW * 0.5, -cy * z + viewH * 0.5);
     }
 
     let visible = 0;

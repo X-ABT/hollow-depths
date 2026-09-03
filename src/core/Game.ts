@@ -70,6 +70,10 @@ export class Game {
     this.app = app;
     this.uiRoot = uiRoot;
     this.hud = new Hud(uiRoot);
+    this.hud.onZoomIn = () => this.renderer.setZoom(this.renderer.zoom + 0.15);
+    this.hud.onZoomOut = () => this.renderer.setZoom(this.renderer.zoom - 0.15);
+    this.hud.onZoomReset = () => this.renderer.setZoom(1);
+    this.hud.setZoomLabel(this.renderer.zoom);
     this.perf = new PerfHud(uiRoot);
 
     atlas.build(app.renderer);
@@ -191,6 +195,9 @@ export class Game {
     this.hud.reset();
     this.hud.setVisible(true);
     this.perf.setVisible(this.save.perfVisible);
+    // 每局重置视野缩放到默认 1×
+    this.renderer.setZoom(1);
+    this.hud.setZoomLabel(1);
 
     const p = this.world.player;
     p.maxHp = this.build.stats.maxHp;
@@ -390,6 +397,7 @@ export class Game {
       const p = this.world.player;
       this.hud.update(p.hp, p.maxHp, p.xp, p.xpNext, p.level, this.world.time, this.world.kills);
       this.hud.syncBuild(this.build);
+      this.hud.setZoomLabel(this.renderer.zoom);
 
       const boss: Enemy | null = findBoss(this.world);
       if (boss) {

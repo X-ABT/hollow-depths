@@ -18,6 +18,13 @@ export class Hud {
   private readonly bossWrap: HTMLElement;
   private readonly bossName: HTMLElement;
   private readonly bossFill: HTMLElement;
+  private readonly zoomResetBtn: HTMLElement;
+  private lastZoomLabel = -1;
+
+  /** 视野缩放回调（Game 注入） */
+  onZoomIn: () => void = () => {};
+  onZoomOut: () => void = () => {};
+  onZoomReset: () => void = () => {};
 
   private readonly weaponRow: HTMLElement;
   private readonly passiveRow: HTMLElement;
@@ -44,6 +51,11 @@ export class Hud {
         <div class="slot-row" data-row="w"></div>
         <div class="slot-row" data-row="p"></div>
       </div>
+      <div class="hud-zoom">
+        <button data-zoom="in" aria-label="放大视野">＋</button>
+        <button data-zoom="reset" class="zoom-reset" aria-label="重置视野"></button>
+        <button data-zoom="out" aria-label="缩小视野">－</button>
+      </div>
     `;
     root.appendChild(el);
     this.el = el;
@@ -60,6 +72,28 @@ export class Hud {
     this.bossFill = el.querySelector('.hud-boss-bar > i') as HTMLElement;
     this.weaponRow = el.querySelector('[data-row="w"]') as HTMLElement;
     this.passiveRow = el.querySelector('[data-row="p"]') as HTMLElement;
+    this.zoomResetBtn = el.querySelector('[data-zoom="reset"]') as HTMLElement;
+
+    el.querySelector('[data-zoom="in"]')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onZoomIn();
+    });
+    el.querySelector('[data-zoom="out"]')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onZoomOut();
+    });
+    this.zoomResetBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onZoomReset();
+    });
+  }
+
+  /** 更新缩放倍率提示（reset 按钮上显示，如 ×1.0）；值未变时不重复写 DOM */
+  setZoomLabel(z: number): void {
+    const v = Math.round(z * 10);
+    if (v === this.lastZoomLabel) return;
+    this.lastZoomLabel = v;
+    this.zoomResetBtn.textContent = `×${z.toFixed(1)}`;
   }
 
   setVisible(v: boolean): void {
