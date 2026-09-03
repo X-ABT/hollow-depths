@@ -11,7 +11,7 @@ services:
   - type: web
     name: hollow-depths
     runtime: static
-    repo: https://github.com/AoboteXu/hollow-depths
+    repo: https://github.com/X-ABT/hollow-depths
     branch: main
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
