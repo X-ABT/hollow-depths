@@ -15,3 +15,7 @@ yarn-error.log*
 /play*.yml
 dev.log
 dev.err
+
+# vite 构建临时产物
+*.timestamp-*.mjs
+*.timestamp-*.ts

@@ -1096,6 +1096,42 @@ body.is-touch .touch-only {
   pointer-events: none;
 }
 
+/* —— 背景音乐开关：常驻右下，避开摇杆/暂停/缩放，标题页与对局都可点 —— */
+.music-toggle {
+  position: absolute;
+  right: calc(14px + var(--safe-r));
+  bottom: calc(154px + var(--safe-b));
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--stroke-hi);
+  border-radius: 50%;
+  background: var(--glass);
+  color: var(--p-soul);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition:
+    transform 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+  z-index: 20;
+}
+
+.music-toggle:hover {
+  transform: scale(1.08);
+  border-color: var(--p-amber);
+}
+
+.music-toggle.is-off {
+  color: var(--t-dim);
+  border-color: rgba(107, 97, 137, 0.35);
+  opacity: 0.6;
+}
+
 /* —— 视野缩放按钮：纵向 +/- 列，位于右侧中部，便于拇指/鼠标点按 —— */
 .hud-zoom {
   position: absolute;

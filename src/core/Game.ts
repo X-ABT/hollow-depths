@@ -21,6 +21,7 @@ import { LevelUpModal } from '../ui/LevelUpModal';
 import { GameOverScreen, type RunResult } from '../ui/GameOverScreen';
 import { PerfHud } from '../ui/PerfHud';
 import { Storage, type SaveData } from '../save/Storage';
+import { Bgm } from '../audio/Bgm';
 import { DEFAULT_CHARACTER } from '../data/characters';
 import { ENEMY_BY_INDEX } from '../data/enemies';
 import { RUN_SECONDS } from '../data/waves';
@@ -57,6 +58,8 @@ export class Game {
   private readonly gameOver = new GameOverScreen();
   private readonly perf: PerfHud;
 
+  private readonly bgm = new Bgm();
+  private musicBtn: HTMLButtonElement | null = null;
   private build = new Build(DEFAULT_CHARACTER);
   private state: GameState = 'title';
   private save: SaveData = Storage.load();
@@ -153,6 +156,26 @@ export class Game {
     tip.textContent = 'Esc 暂停';
     this.uiRoot.appendChild(tip);
     this.pauseTip = tip;
+
+    // —— 背景音乐开关（常驻右上角，标题页与对局中都可切换）——
+    const music = document.createElement('button');
+    music.className = 'music-toggle';
+    music.setAttribute('aria-label', '音乐开关');
+    music.textContent = '♪';
+    music.addEventListener('click', () => {
+      this.bgm.setMuted(!this.bgm.muted);
+      this.refreshMusicBtn();
+    });
+    this.uiRoot.appendChild(music);
+    this.musicBtn = music;
+    this.refreshMusicBtn();
+  }
+
+  /** 更新音乐按钮的外观（静音态置灰 + 划横线） */
+  private refreshMusicBtn(): void {
+    if (!this.musicBtn) return;
+    this.musicBtn.classList.toggle('is-off', this.bgm.muted);
+    this.musicBtn.textContent = this.bgm.muted ? '♪̶' : '♪';
   }
 
   // ——————————————————— 生命周期 ———————————————————
@@ -169,6 +192,8 @@ export class Game {
     this.levelUp.hide();
     this.hud.setVisible(false);
     this.perf.setVisible(this.save.perfVisible);
+    // 标题页/结算页不播战斗 BGM
+    this.bgm.stop();
     this.title.show(this.uiRoot, this.save, {
       onStart: () => this.startRun(),
       onTogglePerf: () => {
@@ -184,6 +209,9 @@ export class Game {
     this.title.hide();
     this.gameOver.hide();
     this.levelUp.hide();
+
+    // 进入战斗即开始 BGM（此处在用户点击手势内，满足自动播放）
+    this.bgm.start();
 
     this.world.reset((Math.random() * 0xffffffff) >>> 0);
     this.build = new Build(DEFAULT_CHARACTER);
@@ -252,6 +280,8 @@ export class Game {
     if (this.state === 'gameover') return;
     this.state = 'gameover';
     this.loop.setPaused(true);
+    // 对局结束停止战斗 BGM
+    this.bgm.stop();
     this.levelUp.hide();
     this.hud.setVisible(false);
 
