@@ -79,6 +79,7 @@ export class Game {
     app.stage.addChild(this.vfx.container);
     this.collision.attachVfx(this.vfx);
     this.cleanup.attachVfx(this.vfx);
+    this.ai.attachVfx(this.vfx);
 
     this.input.attach(uiRoot);
     this.input.onPause = () => this.togglePause();

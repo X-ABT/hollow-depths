@@ -86,6 +86,10 @@ export class WorldRenderer {
   private readonly playerSprite = new Sprite();
   private readonly arenaRing = new Graphics();
 
+  /** Boss 施法蓄力警示环（跟随正在蓄力的 Boss） */
+  private readonly warnLayer = new Container();
+  private readonly warnSprites: Sprite[] = [];
+
   private enemyLayer = new Container();
   private pickLayer = new Container();
   private projLayer = new Container();
@@ -97,6 +101,7 @@ export class WorldRenderer {
     this.world.addChild(this.arenaRing);
     this.world.addChild(this.pickLayer);
     this.world.addChild(this.enemyLayer);
+    this.world.addChild(this.warnLayer);
     this.world.addChild(this.projLayer);
     this.world.addChild(this.playerSprite);
     this.root.addChild(this.bg);
@@ -130,6 +135,15 @@ export class WorldRenderer {
       s.visible = false;
       this.pickSprites.push(s);
       this.pickLayer.addChild(s);
+    }
+    // Boss 蓄力警示环（同屏最多一个 Boss，备 3 个保险）
+    for (let i = 0; i < 3; i++) {
+      const s = new Sprite();
+      s.anchor.set(0.5);
+      s.visible = false;
+      s.texture = atlas.get(Tex.Ring);
+      this.warnSprites.push(s);
+      this.warnLayer.addChild(s);
     }
     this.playerSprite.anchor.set(0.5);
     this.playerSprite.texture = atlas.get(Tex.Player);
@@ -196,6 +210,42 @@ export class WorldRenderer {
       }
     }
     for (let i = world.enemies.count; i < MAX_ENEMIES; i++) this.enemySprites[i].visible = false;
+
+    // ——— Boss 蓄力警示环（cast>0 时在施法/落点处脉动提示）———
+    {
+      let wi = 0;
+      const puls = 0.7 + 0.3 * Math.sin(world.time * 18);
+      for (let i = 0; i < world.enemies.count; i++) {
+        const eb = elist[i];
+        if (!eb.isBoss || eb.cast <= 0 || wi >= this.warnSprites.length) continue;
+        // 本体的施法警示环
+        const w1 = this.warnSprites[wi++];
+        w1.visible = true;
+        w1.x = eb.x;
+        w1.y = eb.y;
+        const base = eb.radius * 2.6;
+        const size = base * puls;
+        w1.width = size;
+        w1.height = size;
+        w1.alpha = 0.45 + 0.4 * Math.abs(Math.sin(world.time * 14));
+        w1.tint = 0xff5470;
+        // 若有远离本体的锁定落点（如脚下伤害区 / 落点圈），在落点也放一个
+        const dx = eb.tx - eb.x;
+        const dy = eb.ty - eb.y;
+        if (dx * dx + dy * dy > 3600 && wi < this.warnSprites.length) {
+          const w2 = this.warnSprites[wi++];
+          w2.visible = true;
+          w2.x = eb.tx;
+          w2.y = eb.ty;
+          w2.width = 70 * puls;
+          w2.height = 70 * puls;
+          w2.alpha = 0.5 + 0.4 * Math.abs(Math.sin(world.time * 16 + 1));
+          w2.tint = 0x43e0ff;
+        }
+        visible++;
+      }
+      for (; wi < this.warnSprites.length; wi++) this.warnSprites[wi].visible = false;
+    }
 
     // ——— 拾取物 ———
     const klist = world.pickups.items;

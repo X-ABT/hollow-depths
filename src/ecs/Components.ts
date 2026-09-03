@@ -73,6 +73,10 @@ export interface Enemy {
   phase: number; // Boss 阶段
   growT: number; // 成长累积（Grow）
   angle: number; // 螺旋角 / Boss 弹幕角
+  cast: number; // Boss 施法蓄力剩余秒（>0 = 正在蓄力警示，0 = 空闲）
+  sub: number; // Boss 阶段内辅助倒计时（冲刺时长等，不占用 phase）
+  tx: number; // Boss 技能落点 x（蓄力时锁定，释放后在该处生效）
+  ty: number; // Boss 技能落点 y
 
   // —— 受击与状态 ——
   flash: number; // 受击闪白剩余时间

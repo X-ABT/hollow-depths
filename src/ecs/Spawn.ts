@@ -92,6 +92,10 @@ export function spawnEnemy(
   e.phase = 0;
   e.growT = gen;
   e.angle = 0;
+  e.cast = 0;
+  e.sub = 0;
+  e.tx = 0;
+  e.ty = 0;
   e.flash = 0;
   e.slowT = 0;
   e.slowF = 1;
