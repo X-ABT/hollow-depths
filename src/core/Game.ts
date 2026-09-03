@@ -24,8 +24,6 @@ import { Storage, type SaveData } from '../save/Storage';
 import { DEFAULT_CHARACTER } from '../data/characters';
 import { ENEMY_BY_INDEX } from '../data/enemies';
 import { RUN_SECONDS } from '../data/waves';
-import { spawnPickup } from '../ecs/Spawn';
-import { PickupKind } from '../ecs/Components';
 
 export type GameState = 'title' | 'playing' | 'levelup' | 'gameover';
 
@@ -111,7 +109,6 @@ export class Game {
     // 隐藏只读调试钩子：仅用于开发验证，不影响玩法
     const w = window as unknown as {
       __HD?: () => object;
-      __dropXp?: (dist?: number) => void;
     };
     w.__HD = () => {
       const pk = this.world.pickups.items[0];
@@ -135,10 +132,6 @@ export class Game {
           : -1,
         pMag: pk ? pk.magnet : false,
       };
-    };
-    w.__dropXp = (dist?: number) => {
-      const p = this.world.player;
-      spawnPickup(this.world, PickupKind.Xp, 5, p.x + (dist || 0), p.y);
     };
   }
 
@@ -166,6 +159,9 @@ export class Game {
 
   private showTitle(): void {
     this.state = 'title';
+    // 清理可能残留的结算页 / 升级弹窗 DOM，避免它们叠在标题页之下
+    this.gameOver.hide();
+    this.levelUp.hide();
     this.hud.setVisible(false);
     this.perf.setVisible(this.save.perfVisible);
     this.title.show(this.uiRoot, this.save, {
