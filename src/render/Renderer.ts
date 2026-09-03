@@ -99,8 +99,8 @@ export class WorldRenderer {
 
   /** 视野缩放因子：>1 放大（看得更近、更细），<1 缩小（视野更开阔） */
   zoom = 1;
-  /** 缩放下限：此值越小地板基线需要越大，通常取 0.7 */
-  private static readonly ZOOM_MIN = 0.7;
+  /** 缩放下限：地板为贴屏无限平铺，任意下限都不会露边 */
+  private static readonly ZOOM_MIN = 0.5;
   private static readonly ZOOM_MAX = 1.5;
   private viewW = 0;
   private viewH = 0;
