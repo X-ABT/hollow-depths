@@ -270,6 +270,8 @@ body {
   padding: calc(24px + var(--safe-t)) 24px calc(24px + var(--safe-b));
   background: radial-gradient(circle at 50% 45%, rgba(21, 15, 38, 0.35), rgba(10, 7, 19, 0.86) 72%);
   animation: fade-in 0.6s ease both;
+  /* 盖在摇杆捕获层之上，确保按钮可点 */
+  z-index: 7;
 }
 
 @keyframes fade-in {
@@ -635,6 +637,8 @@ body {
   backdrop-filter: blur(10px) saturate(120%);
   -webkit-backdrop-filter: blur(10px) saturate(120%);
   animation: fade-in 0.22s ease both;
+  /* 盖在摇杆捕获层之上，防止底层触摸被摇杆吞掉 */
+  z-index: 8;
 }
 
 .overlay-title {
@@ -1040,9 +1044,14 @@ body.is-touch .touch-only {
   right: 18%;
   bottom: 0;
   top: 58%;
-  pointer-events: auto;
+  pointer-events: none; /* 默认不拦截，仅 .enabled（对局中）才拦截触摸 */
   z-index: 5;
   touch-action: none;
+}
+
+/* 对局中才开启捕获，避免标题/升级/结算页按钮被摇杆层抢走点击 */
+.stick-zone.enabled {
+  pointer-events: auto;
 }
 
 .stick {
@@ -1064,6 +1073,11 @@ body.is-touch .touch-only {
     box-shadow 0.16s ease;
   z-index: 6;
   pointer-events: none;
+}
+
+/* 非对局状态隐藏底座（标题/升级/结算时不让它盖在界面上） */
+.stick:not(.enabled) {
+  visibility: hidden;
 }
 
 .stick.is-on {

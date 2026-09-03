@@ -187,6 +187,8 @@ export class Game {
 
   private showTitle(): void {
     this.state = 'title';
+    // 标题页关闭摇杆，把触摸还给界面按钮
+    this.input.setEnabled(false);
     // 清理可能残留的结算页 / 升级弹窗 DOM，避免它们叠在标题页之下
     this.gameOver.hide();
     this.levelUp.hide();
@@ -238,6 +240,8 @@ export class Game {
     this.input.reset();
     this.manualPause = false;
     this.state = 'playing';
+    // 进入对局才开放移动摇杆
+    this.input.setEnabled(true);
     this.loop.setPaused(false);
   }
 
@@ -251,6 +255,8 @@ export class Game {
   private showLevelUp(): void {
     if (this.state !== 'playing') return;
     this.state = 'levelup';
+    // 升级选卡期间关闭摇杆，避免卡片下方的触摸被吞
+    this.input.setEnabled(false);
     this.loop.setPaused(true);
     const p = this.world.player;
     const options = this.build.rollOptions(this.world.rng, 3);
@@ -271,6 +277,8 @@ export class Game {
         // 连续升级：下一帧继续弹
         this.showLevelUp();
       } else {
+        // 选卡结束回到对局，重新开放移动摇杆
+        this.input.setEnabled(true);
         this.loop.setPaused(false);
       }
     });
@@ -279,6 +287,8 @@ export class Game {
   private endRun(win: boolean): void {
     if (this.state === 'gameover') return;
     this.state = 'gameover';
+    // 结算页关闭摇杆，让下方按钮可点
+    this.input.setEnabled(false);
     this.loop.setPaused(true);
     // 对局结束停止战斗 BGM
     this.bgm.stop();

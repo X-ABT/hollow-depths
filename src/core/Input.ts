@@ -28,6 +28,26 @@ export class Input {
   private homeY = 0;
   /** 回弹动画中的当前还原计时（给一次 transition 时间） */
   private returnT = 0;
+  /** 摇杆是否当前可用：仅对局中(playing)开放，标题/升级/结算时关闭以免抢走按钮点击 */
+  private _enabled = false;
+
+  /**
+   * 开关摇杆的可用性：
+   *  - enabled=true（对局中）：捕获层拦截触摸作为移动、底座可见可定位。
+   *  - enabled=false（标题/升级/结算）：捕获层不拦截触摸、底座隐藏，
+   *    把下方内容（按钮/卡片）的点击归还给它们。
+   */
+  setEnabled(on: boolean): void {
+    this._enabled = on;
+    if (!on) {
+      this.stickId = -1;
+      this.stickDx = 0;
+      this.stickDy = 0;
+    }
+    this.zoneEl?.classList.toggle('enabled', on);
+    this.stickEl?.classList.toggle('enabled', on);
+    if (on) this.homeStick();
+  }
 
   attach(root: HTMLElement): void {
     this.isTouch = matchMedia('(hover: none) and (pointer: coarse)').matches || 'ontouchstart' in window;
@@ -99,6 +119,7 @@ export class Input {
   }
 
   private onStickDown = (e: PointerEvent): void => {
+    if (!this._enabled) return;
     if (this.stickId !== -1) return;
     this.stickId = e.pointerId;
     this.stickOx = e.clientX;
