@@ -97,8 +97,15 @@ export class Game {
       this.camera.addShake(14);
       this.bossTimer = 3.2;
     });
-    this.cleanup.onBossKilled = () => {
+    this.cleanup.onBossKilled = (name) => {
       this.camera.addShake(22);
+      // 击败古神：开启深渊炮手的周期刷新（Boss 存活期间暂停）
+      if (name === 'herald') this.spawn.onHeraldDown();
+      // 通关条件：击败最终 Boss「终焉」即胜利
+      if (name === 'endless') {
+        // 终焉被击杀 → 立即胜利（endRun 自带 gameover 重入保护，不会重复触发）
+        this.endRun(true);
+      }
     };
     this.world.onPlayerHurt = (amount) => {
       if (amount >= 0) this.camera.addShake(4 + Math.min(10, amount * 0.3));
@@ -416,8 +423,9 @@ export class Game {
       this.endRun(false);
       return;
     }
+    // 宽限时间上限兜底：未击败终焉却撑满时长 → 判失败
     if (world.time >= RUN_SECONDS) {
-      this.endRun(true);
+      this.endRun(false);
       return;
     }
 

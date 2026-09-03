@@ -1,5 +1,6 @@
 import { PickupKind, type Enemy } from '../Components';
 import { spawnPickup } from '../Spawn';
+import { ENEMY_BY_INDEX } from '../../data/enemies';
 import type { World } from '../World';
 import type { Vfx } from '../../render/Vfx';
 
@@ -38,6 +39,13 @@ export class CleanupSystem {
           if (plist[k].kind === PickupKind.Xp) plist[k].magnet = true;
         }
         this.onBossKilled(e.bossIdx === 2 ? 'endless' : e.bossIdx === 1 ? 'calamity' : 'herald');
+      } else if (ENEMY_BY_INDEX[e.defIdx].id === 'gunner') {
+        // 深渊炮手：不给宝箱，爆一圈 4 颗经验宝石作为主要奖励
+        this.vfx?.explosion(e.x, e.y, 20, 0x43e0ff);
+        for (let k = 0; k < 4; k++) {
+          const a = (k / 4) * Math.PI * 2;
+          spawnPickup(world, PickupKind.Xp, 5, e.x + Math.cos(a) * 20, e.y + Math.sin(a) * 20);
+        }
       } else if (e.isElite) {
         this.vfx?.explosion(e.x, e.y, 18, 0xa97cff);
         spawnPickup(world, PickupKind.Chest, 1, e.x, e.y);

@@ -162,6 +162,23 @@ export const ELITES: readonly EnemyDef[] = [
     p0: 0.3,
     p1: 90,
   },
+  {
+    id: 'gunner',
+    name: '深渊炮手',
+    sprite: Tex.Gunner,
+    hp: 60,
+    speed: 46,
+    damage: 18,
+    radius: 20,
+    xp: 0, // 不靠 xp 单宝石，改为死亡时爆 4 颗经验宝石（见 CleanupSystem 特判）
+    ai: Ai.Gunner,
+    armor: 0,
+    elite: true,
+    boss: false,
+    // 射击间隔（含 0.7s 蓄力前摇节奏）/ 弹速
+    p0: 2.2,
+    p1: 300,
+  },
 ];
 
 /** Boss */

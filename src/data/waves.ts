@@ -1,7 +1,10 @@
 /** 波次时间轴：纯数据，改动节奏只需改这张表 */
 
-/** 一局总时长（秒）：10 分钟 Boss 战 + 2 分钟收尾，12 分钟结算 */
-export const RUN_SECONDS = 720;
+/**
+ * 宽限时间上限（秒）：通关条件是击败最终 Boss「终焉」，不再是存活满时长。
+ * 此值作为防止无限拖局的兜底——若玩家撑到 30 分钟仍未击败终焉，判为失败。
+ */
+export const RUN_SECONDS = 1800;
 /** 同屏敌人软上限：超过后暂停生成，保证帧率优先 */
 export const MAX_ALIVE = 1500;
 /** 生成环半径（相对视口对角线的一半） */
@@ -48,7 +51,7 @@ export const DENSITY_STEPS: readonly { t: number; mul: number }[] = [
 export const BOSS_TIMES: readonly { t: number; id: string }[] = [
   { t: 300, id: 'herald' },
   { t: 480, id: 'calamity' },
-  { t: 600, id: 'endless' },
+  { t: 720, id: 'endless' }, // 终焉 12:00 出现，击败它即通关
 ];
 
 /** 精英刷新间隔（秒）：从 4:00 起每隔一段时间刷一只 */

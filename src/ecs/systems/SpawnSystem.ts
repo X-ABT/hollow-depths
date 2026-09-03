@@ -19,6 +19,11 @@ import type { World } from '../World';
 
 /** id → 敌人总表下标（启动时构建一次，避免热路径里反复 findIndex） */
 const IDX = new Map<string, number>(ENEMY_BY_INDEX.map((d, i) => [d.id, i]));
+/** 深渊炮手总表下标（古神死后周期性刷新用） */
+const GUNNER_IDX = ENEMY_BY_INDEX.findIndex((d) => d.id === 'gunner');
+/** 深渊炮手单次批量间隔（秒）与同屏上限 */
+const GUNNER_INTERVAL = 5;
+const GUNNER_MAX = 5;
 
 /**
  * 波次生成：按时间轴决定「生成什么、生成多快、多强」。
@@ -29,15 +34,31 @@ export class SpawnSystem {
   private eliteT = ELITE_FIRST;
   private nextBoss = 0;
   private bossAnnounce: ((name: string) => void) | null = null;
+  /** 古神是否已被击败（击败后才允许周期刷深渊炮手） */
+  private postHerald = false;
+  /** 深渊炮手刷新倒计时 */
+  private gunnerT = 0;
+  /** 首次是否一次性批量 3 只（之后每次 1 只） */
+  private gunnerFirst = true;
 
   onBoss(cb: (name: string) => void): void {
     this.bossAnnounce = cb;
+  }
+
+  /** 古神被击败：开启深渊炮手的周期刷新（首次立即批量刷 3 只） */
+  onHeraldDown(): void {
+    this.postHerald = true;
+    this.gunnerT = 0;
+    this.gunnerFirst = true;
   }
 
   reset(): void {
     this.acc = 0;
     this.eliteT = ELITE_FIRST;
     this.nextBoss = 0;
+    this.postHerald = false;
+    this.gunnerT = 0;
+    this.gunnerFirst = true;
   }
 
   update(world: World, dt: number, viewW: number, viewH: number): void {
@@ -64,6 +85,40 @@ export class SpawnSystem {
           world.arenaX = e.x;
           world.arenaY = e.y;
           this.bossAnnounce?.(ENEMY_BY_INDEX[idx].name);
+        }
+      }
+    }
+
+    // ——— 深渊炮手：古神死后周期刷新（Boss 存活期间不刷，同屏最多 5 只） ———
+    if (this.postHerald && GUNNER_IDX >= 0 && !this.hasLiveBoss(world)) {
+      this.gunnerT -= dt;
+      if (this.gunnerT <= 0) {
+        this.gunnerT = GUNNER_INTERVAL;
+        // 清点场上存活的深渊炮手
+        let alive = 0;
+        const elist = world.enemies.items;
+        for (let i = 0; i < world.enemies.count; i++) {
+          const g = elist[i];
+          if (!g.dead && g.defIdx === GUNNER_IDX) alive++;
+        }
+        if (alive < GUNNER_MAX) {
+          // 首次一次性补到 3 只，之后每批 1 只；均受同屏上限约束
+          const batch = this.gunnerFirst ? 3 : 1;
+          this.gunnerFirst = false;
+          const hp = hpScale(t);
+          const dmg = damageScale(t);
+          const r = Math.max(viewW, viewH) * 0.5 + SPAWN_MARGIN;
+          for (let b = 0; b < batch && alive + b < GUNNER_MAX; b++) {
+            const a = world.rng.next() * TAU;
+            spawnEnemy(
+              world,
+              GUNNER_IDX,
+              p.x + Math.cos(a) * r,
+              p.y + Math.sin(a) * r,
+              hp,
+              dmg,
+            );
+          }
         }
       }
     }

@@ -53,8 +53,9 @@ export const enum Tex {
   IconArmor = 39,
   IconWisdom = 40,
   IconCrit = 41,
+  Gunner = 42,
 
-  COUNT = 42,
+  COUNT = 43,
 }
 
 export const TEX_SIZE = 64;

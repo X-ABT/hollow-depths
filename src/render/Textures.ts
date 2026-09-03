@@ -459,6 +459,23 @@ export function drawTex(g: G, key: number): void {
       });
       break;
     }
+    case Tex.Gunner: {
+      // 深渊炮手：环形炮台核心 + 一圈小炮管（区别于甲壳/面具）
+      g.circle(32, 32, 24).fill({ color: 0x1e1636, alpha: 0.95 });
+      g.circle(32, 32, 24).stroke({ width: 2, color: 0x6b6189, alpha: 0.9 });
+      // 八根外伸炮管
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const x = 32 + Math.cos(a) * 20;
+        const y = 32 + Math.sin(a) * 20;
+        g.circle(x, y, 4).fill({ color: 0x7c5cff, alpha: 0.85 });
+      }
+      // 中央发光炮口
+      glow(g, 32, 32, 16, C.bad, 0.9);
+      g.circle(32, 32, 8).fill({ color: 0xff5470, alpha: 0.95 });
+      g.circle(32, 32, 8).stroke({ width: 1.4, color: 0xffd9a0, alpha: 0.9 });
+      break;
+    }
     default:
       g.circle(32, 32, 20).fill({ color: 0xff00ff, alpha: 0.6 });
       break;

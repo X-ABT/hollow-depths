@@ -30,7 +30,7 @@ export class TitleScreen {
         <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或 方向键 移动，武器自动开火</div>
         <div>移动端：左半屏任意位置按下拖动即可移动</div>
         <div>击杀敌人拾取灵魂碎片，升级时三选一构筑你的流派</div>
-        <div>存活 12 分钟即通关，5:00 / 8:00 / 10:00 各有一次 Boss 战</div>
+        <div>击败最终 Boss「终焉」即可通关，5:00 / 8:00 / 12:00 各有一次 Boss 战</div>
         <div><kbd>Esc</kbd> 或 <kbd>P</kbd> 暂停</div>
       </div>
     `;
