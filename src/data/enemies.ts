@@ -78,17 +78,17 @@ export const ENEMIES: readonly EnemyDef[] = [
     name: '幻影',
     sprite: Tex.Phantom,
     hp: 12,
-    speed: 132,
-    damage: 7,
+    speed: 104,
+    damage: 6,
     radius: 12,
     xp: 3,
     ai: Ai.Blink,
     armor: 0,
     elite: false,
     boss: false,
-    // 每 1.8s 瞬移 130px
-    p0: 1.8,
-    p1: 130,
+    // 每 2.2s 瞬移 100px：保留「难命中」的特色，但不再高频贴脸
+    p0: 2.2,
+    p1: 100,
   },
   {
     id: 'grub',

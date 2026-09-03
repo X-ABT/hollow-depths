@@ -23,7 +23,8 @@ export const SPAWN_TABLE: readonly SpawnEntry[] = [
   { id: 'swarmling', from: 0, weight: 34 },
   { id: 'wraith', from: 0, weight: 26 },
   { id: 'slime', from: 60, weight: 16 },
-  { id: 'phantom', from: 120, weight: 18 },
+  // 幻影是唯一会瞬移的高速怪，单只威胁大，刻意压低权重让它是「点缀」而非主力
+  { id: 'phantom', from: 120, weight: 6 },
   { id: 'grub', from: 180, weight: 16 },
 ];
 
