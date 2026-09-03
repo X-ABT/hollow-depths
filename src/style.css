@@ -1098,29 +1098,66 @@ body.is-touch .touch-only {
 
 /* ============================ 自适应 ============================ */
 @media (max-width: 640px) {
+  /* —— 移动端顶部 HUD：血条换行独占整行，变大更清晰 —— */
+  .hud-top {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    top: calc(10px + var(--safe-t));
+    left: calc(10px + var(--safe-l));
+    right: calc(10px + var(--safe-r));
+    gap: 8px;
+  }
   .hud-hp {
-    width: 34vw;
-    height: 14px;
+    width: 100%; /* 血条独占第一行，铺满宽度 */
+    height: 18px;
+    border-radius: 9px;
+  }
+  .hud-hp > i {
+    border-radius: 8px;
   }
   .hud-hp-text {
-    font-size: 10px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .hud-xp {
+    height: 12px; /* 经验条在第二行，给足高度 */
+    min-width: 40%;
+  }
+  .hud-lv {
+    min-width: 40px;
+    font-size: 15px;
   }
   .hud-clock {
-    font-size: 13px;
-    min-width: 52px;
+    min-width: 56px;
+    font-size: 16px;
   }
   .hud-kills {
     display: none;
   }
+  .hud-boss {
+    top: calc(80px + var(--safe-t));
+    width: 80vw;
+  }
+  .hud-boss-name {
+    font-size: 12px;
+  }
+
+  /* —— 武器 / 被动槽放大 —— */
+  .hud-slots {
+    bottom: calc(10px + var(--safe-b));
+    left: calc(10px + var(--safe-l));
+    gap: 5px;
+  }
   .slot {
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
   }
   .slot canvas,
   .slot img {
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
   }
+
   .card {
     min-height: 178px;
     padding: 14px 12px 14px;
@@ -1137,6 +1174,21 @@ body.is-touch .touch-only {
   .perf {
     font-size: 10px;
     min-width: 128px;
+  }
+
+  /* —— 弹层 / 结算：手机屏幕矮时可滚动，避免底部被裁切 —— */
+  .overlay {
+    justify-content: flex-start;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-top: calc(20px + var(--safe-t));
+    gap: 14px;
+  }
+  .overlay-title {
+    font-size: 24px;
+  }
+  .result-actions {
+    margin-bottom: 12px;
   }
 }
 
