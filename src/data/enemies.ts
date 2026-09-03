@@ -86,9 +86,9 @@ export const ENEMIES: readonly EnemyDef[] = [
     armor: 0,
     elite: false,
     boss: false,
-    // 每 2.2s 瞬移 100px：保留「难命中」的特色，但不再高频贴脸
-    p0: 2.2,
-    p1: 100,
+    // 每 3s 瞬移 120px：瞬移更少（少贴脸骚扰），但单次瞬得更远更难命中
+    p0: 3,
+    p1: 120,
   },
   {
     id: 'grub',

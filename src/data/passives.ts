@@ -64,9 +64,9 @@ export const PASSIVES: readonly PassiveDef[] = [
     icon: Tex.IconMirror,
     maxLevel: 5,
     desc: '每次攻击额外生成投射物或分身。',
-    lvlText: (lv) => `投射物数量 +${Math.floor((lv + 1) / 2)}`,
+    lvlText: (lv) => `投射物数量 +${lv}`,
     apply: (s, lv) => {
-      s.projBonus += Math.floor((lv + 1) / 2);
+      s.projBonus += lv; // 每级 +1 投射物数量
     },
   },
   {

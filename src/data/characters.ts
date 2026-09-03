@@ -43,7 +43,8 @@ export const CHARACTERS: readonly CharacterDef[] = [
     icon: Tex.Player,
     base: {
       hp: 100,
-      speed: 190,
+      // 基础移速 +10%（方便走位闪避）
+      speed: 209,
       // 经验吸取/磁吸范围：设为较大值，Boss 战清怪时经验自动涌入，无需冒死走过去捡
       pickupRange: 300,
       critChance: 0.05,
