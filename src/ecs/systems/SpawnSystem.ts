@@ -96,7 +96,12 @@ export class SpawnSystem {
       this.acc = 0;
       return;
     }
-    this.acc += spawnRate(t) * densityMul(t) * dt;
+    // Boss 战：场上存活的怪大多是 Boss 附近的伴生怪，让玩家难以安全清怪。
+    // 大幅降低普通怪的补充刷新，让 Boss 战聚焦在 Boss 本体与其主动召唤物上，
+    // 避免「Boss 带着铺天盖地的小怪」同时追着玩家。
+    let rate = spawnRate(t) * densityMul(t);
+    if (this.hasLiveBoss(world)) rate *= 0.12;
+    this.acc += rate * dt;
     const half = Math.max(viewW, viewH) * 0.5 + SPAWN_MARGIN;
     let guard = 64; // 单步生成上限，防止极端掉帧后一次性铺满
     const hp = hpScale(t);
@@ -110,6 +115,15 @@ export class SpawnSystem {
       const y = p.y + Math.sin(a) * half;
       spawnEnemy(world, pick, x, y, hp, dmg);
     }
+  }
+
+  /** 场上是否有存活 Boss */
+  private hasLiveBoss(world: World): boolean {
+    const list = world.enemies.items;
+    for (let i = 0; i < world.enemies.count; i++) {
+      if (list[i].isBoss && !list[i].dead) return true;
+    }
+    return false;
   }
 
   /** 按权重随机挑选一个「已到出场时间」的敌人表项，返回总表下标 */

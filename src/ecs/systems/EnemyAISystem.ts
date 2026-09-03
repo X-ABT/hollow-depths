@@ -166,7 +166,10 @@ export class EnemyAISystem {
               e.timer = 3.2;
               for (let k = 0; k < 3; k++) {
                 const a = rng.next() * TAU;
-                spawnEnemy(world, 1, e.x + Math.cos(a) * 70, e.y + Math.sin(a) * 70, 1.6, 1);
+                // Boss 召唤的小怪：作为骚扰手段，几乎不给经验，
+                // 避免玩家为捡它们冒死冲进 Boss 攻击范围
+                const s = spawnEnemy(world, 1, e.x + Math.cos(a) * 70, e.y + Math.sin(a) * 70, 1.6, 1);
+                if (s) s.xp = 0.3;
               }
             }
           } else if (phase === 1) {
@@ -214,7 +217,9 @@ export class EnemyAISystem {
               e.timer = 2.2;
               for (let k = 0; k < 2; k++) {
                 const a = rng.next() * TAU;
-                spawnEnemy(world, 4, e.x + Math.cos(a) * 70, e.y + Math.sin(a) * 70, 1.5, 1);
+                // 同上：Boss 召唤的骚扰小怪几乎不掉经验
+                const s = spawnEnemy(world, 4, e.x + Math.cos(a) * 70, e.y + Math.sin(a) * 70, 1.5, 1);
+                if (s) s.xp = 0.3;
               }
             }
           }

@@ -44,7 +44,8 @@ export const CHARACTERS: readonly CharacterDef[] = [
     base: {
       hp: 100,
       speed: 190,
-      pickupRange: 150,
+      // 经验吸取/磁吸范围：设为较大值，Boss 战清怪时经验自动涌入，无需冒死走过去捡
+      pickupRange: 300,
       critChance: 0.05,
       critMult: 2,
       armor: 0,
