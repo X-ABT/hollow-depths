@@ -1,8 +1,10 @@
 /**
  * 统一输入：桌面键盘 + 移动端虚拟摇杆，对外只暴露一个归一化方向向量。
  *
- * 移动端摇杆不固定在屏幕某点，而是在「左半屏任意位置按下」处生成，
- * 这样横屏/竖屏、大屏/小屏都能自然贴合拇指位置。
+ * 移动端摇杆采用「半固定」：平时常显一个半透明底座在屏幕底部中央，
+ * 方便玩家定位；手指在下方操作区按下时底座跟随到手指处并高亮，松手后
+ * 回到底部中央常显。摇杆元素作为 ui-root 直接子元素，用视口坐标定位，
+ * 保证横竖屏、任意分辨率下位置都准确。
  */
 export class Input {
   /** 归一化移动方向（长度 ≤ 1） */
@@ -21,6 +23,11 @@ export class Input {
   private stickDx = 0;
   private stickDy = 0;
   private readonly maxR = 46;
+  /** 底座在底部中央的停留位置（松手后回到这里） */
+  private homeX = 0;
+  private homeY = 0;
+  /** 回弹动画中的当前还原计时（给一次 transition 时间） */
+  private returnT = 0;
 
   attach(root: HTMLElement): void {
     this.isTouch = matchMedia('(hover: none) and (pointer: coarse)').matches || 'ontouchstart' in window;
@@ -30,21 +37,59 @@ export class Input {
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.onBlur);
 
-    if (this.isTouch) this.buildStick(root);
+    if (this.isTouch) {
+      this.buildStick(root);
+      window.addEventListener('resize', this.onResize);
+    }
+  }
+
+  private onResize = (): void => {
+    // 视口变化时重算底部中央停留点
+    this.updateHome();
+    this.homeStick();
+  };
+
+  /** 计算底部中央的摇杆停留点（避开底部 HUD / 安全区，保留操作空间） */
+  private updateHome(): void {
+    const safe = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-b')) || 0;
+    const small = Math.min(window.innerWidth, window.innerHeight) < 480;
+    this.homeX = window.innerWidth / 2;
+    // 底部中央，略微上抬给最底部 HUD/安全区留白；小屏适当下移贴近拇指
+    this.homeY = window.innerHeight - (small ? 92 : 112) - safe;
+  }
+
+  /** 把底座移回底部中央停留点 */
+  private homeStick(): void {
+    if (!this.stickEl) return;
+    this.stickEl.style.transition = 'left 0.18s ease, top 0.18s ease, opacity 0.15s ease, transform 0.18s cubic-bezier(0.2,0.9,0.3,1.2)';
+    this.stickEl.style.left = `${this.homeX}px`;
+    this.stickEl.style.top = `${this.homeY}px`;
+    this.stickEl.classList.remove('is-on');
+    const knob = this.stickEl.firstElementChild as HTMLElement | null;
+    if (knob) {
+      knob.style.transition = 'transform 0.18s cubic-bezier(0.2,0.9,0.3,1.2)';
+      knob.style.transform = 'translate(0px, 0px)';
+    }
   }
 
   private buildStick(root: HTMLElement): void {
+    // 事件捕获区：覆盖屏幕下方中央的操作区（不含左右最边缘，避免误触）
     const zone = document.createElement('div');
     zone.className = 'stick-zone touch-only';
+    root.appendChild(zone);
+    this.zoneEl = zone;
+
+    // 视觉底座：直接挂 ui-root（视口坐标），常显半透明
     const stick = document.createElement('div');
-    stick.className = 'stick';
+    stick.className = 'stick touch-only';
     const knob = document.createElement('div');
     knob.className = 'stick-knob';
     stick.appendChild(knob);
-    zone.appendChild(stick);
-    root.appendChild(zone);
-    this.zoneEl = zone;
+    root.appendChild(stick);
     this.stickEl = stick;
+
+    this.updateHome();
+    this.homeStick();
 
     zone.addEventListener('pointerdown', this.onStickDown);
     zone.addEventListener('pointermove', this.onStickMove);
@@ -56,15 +101,24 @@ export class Input {
   private onStickDown = (e: PointerEvent): void => {
     if (this.stickId !== -1) return;
     this.stickId = e.pointerId;
-    this.zoneEl?.setPointerCapture(e.pointerId);
     this.stickOx = e.clientX;
     this.stickOy = e.clientY;
     this.stickDx = 0;
     this.stickDy = 0;
     if (this.stickEl) {
+      // 跟手：底座移到按下位置并高亮（平滑过渡关掉避免拖动迟滞）
+      this.stickEl.style.transition = '';
       this.stickEl.style.left = `${e.clientX}px`;
       this.stickEl.style.top = `${e.clientY}px`;
       this.stickEl.classList.add('is-on');
+      const knob = this.stickEl.firstElementChild as HTMLElement | null;
+      if (knob) knob.style.transition = '';
+    }
+    // 捕获指针以便在 zone 外继续跟随（真实指针才有效，包 try 兜底）
+    try {
+      this.zoneEl?.setPointerCapture(e.pointerId);
+    } catch {
+      /* 捕获失败（如非真实指针）不阻断摇杆 */
     }
     e.preventDefault();
   };
@@ -93,11 +147,9 @@ export class Input {
     this.stickId = -1;
     this.stickDx = 0;
     this.stickDy = 0;
-    if (this.stickEl) {
-      this.stickEl.classList.remove('is-on');
-      const knob = this.stickEl.firstElementChild as HTMLElement | null;
-      if (knob) knob.style.transform = 'translate(0px, 0px)';
-    }
+    // 松手：底座回到底部中央常显
+    this.homeStick();
+    void e;
   };
 
   private onKeyDown = (e: KeyboardEvent): void => {

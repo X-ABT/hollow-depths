@@ -1034,32 +1034,44 @@ body.is-touch .touch-only {
 }
 
 .stick-zone {
-  position: absolute;
-  left: 0;
+  /* 事件捕获区：覆盖屏幕下方居中的一块，作为摇杆操作范围 */
+  position: fixed;
+  left: 18%;
+  right: 18%;
   bottom: 0;
-  width: 46%;
-  height: 52%;
+  top: 58%;
   pointer-events: auto;
+  z-index: 5;
+  touch-action: none;
 }
 
 .stick {
+  /* 视觉底座：直接挂 ui-root（全屏，坐标 = 视口），常显半透明供定位 */
   position: absolute;
-  width: 116px;
-  height: 116px;
-  margin: -58px 0 0 -58px;
-  border: 2px solid rgba(67, 224, 255, 0.3);
+  width: 118px;
+  height: 118px;
+  margin: -59px 0 0 -59px;
+  border: 2px solid rgba(67, 224, 255, 0.5);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(124, 92, 255, 0.14), rgba(10, 7, 19, 0.28));
-  opacity: 0;
-  transform: scale(0.7);
+  background: radial-gradient(circle, rgba(124, 92, 255, 0.28), rgba(10, 7, 19, 0.45));
+  opacity: 0.42;
+  box-shadow:
+    0 0 18px rgba(67, 224, 255, 0.18),
+    inset 0 0 12px rgba(124, 92, 255, 0.12);
   transition:
     opacity 0.16s ease,
-    transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+  z-index: 6;
+  pointer-events: none;
 }
 
 .stick.is-on {
-  opacity: 1;
-  transform: scale(1);
+  opacity: 0.95;
+  border-color: rgba(67, 224, 255, 0.8);
+  box-shadow:
+    0 0 24px rgba(67, 224, 255, 0.4),
+    inset 0 0 16px rgba(124, 92, 255, 0.22);
 }
 
 .stick-knob {
@@ -1072,6 +1084,14 @@ body.is-touch .touch-only {
   border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, #9fe9ff, var(--p-soul));
   box-shadow: 0 0 18px rgba(67, 224, 255, 0.7);
+}
+
+/* 底部 HUD 控件叠在摇杆捕获区之上，保证可点 */
+.hud-slots,
+.btn-pause,
+.hud-zoom,
+.music-toggle {
+  z-index: 30;
 }
 
 .btn-pause {
