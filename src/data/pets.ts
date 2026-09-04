@@ -8,11 +8,11 @@ export const RARITY_LABEL: Record<PetRarity, string> = {
   legend: '传说',
 };
 
-/** 抽奖内部概率（在 10% 的「出宠物」份额内再按稀有度分层；单抽总出宠物 = 10%） */
+/** 抽奖内部概率（在 20% 的「出宠物」份额内再按稀有度分层；单抽总出宠物 = 20%） */
 export const RARITY_CHANCE: Record<PetRarity, number> = {
-  common: 0.095, // 普通 9.5%（6 只平分 → 每只约 1.58%）
-  rare: 0.0049, // 稀有 0.49%（4 只平分 → 每只约 0.12%）
-  legend: 0.0001, // 传说 0.01%（2 只平分 → 每只约 0.005%）
+  common: 0.19, // 普通 19%（6 只平分 → 每只约 3.17%）
+  rare: 0.0091, // 稀有 0.91%（4 只平分 → 每只约 0.23%）
+  legend: 0.0009, // 传说 0.09%（2 只平分 → 每只约 0.045%）
 };
 
 export interface PetDef {
@@ -71,8 +71,8 @@ export const FREE_PET: PetDef = PET_BY_ID['budling'];
 export const RARITY_RANK: Record<PetRarity, number> = { common: 0, rare: 1, legend: 2 };
 
 // ——————————————————— 抽奖 ———————————————————
-/** 每抽 90% 出宠物粮食，10% 出宠物 */
-export const GACHA_FOOD_CHANCE = 0.9;
+/** 每抽 80% 出宠物粮食，20% 出宠物 */
+export const GACHA_FOOD_CHANCE = 0.8;
 /** 单抽价格（灵魂） */
 export const GACHA_SINGLE_COST = 200;
 /** 十连价格（灵魂，九折） */
@@ -115,14 +115,14 @@ function rollFoodBags(rngNext: () => number): number {
 
 /**
  * 单次抽奖纯函数（rngNext() 应返回 0..1 的均匀随机数）。
- * 概率：90% 出粮袋（数量 1/5/10/20/50/100 按权重）；10% 出宠物，
- * 宠物内再按 RARITY_CHANCE 分层（普通 9.5% / 稀有 0.49% / 传说 0.01%）、同层内均分。
+ * 概率：80% 出粮袋（数量 1/5/10/20/50/100 按权重）；20% 出宠物，
+ * 宠物内再按 RARITY_CHANCE 分层（普通 19% / 稀有 0.91% / 传说 0.09%）、同层内均分。
  */
 export function rollGacha(rngNext: () => number): GachaResult {
   const r = rngNext();
   if (r < GACHA_FOOD_CHANCE) return { kind: 'food', count: rollFoodBags(rngNext) };
-  // 宠物：在 10% 份额里按稀有度权重二段判定
-  const total = RARITY_CHANCE.common + RARITY_CHANCE.rare + RARITY_CHANCE.legend; // =0.1
+  // 宠物：在 20% 份额里按稀有度权重二段判定
+  const total = RARITY_CHANCE.common + RARITY_CHANCE.rare + RARITY_CHANCE.legend; // =0.2
   let roll = (r - GACHA_FOOD_CHANCE) / total; // 归一到 0..1
   let rarity: PetRarity = 'common';
   if (roll >= RARITY_CHANCE.common / total) {
@@ -169,9 +169,9 @@ export function petSlotCount(ownedCount: number): number {
 // ——————————————————— 碎片与碎片商店 ———————————————————
 /** 重复宠物自动分解所得碎片（按稀有度） */
 export const DUP_SHARDS: Record<PetRarity, number> = {
-  common: 20,
-  rare: 60,
-  legend: 200,
+  common: 40,
+  rare: 120,
+  legend: 400,
 };
 /** 碎片商店兑换指定宠物的碎片价（变相保底） */
 export const PET_SHOP_COST: Record<PetRarity, number> = {

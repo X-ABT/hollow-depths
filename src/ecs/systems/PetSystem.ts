@@ -5,8 +5,8 @@ import type { Vfx } from '../../render/Vfx';
 
 /**
  * 出战宠物的 AI（独立于敌人/投射物体系）：
- * - 跟随玩家；附近有敌人时冲向最近的敌人；
- * - 攻击是**单体爪击**：只对最近目标造成一次伤害，命中处闪现「三条竖线」爪痕；
+ * - 跟随玩家；索敌采用「近距 + 当前血量」加权评分，在扫描半径内选又近、血又厚的敌人追击/爪击；
+ * - 攻击是**单体爪击**：只对选定的目标造成一次伤害，命中处闪现「三条竖线」爪痕；
  * - 被敌人接触会掉血，血归零不死亡：灰心逃回玩家身边数秒后满血回归（期间无敌）。
  */
 const PET_CHASE = 205;
@@ -29,6 +29,8 @@ const PET_SRC_BASE = 3000;
 
 export class PetSystem {
   private vfx: Vfx | null = null;
+  /** 索敌候选缓冲（复用，避免热路径分配；巨型宠扫描半径大，容量需足够） */
+  private readonly qbuf = new Int32Array(2048);
 
   attachVfx(vfx: Vfx): void {
     this.vfx = vfx;
@@ -70,44 +72,59 @@ export class PetSystem {
         pet.atkCd -= dt;
         pet.hurtCd -= dt;
 
-        // 索敌：优先看撕咬可达范围内是否有敌人（巨型宠直接原地一口）
+        // 索敌：扫描半径内按「当前血量 × 就近衰减」评分选最优目标，
+        // 倾向又近、血又厚的敌人（Boss/精英被优先照顾，输出不浪费在残血小怪上）；
+        // 巨型宠扫描半径大，可直接朝远处高价值目标奔袭
         const scan = Math.max(PET_REACH_BASE, reach + 120);
-        const idx = world.hash.queryNearest(pet.x, pet.y, scan);
+        const found = world.hash.query(pet.x, pet.y, scan, this.qbuf);
+        let bestIdx = -1;
+        let bestD = 0;
+        let bestScore = -1;
+        for (let k = 0; k < found; k++) {
+          const e = world.enemies.items[this.qbuf[k]];
+          if (!e || e.dead) continue;
+          const dx = e.x - pet.x;
+          const dy = e.y - pet.y;
+          const d = Math.hypot(dx, dy) || 1;
+          // 评分 = 当前血量 × (1 − 距离/扫描半径)：d→0 得分≈血量，d→扫描半径 得分→0
+          const score = e.hp * (1 - d / scan);
+          if (score > bestScore) {
+            bestScore = score;
+            bestIdx = this.qbuf[k];
+            bestD = d;
+          }
+        }
         let moved = false;
-        if (idx >= 0) {
-          const e = world.enemies.items[idx];
-          if (e && !e.dead) {
-            const dx = e.x - pet.x;
-            const dy = e.y - pet.y;
-            const d = Math.hypot(dx, dy) || 1;
-            if (d <= reach + e.radius) {
-              pet.vx = 0;
-              pet.vy = 0;
-              moved = true;
-              if (pet.atkCd <= 0) {
-                pet.atkCd = PET_ATK_BASE + Math.min(0.9, pet.scale * PET_ATK_PER_SCALE);
-                pet.flash = 0.14;
-                // 单体爪击：只打最近这个目标，命中位置亮「三条竖线」
-                const dealt = damageEnemy(
-                  world,
-                  e,
-                  pet.dmg,
-                  PET_SRC_BASE + pet.slot,
-                  -1,
-                  0.45,
-                  0,
-                  1,
-                );
-                if (dealt > 0) {
-                  this.vfx?.claw(e.x, e.y);
-                  this.vfx?.hit(e.x, e.y - 10, dealt, false);
-                }
+        if (bestIdx >= 0) {
+          const e = world.enemies.items[bestIdx];
+          const d = bestD;
+          if (d <= reach + e.radius) {
+            pet.vx = 0;
+            pet.vy = 0;
+            moved = true;
+            if (pet.atkCd <= 0) {
+              pet.atkCd = PET_ATK_BASE + Math.min(0.9, pet.scale * PET_ATK_PER_SCALE);
+              pet.flash = 0.14;
+              // 单体爪击：只打选定的最优目标，命中位置亮「三条竖线」
+              const dealt = damageEnemy(
+                world,
+                e,
+                pet.dmg,
+                PET_SRC_BASE + pet.slot,
+                -1,
+                0.45,
+                0,
+                1,
+              );
+              if (dealt > 0) {
+                this.vfx?.claw(e.x, e.y);
+                this.vfx?.hit(e.x, e.y - 10, dealt, false);
               }
-            } else {
-              pet.vx = (dx / d) * PET_CHASE;
-              pet.vy = (dy / d) * PET_CHASE;
-              moved = true;
             }
+          } else {
+            pet.vx = ((e.x - pet.x) / d) * PET_CHASE;
+            pet.vy = ((e.y - pet.y) / d) * PET_CHASE;
+            moved = true;
           }
         }
         if (!moved) {

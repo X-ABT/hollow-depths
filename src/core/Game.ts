@@ -1,7 +1,7 @@
 import { Application } from 'pixi.js';
 import { Loop } from './Loop';
 import { Input } from './Input';
-import { Build } from './Build';
+import { Build, type UpgradeOption } from './Build';
 import { World } from '../ecs/World';
 import type { Enemy } from '../ecs/Components';
 import { SpawnSystem } from '../ecs/systems/SpawnSystem';
@@ -23,7 +23,6 @@ import { GameOverScreen, type RunResult } from '../ui/GameOverScreen';
 import { ShopScreen } from '../ui/ShopScreen';
 import { PetScreen } from '../ui/PetScreen';
 import { PetPark } from '../ui/PetPark';
-import { PerfHud } from '../ui/PerfHud';
 import { Storage, type SaveData } from '../save/Storage';
 import { Bgm } from '../audio/Bgm';
 import { DEFAULT_CHARACTER } from '../data/characters';
@@ -67,7 +66,6 @@ export class Game {
   private readonly pet = new PetScreen();
   private readonly petPark = new PetPark();
   private petParkOpen = false;
-  private readonly perf: PerfHud;
 
   private readonly bgm = new Bgm();
   private musicBtn: HTMLButtonElement | null = null;
@@ -97,7 +95,6 @@ export class Game {
     this.hud.onZoomOut = () => this.renderer.setZoom(this.renderer.zoom - 0.15);
     this.hud.onZoomReset = () => this.renderer.setZoom(this.defaultZoom);
     this.hud.setZoomLabel(this.renderer.zoom);
-    this.perf = new PerfHud(uiRoot);
 
     atlas.build(app.renderer);
     this.renderer.init(app.renderer);
@@ -307,15 +304,13 @@ export class Game {
     if (this.pauseDialog) this.pauseDialog.style.display = 'none';
     if (this.pauseTip) this.pauseTip.textContent = 'Esc / P 暂停';
     this.hud.setVisible(false);
-    this.perf.setVisible(this.save.perfVisible);
     // 标题页/结算页不播战斗 BGM
     this.bgm.stop();
     this.title.show(this.uiRoot, this.save, {
       onStart: () => this.startRun(),
-      onTogglePerf: () => {
-        this.save.perfVisible = !this.save.perfVisible;
-        this.perf.setVisible(this.save.perfVisible);
-        Storage.save(this.save);
+      onClearData: () => {
+        Storage.reset();
+        location.reload();
       },
       onTogglePause: () => this.togglePause(),
       onShop: () => this.openShop(),
@@ -383,7 +378,6 @@ export class Game {
     this.vfx.reset();
     this.hud.reset();
     this.hud.setVisible(true);
-    this.perf.setVisible(this.save.perfVisible);
     // 每局重置视野到该设备默认倍率（手机 0.5 / 桌面 1.0）
     this.renderer.setZoom(this.defaultZoom);
     this.hud.setZoomLabel(this.defaultZoom);
@@ -515,28 +509,45 @@ export class Game {
     this.showTitle();
   }
 
+  /** 应用一次升级选项并同步到玩家实体（弹窗选择与「仅兜底自动生效」共用） */
+  private applyUpgrade(opt: UpgradeOption): void {
+    this.build.applyOption(opt);
+    // 属性变化后同步到玩家实体
+    const stats = this.build.stats;
+    const pl = this.world.player;
+    const prevMax = pl.maxHp;
+    pl.maxHp = stats.maxHp;
+    pl.hp += Math.max(0, stats.maxHp - prevMax);
+    if (opt.id === '__heal') pl.hp = Math.min(pl.maxHp, pl.hp + 30);
+    this.hud.syncBuild(this.build);
+  }
+
   private showLevelUp(): void {
     if (this.state !== 'playing') return;
-    this.state = 'levelup';
-    // 升级选卡期间关闭摇杆，避免卡片下方的触摸被吞
-    this.input.setEnabled(false);
-    this.loop.setPaused(true);
     const p = this.world.player;
     // 只提供已永久解锁的内容：商店解锁后才能在本局升级池里抽到对应“新武器/新被动”
     const options = this.build.rollOptions(this.world.rng, 3, {
       weapons: new Set(this.save.unlockedWeapons),
       passives: new Set(this.save.unlockedPassives),
     });
+    // 规则判定：本次只有治疗药剂（兜底奖励）可点时，不弹三选一界面，直接自动生效
+    const onlyHeal = options.length > 0 && options.every((o) => o.id === '__heal');
+    if (onlyHeal) {
+      this.applyUpgrade(options[0]);
+      p.pendingLevels--;
+      if (p.pendingLevels > 0) {
+        // 连续升级：继续处理下一级
+        this.showLevelUp();
+      }
+      return;
+    }
+
+    // 升级选卡期间关闭摇杆，避免卡片下方的触摸被吞
+    this.state = 'levelup';
+    this.input.setEnabled(false);
+    this.loop.setPaused(true);
     this.levelUp.show(this.uiRoot, options, this.build, p.level, (opt) => {
-      this.build.applyOption(opt);
-      // 属性变化后同步到玩家实体
-      const stats = this.build.stats;
-      const pl = this.world.player;
-      const prevMax = pl.maxHp;
-      pl.maxHp = stats.maxHp;
-      pl.hp += Math.max(0, stats.maxHp - prevMax);
-      if (opt.id === '__heal') pl.hp = Math.min(pl.maxHp, pl.hp + 30);
-      this.hud.syncBuild(this.build);
+      this.applyUpgrade(opt);
       this.levelUp.hide();
       p.pendingLevels--;
       this.state = 'playing';
@@ -731,18 +742,6 @@ export class Game {
       // 无 Boss 在场时显示下一个 Boss 出现的倒计时（快杀后倍率 >1 时附带标注）
       const next = this.spawn.nextBossInfo(this.world);
       this.hud.setBossCountdown(next ? next.name : null, next ? next.remain : 0, next ? next.mul : 1);
-    }
-
-    if (this.perf.visible) {
-      this.perf.update(frameDt, {
-        fps: this.loop.fps,
-        enemies: this.world.enemies.count,
-        projs: this.world.projs.count,
-        pickups: this.world.pickups.count,
-        visible: this.renderer.visibleCount,
-        drawCalls: this.drawCalls(),
-        steps: this.loop.stepsLastFrame,
-      });
     }
   }
 

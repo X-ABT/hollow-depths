@@ -3,7 +3,8 @@ import type { SaveData } from '../save/Storage';
 
 export interface TitleHandlers {
   onStart: () => void;
-  onTogglePerf: () => void;
+  /** 清除全部存档并刷新页面重加载（由 Game 执行 Storage.reset + reload） */
+  onClearData: () => void;
   onTogglePause: () => void;
   /** 打开商店（仅主界面可用） */
   onShop: () => void;
@@ -13,10 +14,12 @@ export interface TitleHandlers {
   onPark: () => void;
 }
 
-/** 标题页：进入游戏 / 商店 / 玩法说明 / 性能面板开关 */
+/** 标题页：进入游戏 / 商店 / 玩法说明 / 清除数据 */
 export class TitleScreen {
   private el: HTMLDivElement | null = null;
   private soulsEl: HTMLElement | null = null;
+  private root: HTMLElement | null = null;
+  private clearEl: HTMLDivElement | null = null;
 
   show(root: HTMLElement, save: SaveData, h: TitleHandlers): void {
     this.hide();
@@ -34,7 +37,7 @@ export class TitleScreen {
         <button class="btn" data-act="pet">饲养园</button>
         <button class="btn" data-act="park">宠物园</button>
         <button class="btn" data-act="help">玩法说明</button>
-        <button class="btn btn--ghost" data-act="perf">性能面板</button>
+        <button class="btn btn--ghost" data-act="clear">清除数据</button>
       </div>
       <div class="title-best"></div>
       <div class="title-help" hidden>
@@ -51,6 +54,7 @@ export class TitleScreen {
     `;
     root.appendChild(el);
     this.el = el;
+    this.root = root;
     this.soulsEl = el.querySelector('.title-soul b') as HTMLElement;
 
     const best = el.querySelector('.title-best') as HTMLElement;
@@ -66,12 +70,46 @@ export class TitleScreen {
     el.querySelector('[data-act="shop"]')?.addEventListener('click', h.onShop);
     el.querySelector('[data-act="pet"]')?.addEventListener('click', h.onPet);
     el.querySelector('[data-act="park"]')?.addEventListener('click', h.onPark);
-    el.querySelector('[data-act="perf"]')?.addEventListener('click', h.onTogglePerf);
+    el.querySelector('[data-act="clear"]')?.addEventListener('click', () => this.openClearConfirm(h));
     const help = el.querySelector('.title-help') as HTMLElement;
     el.querySelector('[data-act="help"]')?.addEventListener('click', () => {
       help.hidden = !help.hidden;
     });
     void h.onTogglePause;
+  }
+
+  /** 打开「是否清除数据」确认弹层（带不可逆警告） */
+  private openClearConfirm(h: TitleHandlers): void {
+    this.closeClearConfirm();
+    if (!this.root) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'clear-confirm';
+    overlay.innerHTML = `
+      <div class="clear-card">
+        <h2 class="clear-title">是否清除数据？</h2>
+        <p class="clear-warn">将清空全部进度（灵魂 / 宠物 / 解锁 / 设置），不可恢复。</p>
+        <div class="clear-actions">
+          <button class="btn btn--ghost" data-act="cancel">取消</button>
+          <button class="btn clear-danger" data-act="ok">确定清除</button>
+        </div>
+      </div>
+    `;
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) this.closeClearConfirm();
+    });
+    overlay.querySelector('[data-act="cancel"]')?.addEventListener('click', () => this.closeClearConfirm());
+    overlay.querySelector('[data-act="ok"]')?.addEventListener('click', () => {
+      this.closeClearConfirm();
+      h.onClearData();
+    });
+    this.root.appendChild(overlay);
+    this.clearEl = overlay;
+  }
+
+  /** 关闭确认弹层（若已打开） */
+  private closeClearConfirm(): void {
+    this.clearEl?.remove();
+    this.clearEl = null;
   }
 
   /** 商店购买/结算入账后刷新灵魂余额显示（标题 DOM 仍保留） */
@@ -80,8 +118,10 @@ export class TitleScreen {
   }
 
   hide(): void {
+    this.closeClearConfirm();
     this.el?.remove();
     this.el = null;
     this.soulsEl = null;
+    this.root = null;
   }
 }

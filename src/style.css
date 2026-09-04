@@ -1081,41 +1081,81 @@ body {
   animation: breathe 1.8s ease-in-out infinite;
 }
 
-/* ============================ 性能面板 ============================ */
-.perf {
+/* ============================ 清除数据确认面板 ============================ */
+.clear-confirm {
   position: absolute;
-  top: calc(40px + var(--safe-t));
-  right: calc(12px + var(--safe-r));
-  min-width: 148px;
-  padding: 9px 11px;
-  border: 1px solid rgba(67, 224, 255, 0.28);
-  border-radius: var(--r-sm);
-  background: rgba(10, 7, 19, 0.74);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  font-size: 11px;
-  line-height: 1.75;
-  color: var(--t-mid);
-  font-variant-numeric: tabular-nums;
-  pointer-events: none;
-  white-space: pre;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(6, 4, 12, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: fade-in 0.18s ease both;
 }
 
-.perf b {
-  color: var(--p-soul);
+.clear-card {
+  width: min(360px, 100%);
+  padding: 26px 24px 22px;
+  border: 1px solid rgba(67, 224, 255, 0.35);
+  border-radius: var(--r-md);
+  background: rgba(10, 7, 19, 0.86);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(67, 224, 255, 0.12),
+    0 0 36px rgba(67, 224, 255, 0.16);
+  text-align: center;
+  animation: pop-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.clear-title {
+  margin: 0 0 10px;
+  font-family: var(--font);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--t-bright);
+  letter-spacing: 0.04em;
+}
+
+.clear-warn {
+  margin: 0 0 22px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--t-mid);
+}
+
+.clear-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.clear-danger {
+  border-color: rgba(255, 92, 92, 0.55);
+  background: linear-gradient(180deg, rgba(255, 92, 92, 0.24), rgba(255, 92, 92, 0.07));
+  color: #ffd2d2;
   font-weight: 700;
 }
 
-.perf b.warn {
-  color: var(--c-warn);
+.clear-danger:hover {
+  border-color: #ff5c5c;
+  color: #fff;
+  box-shadow:
+    0 10px 30px rgba(255, 92, 92, 0.28),
+    0 0 0 1px rgba(255, 92, 92, 0.3);
 }
 
-.perf b.bad {
-  color: var(--c-bad);
-}
-
-.perf[hidden] {
-  display: none;
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ============================ 移动端控制 ============================ */
@@ -1455,10 +1495,6 @@ body.is-touch .hud-zoom {
   .card-icon img {
     width: 32px;
     height: 32px;
-  }
-  .perf {
-    font-size: 10px;
-    min-width: 128px;
   }
 
   /* —— 弹层 / 结算：手机屏幕矮时可滚动，避免底部被裁切 —— */
@@ -2147,7 +2183,6 @@ body.park-open #ui-root > .music-toggle,
 body.park-open #ui-root > .cheat-btn,
 body.park-open #ui-root > .cheat-input,
 body.park-open #ui-root > .hud-pause-tip,
-body.park-open #ui-root > .perf-hud,
 body.park-open #ui-root > .btn-pause,
 body.park-open #ui-root > .stick-zone,
 body.park-open #ui-root > .stick {

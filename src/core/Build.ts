@@ -256,13 +256,13 @@ export class Build {
       else break;
     }
 
-    // 池子全空时的兜底：回血
+    // 池子全空时的兜底：回血（实际生效效果由 Game 处理：立即恢复 30 点生命）
     while (opts.length < count) {
       opts.push({
         kind: 'passive',
         id: '__heal',
         title: '治疗药剂',
-        desc: '立即恢复 30 点生命，并提升 5 点生命上限。',
+        desc: '立即恢复 30 点生命。',
         sub: '兜底奖励',
         icon: 38,
       });
@@ -280,11 +280,8 @@ export class Build {
       this.addWeapon(opt.id);
       return;
     }
-    if (opt.id === '__heal') {
-      this.stats.maxHp += 5;
-      this.recompute();
-      return;
-    }
+    // __heal（兜底治疗）不产生 build 属性变化，恢复效果由 Game 单独应用；
+    // 落到 addPassive 会因被动表内不存在该 id 而安全 no-op
     this.addPassive(opt.id);
   }
 }

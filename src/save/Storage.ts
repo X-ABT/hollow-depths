@@ -10,7 +10,6 @@ export interface SaveData {
   bestLevel: number;
   runs: number;
   wins: number;
-  perfVisible: boolean;
   /** 跨局永久「灵魂」，单位为 0.01（1 灵魂 = 100） */
   soulCents: number;
   /** 商店历史购买次数：当前购买价 = 3 + purchases（首件 3，逐次 +1） */
@@ -45,7 +44,6 @@ const DEFAULT: SaveData = {
   bestLevel: 1,
   runs: 0,
   wins: 0,
-  perfVisible: false,
   soulCents: 0,
   purchases: 0,
   unlockedWeapons: [...DEFAULT_UNLOCKED_WEAPONS],
