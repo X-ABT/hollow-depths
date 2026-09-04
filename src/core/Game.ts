@@ -19,6 +19,7 @@ import { Hud } from '../ui/Hud';
 import { TitleScreen } from '../ui/TitleScreen';
 import { LevelUpModal } from '../ui/LevelUpModal';
 import { GameOverScreen, type RunResult } from '../ui/GameOverScreen';
+import { ShopScreen } from '../ui/ShopScreen';
 import { PerfHud } from '../ui/PerfHud';
 import { Storage, type SaveData } from '../save/Storage';
 import { Bgm } from '../audio/Bgm';
@@ -56,6 +57,7 @@ export class Game {
   private readonly title = new TitleScreen();
   private readonly levelUp = new LevelUpModal();
   private readonly gameOver = new GameOverScreen();
+  private readonly shop = new ShopScreen();
   private readonly perf: PerfHud;
 
   private readonly bgm = new Bgm();
@@ -65,7 +67,16 @@ export class Game {
   private save: SaveData = Storage.load();
   private manualPause = false;
   private pauseTip: HTMLElement | null = null;
+  private pauseDialog: HTMLDivElement | null = null;
+  private pauseSoulEl: HTMLElement | null = null;
   private bossTimer = 0;
+  /** 是否触屏/手机端：初始视野 0.5、可缩放到 0.3 */
+  private mobile = false;
+
+  /** 该设备的默认视野倍率：手机 0.5，桌面 1.0（重置视野也回到它） */
+  private get defaultZoom(): number {
+    return this.mobile ? 0.5 : 1;
+  }
 
   private readonly uiRoot: HTMLElement;
 
@@ -75,7 +86,7 @@ export class Game {
     this.hud = new Hud(uiRoot);
     this.hud.onZoomIn = () => this.renderer.setZoom(this.renderer.zoom + 0.15);
     this.hud.onZoomOut = () => this.renderer.setZoom(this.renderer.zoom - 0.15);
-    this.hud.onZoomReset = () => this.renderer.setZoom(1);
+    this.hud.onZoomReset = () => this.renderer.setZoom(this.defaultZoom);
     this.hud.setZoomLabel(this.renderer.zoom);
     this.perf = new PerfHud(uiRoot);
 
@@ -89,7 +100,11 @@ export class Game {
     this.ai.attachVfx(this.vfx);
 
     this.input.attach(uiRoot);
-    this.input.onPause = () => this.togglePause();
+    // 手机端视野规则：初始 0.5，最小可缩放到 0.3
+    this.mobile = this.input.isTouch;
+    if (this.mobile) this.renderer.zoomMin = 0.3;
+    // 键盘（Esc / P）与暂停按钮行为一致：弹出「继续 / 退出」窗口
+    this.input.onPause = () => this.openPauseDialog();
     this.pickup.onChest = (times) => {
       this.world.player.pendingLevels += times;
     };
@@ -157,12 +172,12 @@ export class Game {
     btn.className = 'btn btn--ghost btn-pause touch-only';
     btn.textContent = '‖';
     btn.setAttribute('aria-label', '暂停');
-    btn.addEventListener('click', () => this.togglePause());
+    btn.addEventListener('click', () => this.openPauseDialog());
     this.uiRoot.appendChild(btn);
 
     const tip = document.createElement('div');
     tip.className = 'hud-pause-tip';
-    tip.textContent = 'Esc 暂停';
+    tip.textContent = 'Esc / P 暂停';
     this.uiRoot.appendChild(tip);
     this.pauseTip = tip;
 
@@ -178,6 +193,41 @@ export class Game {
     this.uiRoot.appendChild(music);
     this.musicBtn = music;
     this.refreshMusicBtn();
+
+    // —— 隐蔽测试码按钮（内部调试用：外观极小、低存在感，输入 541888 发放灵魂）——
+    const cheat = document.createElement('button');
+    cheat.className = 'cheat-btn';
+    cheat.setAttribute('aria-label', '调试');
+    cheat.textContent = '·';
+    const cheatInput = document.createElement('input');
+    cheatInput.className = 'cheat-input';
+    cheatInput.type = 'text';
+    cheatInput.inputMode = 'numeric';
+    cheatInput.autocomplete = 'off';
+    cheatInput.maxLength = 12;
+    cheatInput.placeholder = 'CODE';
+    cheatInput.style.display = 'none';
+    this.uiRoot.appendChild(cheat);
+    this.uiRoot.appendChild(cheatInput);
+    cheat.addEventListener('click', () => {
+      cheatInput.style.display = cheatInput.style.display === 'none' ? 'block' : 'none';
+      if (cheatInput.style.display === 'block') cheatInput.focus();
+    });
+    cheatInput.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      if (cheatInput.value.trim() === '541888') {
+        this.save.soulCents += 99999999 * 100;
+        Storage.save(this.save);
+        this.title.refreshSouls(this.save.soulCents);
+        if (this.shop.visible) this.shop.refresh();
+        cheatInput.value = '';
+        cheatInput.style.display = 'none';
+        cheat.classList.add('is-done');
+        window.setTimeout(() => cheat.classList.remove('is-done'), 600);
+      } else {
+        cheatInput.value = '';
+      }
+    });
   }
 
   /** 更新音乐按钮的外观（静音态置灰 + 划横线） */
@@ -201,6 +251,8 @@ export class Game {
     // 清理可能残留的结算页 / 升级弹窗 DOM，避免它们叠在标题页之下
     this.gameOver.hide();
     this.levelUp.hide();
+    if (this.pauseDialog) this.pauseDialog.style.display = 'none';
+    if (this.pauseTip) this.pauseTip.textContent = 'Esc / P 暂停';
     this.hud.setVisible(false);
     this.perf.setVisible(this.save.perfVisible);
     // 标题页/结算页不播战斗 BGM
@@ -213,6 +265,16 @@ export class Game {
         Storage.save(this.save);
       },
       onTogglePause: () => this.togglePause(),
+      onShop: () => this.openShop(),
+    });
+  }
+
+  /** 商店仅在主界面可打开（title 状态下覆盖一层全屏弹层，不影响标题 DOM） */
+  private openShop(): void {
+    if (this.state !== 'title') return;
+    this.shop.show(this.uiRoot, this.save, () => {
+      // 关闭商店后刷新标题页的灵魂余额显示
+      this.title.refreshSouls(this.save.soulCents);
     });
   }
 
@@ -225,7 +287,10 @@ export class Game {
     this.bgm.start();
 
     this.world.reset((Math.random() * 0xffffffff) >>> 0);
-    this.build = new Build(DEFAULT_CHARACTER);
+    this.build = new Build(DEFAULT_CHARACTER, {
+      weapons: this.save.weaponLevels,
+      passives: this.save.passiveLevels,
+    });
     this.build.addWeapon(DEFAULT_CHARACTER.startWeapon);
     this.weapon.reset();
     this.spawn.reset();
@@ -234,9 +299,9 @@ export class Game {
     this.hud.reset();
     this.hud.setVisible(true);
     this.perf.setVisible(this.save.perfVisible);
-    // 每局重置视野缩放到默认 1×
-    this.renderer.setZoom(1);
-    this.hud.setZoomLabel(1);
+    // 每局重置视野到该设备默认倍率（手机 0.5 / 桌面 1.0）
+    this.renderer.setZoom(this.defaultZoom);
+    this.hud.setZoomLabel(this.defaultZoom);
 
     const p = this.world.player;
     p.maxHp = this.build.stats.maxHp;
@@ -254,11 +319,85 @@ export class Game {
     this.loop.setPaused(false);
   }
 
+  private pauseDialogOpen(): boolean {
+    return this.pauseDialog !== null && this.pauseDialog.style.display !== 'none';
+  }
+
   private togglePause(): void {
     if (this.state !== 'playing') return;
+    // 弹窗开着时按 Esc = 继续
+    if (this.pauseDialogOpen()) {
+      this.resumeFromPause();
+      return;
+    }
     this.manualPause = !this.manualPause;
     this.loop.setPaused(this.manualPause);
-    if (this.pauseTip) this.pauseTip.textContent = this.manualPause ? '已暂停 · Esc 继续' : 'Esc 暂停';
+    if (this.pauseTip) this.pauseTip.textContent = this.manualPause ? '已暂停 · Esc / P 继续' : 'Esc / P 暂停';
+  }
+
+  private buildPauseDialog(): void {
+    const dlg = document.createElement('div');
+    dlg.className = 'overlay pause-dialog';
+    dlg.innerHTML = `
+      <div class="panel pause-panel">
+        <h2 class="pause-title">已暂停</h2>
+        <p class="pause-sub">本局凝聚的灵魂 <b class="pause-soul"></b> 退出时仍会入账</p>
+        <div class="pause-actions">
+          <button class="btn btn--primary pause-resume">继续战斗</button>
+          <button class="btn btn--ghost pause-quit">退出到主界面</button>
+        </div>
+      </div>
+    `;
+    this.pauseDialog = dlg;
+    this.pauseSoulEl = dlg.querySelector('.pause-soul');
+    // 点击遮罩任意空白处 = 继续
+    dlg.addEventListener('click', (e) => {
+      if (e.target === dlg) this.resumeFromPause();
+    });
+    dlg.querySelector('.pause-resume')?.addEventListener('click', () => this.resumeFromPause());
+    dlg.querySelector('.pause-quit')?.addEventListener('click', () => this.quitToTitle());
+    this.uiRoot.appendChild(dlg);
+  }
+
+  /** 点暂停键 / 按 Esc·P：已弹窗则继续，否则停表并弹「继续 / 退出」窗口 */
+  private openPauseDialog(): void {
+    if (this.state !== 'playing') return;
+    if (this.pauseDialogOpen()) {
+      this.resumeFromPause();
+      return;
+    }
+    if (!this.pauseDialog) this.buildPauseDialog();
+    if (!this.pauseDialog) return;
+    if (this.pauseSoulEl) this.pauseSoulEl.textContent = `+${(this.world.soulCents / 100).toFixed(2)}`;
+    this.pauseDialog.style.display = '';
+    this.manualPause = true;
+    this.loop.setPaused(true);
+    // 暂停时关掉摇杆，避免底下的触摸被摇杆层吞掉
+    this.input.setEnabled(false);
+    if (this.pauseTip) this.pauseTip.textContent = '已暂停';
+  }
+
+  /** 继续：关闭对话框并恢复对局 */
+  private resumeFromPause(): void {
+    if (this.state !== 'playing') return;
+    if (this.pauseDialog) this.pauseDialog.style.display = 'none';
+    this.manualPause = false;
+    this.loop.setPaused(false);
+    this.input.setEnabled(true);
+    if (this.pauseTip) this.pauseTip.textContent = 'Esc / P 暂停';
+  }
+
+  /** 退出：本局凝聚的灵魂入永久账户，直接回主界面（不弹结算页） */
+  private quitToTitle(): void {
+    if (this.state !== 'playing') return;
+    if (this.pauseDialog) this.pauseDialog.style.display = 'none';
+    this.manualPause = false;
+    this.loop.setPaused(true);
+    if (this.world.soulCents > 0) {
+      this.save.soulCents += this.world.soulCents;
+      Storage.save(this.save);
+    }
+    this.showTitle();
   }
 
   private showLevelUp(): void {
@@ -268,7 +407,11 @@ export class Game {
     this.input.setEnabled(false);
     this.loop.setPaused(true);
     const p = this.world.player;
-    const options = this.build.rollOptions(this.world.rng, 3);
+    // 只提供已永久解锁的内容：商店解锁后才能在本局升级池里抽到对应“新武器/新被动”
+    const options = this.build.rollOptions(this.world.rng, 3, {
+      weapons: new Set(this.save.unlockedWeapons),
+      passives: new Set(this.save.unlockedPassives),
+    });
     this.levelUp.show(this.uiRoot, options, this.build, p.level, (opt) => {
       this.build.applyOption(opt);
       // 属性变化后同步到玩家实体
@@ -318,10 +461,12 @@ export class Game {
       topSlot >= 0 ? `${this.build.weapons[topSlot].def.name}（${Math.round(topVal)}）` : '—';
 
     const newBest = this.world.time > this.save.bestTime;
+    const soulEarnedCents = this.world.soulCents;
     const result: RunResult = {
       win,
       time: this.world.time,
       kills: this.world.kills,
+      soulEarnedCents,
       level: p.level,
       build: this.build,
       damageByWeapon: dmg,
@@ -332,6 +477,8 @@ export class Game {
     this.save.bestTime = Math.max(this.save.bestTime, this.world.time);
     this.save.bestKills = Math.max(this.save.bestKills, this.world.kills);
     this.save.bestLevel = Math.max(this.save.bestLevel, p.level);
+    // 本局击杀转化灵魂入永久账户（普通 +0.01 / 精英 +0.1 / Boss +10）
+    this.save.soulCents += soulEarnedCents;
     this.save.runs++;
     if (win) this.save.wins++;
     Storage.save(this.save);
@@ -349,6 +496,7 @@ export class Game {
     const text =
       `【Hollow Depths 幽墟幸存者】\n` +
       `${r.win ? '逃出幽墟' : '葬身幽墟'}　存活 ${Math.floor(r.time)}s　击杀 ${r.kills}　等级 ${r.level}\n` +
+      `本局凝聚灵魂 +${(r.soulEarnedCents / 100).toFixed(2)}\n` +
       `构筑：${r.build.weapons.map((w) => `${w.def.name} Lv${w.level}`).join('、')}\n` +
       `装备：${r.build.passives.map((p) => `${p.def.name} Lv${p.level}`).join('、')}`;
     navigator.clipboard?.writeText(text).catch(() => {
@@ -451,9 +599,9 @@ export class Game {
 
       const boss: Enemy | null = findBoss(this.world);
       if (boss) {
-        this.hud.setBoss(ENEMY_BY_INDEX[boss.defIdx].name, boss.hp / boss.maxHp);
+        this.hud.setBoss(ENEMY_BY_INDEX[boss.defIdx].name, boss.hp, boss.maxHp);
       } else {
-        this.hud.setBoss(null, 0);
+        this.hud.setBoss(null, 0, 0);
       }
       // 无 Boss 在场时显示下一个 Boss 出现的倒计时
       const next = this.spawn.nextBossInfo(this.world);

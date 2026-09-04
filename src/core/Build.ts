@@ -25,6 +25,12 @@ export interface UpgradeOption {
   evolveTo?: string;
 }
 
+/** 本局升级随机池的可用范围：未解锁的「新武器/新被动」不出现；已持有的升级不受限 */
+export interface PoolFilter {
+  weapons?: ReadonlySet<string>;
+  passives?: ReadonlySet<string>;
+}
+
 function emptyStats(char: CharacterDef): Stats {
   return {
     speed: char.base.speed,
@@ -54,11 +60,27 @@ export class Build {
   stats: Stats;
   /** 属性版本号：武器系统据此判断是否需要刷新常驻投射物的数值 */
   version = 0;
+  /** 跨局永久升级后的起始等级表（id → 起始等级，缺省 1） */
+  private startWeapons: Record<string, number>;
+  private startPassives: Record<string, number>;
 
-  constructor(char: CharacterDef) {
+  constructor(
+    char: CharacterDef,
+    startLevels?: { weapons: Record<string, number>; passives: Record<string, number> },
+  ) {
     this.char = char;
+    this.startWeapons = startLevels?.weapons ?? {};
+    this.startPassives = startLevels?.passives ?? {};
     this.stats = emptyStats(char);
     this.recompute();
+  }
+
+  /** 武器/被动的永久起始等级（受满级上限约束，至少 1） */
+  startLevel(id: string, maxLevel: number, kind: 'weapon' | 'passive'): number {
+    const map = kind === 'weapon' ? this.startWeapons : this.startPassives;
+    const raw = map[id];
+    const lv = typeof raw === 'number' && raw >= 1 ? Math.floor(raw) : 1;
+    return Math.min(lv, maxLevel);
   }
 
   recompute(): void {
@@ -97,7 +119,7 @@ export class Build {
       return 'leveled';
     }
     if (this.weapons.length >= MAX_WEAPON_SLOTS) return 'full';
-    this.weapons.push({ def, level: 1 });
+    this.weapons.push({ def, level: this.startLevel(id, def.maxLevel, 'weapon') });
     this.recompute();
     return 'added';
   }
@@ -113,7 +135,7 @@ export class Build {
       return 'leveled';
     }
     if (this.passives.length >= MAX_PASSIVE_SLOTS) return 'full';
-    this.passives.push({ def, level: 1 });
+    this.passives.push({ def, level: this.startLevel(id, def.maxLevel, 'passive') });
     this.recompute();
     return 'added';
   }
@@ -142,7 +164,7 @@ export class Build {
   }
 
   /** 生成三选一（进化优先，其次新武器/武器升级，再被动） */
-  rollOptions(rng: { next(): number }, count = 3): UpgradeOption[] {
+  rollOptions(rng: { next(): number }, count = 3, pool?: PoolFilter): UpgradeOption[] {
     const opts: UpgradeOption[] = [];
 
     // 1) 进化（最高优先级，单独占一个位置）
@@ -170,12 +192,14 @@ export class Build {
       const owned = this.weaponById(def.id);
       if (!owned) {
         if (this.weapons.length >= MAX_WEAPON_SLOTS) continue;
+        if (pool?.weapons && !pool.weapons.has(def.id)) continue;
+        const sl = this.startLevel(def.id, def.maxLevel, 'weapon');
         weaponPool.push({
           kind: 'weapon',
           id: def.id,
           title: def.name,
           desc: def.desc,
-          sub: '新武器',
+          sub: sl > 1 ? `新武器　起始 Lv${sl}` : '新武器',
           icon: def.icon,
         });
       } else if (owned.level < owned.def.maxLevel) {
@@ -197,12 +221,14 @@ export class Build {
       const owned = this.passiveById(def.id);
       if (!owned) {
         if (this.passives.length >= MAX_PASSIVE_SLOTS) continue;
+        if (pool?.passives && !pool.passives.has(def.id)) continue;
+        const sl = this.startLevel(def.id, def.maxLevel, 'passive');
         passivePool.push({
           kind: 'passive',
           id: def.id,
           title: def.name,
           desc: def.desc,
-          sub: `新装备　${def.lvlText(1)}`,
+          sub: `新装备　${def.lvlText(sl)}`,
           icon: def.icon,
         });
       } else if (owned.level < def.maxLevel) {

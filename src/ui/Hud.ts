@@ -17,6 +17,7 @@ export class Hud {
 
   private readonly bossWrap: HTMLElement;
   private readonly bossName: HTMLElement;
+  private readonly bossHp: HTMLElement;
   private readonly bossFill: HTMLElement;
   private readonly bossCd: HTMLElement;
   private readonly zoomResetBtn: HTMLElement;
@@ -45,7 +46,7 @@ export class Hud {
         <div class="hud-kills"></div>
       </div>
       <div class="hud-boss">
-        <div class="hud-boss-name"></div>
+        <div class="hud-boss-name"><span class="hud-boss-title"></span><span class="hud-boss-hp"></span></div>
         <div class="hud-boss-bar"><i></i></div>
       </div>
       <div class="hud-boss-cd" hidden></div>
@@ -70,7 +71,8 @@ export class Hud {
     this.clockText = el.querySelector('.hud-clock') as HTMLElement;
     this.killsText = el.querySelector('.hud-kills') as HTMLElement;
     this.bossWrap = el.querySelector('.hud-boss') as HTMLElement;
-    this.bossName = el.querySelector('.hud-boss-name') as HTMLElement;
+    this.bossName = el.querySelector('.hud-boss-title') as HTMLElement;
+    this.bossHp = el.querySelector('.hud-boss-hp') as HTMLElement;
     this.bossFill = el.querySelector('.hud-boss-bar > i') as HTMLElement;
     this.bossCd = el.querySelector('.hud-boss-cd') as HTMLElement;
     this.weaponRow = el.querySelector('[data-row="w"]') as HTMLElement;
@@ -122,16 +124,19 @@ export class Hud {
     this.killsText.textContent = `${formatNum(kills)} 击杀`;
   }
 
-  setBoss(name: string | null, ratio: number): void {
+  setBoss(name: string | null, hp: number, maxHp: number): void {
     if (name === null) {
       this.bossWrap.classList.remove('is-on');
       return;
     }
+    const ratio = Math.max(0, Math.min(1, hp / maxHp));
     if (!this.bossWrap.classList.contains('is-on')) {
       this.bossName.textContent = name;
       this.bossWrap.classList.add('is-on');
     }
-    this.bossFill.style.transform = `scaleX(${Math.max(0, Math.min(1, ratio))})`;
+    // 血条即时吸附真实 HP（无平滑过渡），避免爆发伤害下血条滞后于实际数值
+    this.bossFill.style.transform = `scaleX(${ratio})`;
+    this.bossHp.textContent = `${Math.ceil(hp)} / ${Math.ceil(maxHp)}`;
   }
 
   /** 左上角显示下一个 Boss 出现的倒计时（name 为 null 时隐藏） */
@@ -204,7 +209,7 @@ export class Hud {
   reset(): void {
     this.lastHp = -1;
     this.buildSig = '';
-    this.setBoss(null, 0);
+    this.setBoss(null, 0, 0);
     this.setBossCountdown(null, 0);
   }
 }

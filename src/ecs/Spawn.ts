@@ -104,6 +104,7 @@ export function spawnEnemy(
   e.srcId = -1;
   e.srcImmune = 0;
   e.hitCd = 0;
+  e.aggro = 0;
   e.dead = false;
   e.spriteKey = def.sprite;
   e.rot = 0;

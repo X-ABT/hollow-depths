@@ -88,6 +88,8 @@ export interface Enemy {
   srcId: number; // 最近一次伤害来源（用于同类来源命中间隔）
   srcImmune: number; // 该来源的免疫剩余时间
   hitCd: number; // 对玩家的接触伤害冷却
+  /** 激怒标记：>0 表示已被玩家伤害（史莱姆等「被动型」怪据此才开始追击） */
+  aggro: number;
   dead: boolean;
 
   // —— 渲染 ——

@@ -20,7 +20,7 @@ function makeEnemy(): Enemy {
     timer: 0, state: 0, phase: 0, growT: 0, angle: 0,
     cast: 0, sub: 0, tx: 0, ty: 0,
     flash: 0, slowT: 0, slowF: 1, knockX: 0, knockY: 0,
-    srcId: -1, srcImmune: 0, hitCd: 0, dead: false,
+    srcId: -1, srcImmune: 0, hitCd: 0, aggro: 0, dead: false,
     spriteKey: 0, rot: 0,
   };
 }
@@ -71,6 +71,8 @@ export class World {
   /** 局内累计时间（秒） */
   time = 0;
   kills = 0;
+  /** 本局赚取灵魂（单位 0.01，整数累计避免浮点误差）：普通怪 +1、精英 +10、Boss +1000 */
+  soulCents = 0;
   /** 各武器累计伤害，用于结算页「最高伤害武器」 */
   dmgByWeapon = new Float64Array(32);
   /** 战斗区域半径（终焉收缩边界用），0 表示无限制 */
@@ -92,6 +94,7 @@ export class World {
     this.player = makePlayer();
     this.time = 0;
     this.kills = 0;
+    this.soulCents = 0;
     this.dmgByWeapon.fill(0);
     if (seed !== undefined) this.rng.reseed(seed);
   }

@@ -13,21 +13,27 @@ import type { Vfx } from '../../render/Vfx';
 export class CleanupSystem {
   private vfx: Vfx | null = null;
   onBossKilled: (name: string) => void = () => {};
+  /** 本帧是否有 Boss 死亡：若是，帧末清空场上其余敌人 */
+  private wipeAfterBoss = false;
 
   attachVfx(vfx: Vfx): void {
     this.vfx = vfx;
   }
 
   update(world: World): void {
+    this.wipeAfterBoss = false;
     const list = world.enemies.items;
     for (let i = world.enemies.count - 1; i >= 0; i--) {
       const e: Enemy = list[i];
       if (!e.dead) continue;
 
       world.kills++;
+      // 灵魂入账（跨局货币，单位 0.01）：普通 +0.01 / 精英 +0.1 / Boss +10
+      world.soulCents += e.isBoss ? 1000 : e.isElite ? 10 : 1;
 
       if (e.isBoss) {
-        // Boss：大爆炸 + 五个技能宝箱 + 全屏吸经验
+        // Boss：大爆炸 + 五个技能宝箱 + 全屏吸经验 + 清空其余小怪
+        this.wipeAfterBoss = true;
         this.vfx?.explosion(e.x, e.y, 46, 0xf5c451);
         for (let k = 0; k < 5; k++) {
           const a = (k / 5) * Math.PI * 2;
@@ -55,6 +61,13 @@ export class CleanupSystem {
       }
 
       world.enemies.releaseAt(i);
+    }
+
+    // ——— Boss 死亡后清场：把场上仍在的敌人全部移除（不给掉落，直接清屏） ———
+    if (this.wipeAfterBoss) {
+      for (let i = world.enemies.count - 1; i >= 0; i--) {
+        world.enemies.releaseAt(i);
+      }
     }
   }
 }

@@ -516,12 +516,24 @@ body {
 
 .hud-boss-name {
   margin-bottom: 4px;
-  text-align: center;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.3em;
   color: var(--p-amber);
   text-shadow: 0 0 14px rgba(245, 196, 81, 0.55);
+}
+
+.hud-boss-hp {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--t-mid);
+  text-shadow: none;
+  font-variant-numeric: tabular-nums;
 }
 
 .hud-boss-bar {
@@ -539,7 +551,8 @@ body {
   background: linear-gradient(90deg, #ff5470, #ffb020);
   box-shadow: 0 0 16px rgba(255, 84, 112, 0.6);
   transform-origin: left center;
-  transition: transform 0.16s ease-out;
+  /* 无平滑过渡：血条直接吸附当前 HP，避免爆发伤害下滞后误判 */
+  transition: none;
 }
 
 /* 下一个 Boss 出现倒计时（左上角，避开顶部血条行与居中 Boss 血条） */
@@ -688,6 +701,46 @@ body {
   letter-spacing: 0.16em;
   color: var(--t-dim);
   animation: rise-in 0.34s 0.05s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+/* —— 暂停确认弹窗：盖在 HUD 控件（z-index 30）之上 —— */
+.pause-dialog {
+  z-index: 60;
+}
+.pause-panel {
+  width: min(340px, 84vw);
+  padding: 26px 24px 22px;
+  text-align: center;
+}
+.pause-title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  color: var(--t-bright);
+  text-shadow: 0 0 20px rgba(124, 92, 255, 0.6);
+}
+.pause-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--t-dim);
+  line-height: 1.6;
+}
+.pause-soul {
+  color: var(--p-amber);
+  font-weight: 700;
+}
+.pause-actions {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pause-actions .btn {
+  width: 100%;
+  min-height: 46px;
+  justify-content: center;
 }
 
 @keyframes rise-in {
@@ -1167,11 +1220,11 @@ body.is-touch .touch-only {
   pointer-events: none;
 }
 
-/* —— 背景音乐开关：常驻右下，避开摇杆/暂停/缩放，标题页与对局都可点 —— */
+/* —— 背景音乐开关：常驻右侧缩放列上方，避开摇杆/暂停，标题页与对局都可点 —— */
 .music-toggle {
   position: absolute;
   right: calc(14px + var(--safe-r));
-  bottom: calc(154px + var(--safe-b));
+  bottom: calc(206px + var(--safe-b));
   width: 40px;
   height: 40px;
   padding: 0;
@@ -1203,15 +1256,79 @@ body.is-touch .touch-only {
   opacity: 0.6;
 }
 
-/* —— 视野缩放按钮：纵向 +/- 列，位于右侧中部，便于拇指/鼠标点按 —— */
+/* —— 隐蔽测试码按钮：右上角极小、低存在感，仅内部调试用 —— */
+.cheat-btn {
+  position: absolute;
+  top: calc(8px + var(--safe-t));
+  right: calc(10px + var(--safe-r));
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--t-dim);
+  background: rgba(30, 22, 54, 0.55);
+  border: 1px solid rgba(167, 158, 201, 0.35);
+  border-radius: 6px;
+  opacity: 0.6;
+  cursor: pointer;
+  z-index: 40;
+  user-select: none;
+  transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+.cheat-btn:hover {
+  opacity: 1;
+  border-color: var(--p-amber);
+  color: var(--p-amber);
+}
+.cheat-btn.is-done {
+  opacity: 0.9;
+  color: var(--p-amber);
+  border-color: var(--p-amber);
+}
+.cheat-input {
+  position: absolute;
+  top: calc(28px + var(--safe-t));
+  right: calc(8px + var(--safe-r));
+  width: 96px;
+  padding: 4px 8px;
+  font-size: 12px;
+  text-align: center;
+  letter-spacing: 0.1em;
+  color: var(--t-bright);
+  background: var(--glass);
+  border: 1px solid var(--stroke);
+  border-radius: 6px;
+  z-index: 40;
+  outline: none;
+}
+.cheat-input::placeholder {
+  color: var(--t-dim);
+  opacity: 0.7;
+}
+
+/* —— 视野缩放按钮：纵向 +/- 列 ——
+   桌面端：右侧垂直居中，避开顶部血条与底部槽位；
+   触屏端：右下暂停键正上方（见 body.is-touch 覆写）。 */
 .hud-zoom {
   position: absolute;
   right: calc(14px + var(--safe-r));
-  bottom: calc(84px + var(--safe-b));
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   gap: 8px;
   align-items: center;
+}
+body.is-touch .hud-zoom {
+  top: auto;
+  bottom: calc(66px + var(--safe-b));
+  transform: none;
 }
 
 .hud-zoom button {
@@ -1373,4 +1490,238 @@ body.is-touch .touch-only {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ============================ 灵魂 / 商店 ============================ */
+.title-soul {
+  margin: -18px 0 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  color: var(--t-mid);
+}
+.title-soul b {
+  font-size: 20px;
+  color: var(--p-soul);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px rgba(67, 224, 255, 0.45);
+}
+
+/* 商店全屏弹层：面板顶部贴齐，内部滚动 */
+.shop-screen {
+  justify-content: flex-start;
+  padding-top: calc(4vh + var(--safe-t));
+}
+.shop-panel {
+  width: min(660px, 100%);
+  max-height: min(88vh, 860px);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px 14px;
+  animation: rise-in 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+.shop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.shop-title {
+  margin: 0;
+  font-size: clamp(18px, 3.6vw, 24px);
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: var(--t-bright);
+  text-shadow: 0 0 22px rgba(124, 92, 255, 0.6);
+}
+.shop-close {
+  min-height: 34px;
+  min-width: 40px;
+  padding: 0;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  color: var(--t-mid);
+}
+.shop-sub {
+  margin-top: 8px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--t-mid);
+  letter-spacing: 0.08em;
+}
+.shop-souls {
+  color: var(--p-soul);
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.shop-price-hint {
+  font-size: 13px;
+  color: var(--t-dim);
+}
+.shop-price {
+  color: var(--p-amber);
+  font-weight: 700;
+}
+.shop-note {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--t-dim);
+  letter-spacing: 0.05em;
+}
+.shop-scroll {
+  margin-top: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 4px 6px 2px;
+}
+.shop-section {
+  margin: 12px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  color: var(--p-amber);
+  opacity: 0.9;
+}
+.shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.shop-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  background: linear-gradient(180deg, var(--glass-hi), var(--glass));
+}
+.shop-item--owned {
+  opacity: 0.55;
+}
+.shop-item-icon {
+  flex: none;
+}
+.shop-item-icon canvas,
+.shop-item-icon img {
+  display: block;
+}
+.shop-item-info {
+  flex: 1;
+  min-width: 0;
+}
+.shop-item-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--t-bright);
+}
+.shop-item-tag {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid rgba(167, 158, 201, 0.3);
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--t-dim);
+}
+.shop-item-desc {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--t-dim);
+  line-height: 1.45;
+}
+.shop-item-action {
+  flex: none;
+  min-width: 96px;
+  text-align: center;
+}
+.shop-owned {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--p-amber);
+}
+.shop-buy {
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+  border-color: rgba(245, 196, 81, 0.45);
+  color: #ffe6ab;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.shop-buy.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: var(--stroke);
+  color: var(--t-dim);
+  box-shadow: none;
+  font-weight: 500;
+}
+.shop-buy.is-disabled:hover {
+  transform: none;
+  border-color: var(--stroke);
+  box-shadow: none;
+}
+.shop-up {
+  min-height: 40px;
+  padding: 4px 12px;
+  font-size: 12px;
+  line-height: 1.25;
+  font-weight: 600;
+  border-color: rgba(67, 224, 255, 0.5);
+  color: #c7f3ff;
+  white-space: nowrap;
+}
+.shop-up-cost {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--p-amber);
+}
+.shop-up.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: var(--stroke);
+  color: var(--t-dim);
+  box-shadow: none;
+}
+.shop-up.is-disabled .shop-up-cost {
+  color: var(--t-dim);
+}
+.shop-up.is-disabled:hover {
+  transform: none;
+  border-color: var(--stroke);
+  box-shadow: none;
+}
+
+/* 结算页：本局灵魂入账提示 */
+.result-soul-line {
+  margin: 14px auto 0;
+  max-width: 640px;
+  padding: 8px 14px;
+  border: 1px solid rgba(67, 224, 255, 0.22);
+  border-radius: var(--r-md);
+  background: rgba(67, 224, 255, 0.06);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  color: var(--t-mid);
+}
+.result-soul-line b {
+  color: var(--p-soul);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }

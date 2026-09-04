@@ -8,6 +8,8 @@ import type { Vfx } from '../../render/Vfx';
 
 /** 分离力强度：越大越不容易重叠成一坨 */
 const SEP_FORCE = 240;
+/** 分离目标缝隙（px）：怪与怪之间至少保持的间距，让潮水间留有可走位的缝 */
+const SEP_GAP = 12;
 /** Boss 受分离力的影响系数（Boss 质量大，不该被小怪推着走） */
 const BOSS_SEP_MUL = 0.12;
 /** Boss 技能前摇（蓄力警示）时长（秒） */
@@ -79,12 +81,12 @@ export class EnemyAISystem {
         case Ai.Dash: {
           e.timer -= dt;
           if (e.state === 0) {
-            // 蓄力：缓慢逼近并锁定方向
-            vx = nx * speed * 0.72;
-            vy = ny * speed * 0.72;
+            // 蓄力：原地不动并锁定方向（蓄力期间不再缓慢逼近）
+            vx = 0;
+            vy = 0;
             if (e.timer <= 0) {
               e.state = 1;
-              e.timer = 0.5;
+              e.timer = 0.6; // 冲刺时长
               e.angle = Math.atan2(dy, dx);
             }
           } else {
@@ -108,10 +110,13 @@ export class EnemyAISystem {
             e.hp += add;
             e.scale = 1 + e.state * 0.13;
             e.radius = def.radius * e.scale;
-            e.damage *= 1 + def.p1 * 0.5;
+            // 伤害固定不成长（只长体型与血量）
           }
-          vx = nx * speed;
-          vy = ny * speed;
+          // 被动型：未受到伤害时原地不动；挨过打（aggro）才开始追击玩家
+          if (e.aggro > 0) {
+            vx = nx * speed;
+            vy = ny * speed;
+          }
           break;
         }
 
@@ -184,8 +189,8 @@ export class EnemyAISystem {
               e.cast -= dt;
               if (e.cast <= 0) {
                 e.cast = 0;
-                // 蓄力结束，真正召唤（数量较初版减 2：3 → 1 只；Boss 随从小怪血量 ×2）
-                for (let k = 0; k < 1; k++) {
+                // 蓄力结束，真正召唤 3 只骚扰怪（Boss 随从小怪血量 ×2 → hpMul 3.2）
+                for (let k = 0; k < 3; k++) {
                   const a = rng.next() * TAU;
                   const s = spawnEnemy(world, 1, e.x + Math.cos(a) * 70, e.y + Math.sin(a) * 70, 3.2, 1);
                   if (s) s.xp = 0.3; // 召唤的骚扰小怪几乎不给经验
@@ -216,7 +221,7 @@ export class EnemyAISystem {
                   pr.y = pr.py = e.ty;
                   pr.radius = 105;
                   pr.damage = 0;
-                  pr.dotDps = 5; // 每次仅 ~5 HP/s：重在逼迫走位而非秒杀
+                  pr.dotDps = 10; // 落点伤害区：持续伤害，逼迫玩家离开落点
                   pr.slowF = 1;
                   pr.life = pr.maxLife = 2.2;
                   pr.pierce = 9999;
@@ -246,7 +251,7 @@ export class EnemyAISystem {
                 if (e.cast <= 0) {
                   e.cast = 0;
                   e.state = 1;
-                  e.sub = 0.7; // 冲刺时长
+                  e.sub = 1; // 冲刺时长
                   e.angle = Math.atan2(p.y - e.y, p.x - e.x);
                   this.vfx?.burst(e.x, e.y, 8, 0xff5470);
                 }
@@ -279,8 +284,8 @@ export class EnemyAISystem {
               e.cast = 0;
               const shots = 3;
               for (let k = 0; k < shots; k++) {
-                const ox = k === 0 ? 0 : rng.range(-160, 160);
-                const oy = k === 0 ? 0 : rng.range(-160, 160);
+                const ox = k === 0 ? 0 : rng.range(-200, 200);
+                const oy = k === 0 ? 0 : rng.range(-200, 200);
                 spawnProj(world, (pr) => {
                   pr.behavior = Behavior.Telegraph;
                   pr.hostile = 1;
@@ -314,9 +319,10 @@ export class EnemyAISystem {
 
         case Ai.BossEndless: {
           if (e.state === 1) {
-            // 无敌倒计时：边界收缩 + 环向弹幕（每轮都带 0.7s 蓄力警示），只能躲
+            // 无敌倒计时：环向弹幕（每轮都带 0.7s 蓄力警示），只能躲
+            // 边界保持 900 固定，不再随时间收缩
             e.timer -= dt;
-            world.arenaR = Math.max(260, 900 - (1 - e.timer / def.p0) * 620);
+            world.arenaR = 900;
             if (e.cast > 0) {
               e.cast -= dt;
               if (e.cast <= 0) {
@@ -417,16 +423,18 @@ export class EnemyAISystem {
                 pr.y = pr.py = e.y;
                 pr.vx = Math.cos(a) * def.p1;
                 pr.vy = Math.sin(a) * def.p1;
-                pr.radius = 9;
+                pr.radius = 14; // 体积加大，配合发光造型，弹幕清晰可辨
                 pr.damage = e.damage;
                 pr.life = pr.maxLife = 4;
                 pr.pierce = 1;
                 pr.srcId = 650 + i;
-                pr.spriteKey = 14; // Tex.Shard
+                pr.spriteKey = 13; // Tex.OrbSeeker：发光菱形，明显区别于玩家弹幕
+                pr.scale = 1.35;
                 pr.rot = a;
-                pr.rotSpeed = 4;
+                pr.rotSpeed = 5;
               });
-              this.vfx?.burst(e.x, e.y, 5, 0xff5470);
+              // 出膛口焰：在炮口打出高亮短脉冲，便于玩家定位弹道起点
+              this.vfx?.explosion(e.x, e.y, 10, 0xff5470);
               e.timer = def.p0;
             }
           } else {
@@ -444,10 +452,12 @@ export class EnemyAISystem {
           break;
       }
 
-      // ——— 分离力：复用碰撞用的空间哈希 ———
+      // ——— 分离力（留缝版）：复用碰撞用的空间哈希 ———
+      // 在目标间距 dst = r_e + r_o + SEP_GAP 内就柔和推开：既防重叠成一坨，
+      // 又让怪群之间始终留出约 SEP_GAP 的缝，给玩家穿插走位的空间。
       let sx = 0;
       let sy = 0;
-      const qr = e.radius * 2 + 4;
+      const qr = e.radius + SEP_GAP + 28; // 覆盖"自身半径 + 常见大邻居(≤25) + 缝隙"
       const found = hash.query(e.x, e.y, qr, qbuf);
       for (let k = 0; k < found; k++) {
         const o = list[qbuf[k]];
@@ -455,10 +465,11 @@ export class EnemyAISystem {
         const ox = e.x - o.x;
         const oy = e.y - o.y;
         const d2 = ox * ox + oy * oy;
-        const minD = e.radius + o.radius;
-        if (d2 > 0.0001 && d2 < minD * minD) {
+        const dst = e.radius + o.radius + SEP_GAP;
+        if (d2 > 0.0001 && d2 < dst * dst) {
           const dd = Math.sqrt(d2);
-          const push = (minD - dd) / minD;
+          // 距目标越近推力越接近 1，在缝隙边缘趋近 0，平滑不抖
+          const push = 1 - dd / dst;
           sx += (ox / dd) * push;
           sy += (oy / dd) * push;
         }

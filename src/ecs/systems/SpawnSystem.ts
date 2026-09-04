@@ -26,6 +26,11 @@ const GUNNER_IDX = ENEMY_BY_INDEX.findIndex((d) => d.id === 'gunner');
 /** 深渊炮手单次批量间隔（秒）与同屏上限 */
 const GUNNER_INTERVAL = 5;
 const GUNNER_MAX = 3;
+/** 普通怪按方向轮换刷新的主方向（顺时针：上 → 右 → 下 → 左），每个方向持续时长（秒） */
+const SPAWN_DIR_SECONDS = 5;
+/** 每个主方向刷怪扇区的半宽（弧度）：既有方向性又不至于完全单向 */
+const SPAWN_DIR_SECTOR = 0.9;
+const SPAWN_DIR_ANGLES: readonly number[] = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
 
 /**
  * 波次生成：按时间轴决定「生成什么、生成多快、多强」。
@@ -47,6 +52,9 @@ export class SpawnSystem {
   private gunnerFirst = true;
   /** 击败首个 Boss 前普通怪生成倍率：减半让开局更从容；击败古神后升到 0.7（仍少于满额） */
   private earlySpawnMul = 0.5;
+  /** 方向轮换刷新计时 */
+  private spawnDirT = 0;
+  private spawnDir = 0;
 
   onBoss(cb: (name: string) => void): void {
     this.bossAnnounce = cb;
@@ -86,6 +94,8 @@ export class SpawnSystem {
     this.gunnerT = 0;
     this.gunnerFirst = true;
     this.earlySpawnMul = 0.5;
+    this.spawnDirT = 0;
+    this.spawnDir = 0;
   }
 
   update(world: World, dt: number, viewW: number, viewH: number): void {
@@ -189,7 +199,17 @@ export class SpawnSystem {
     let rate = spawnRate(t) * densityMul(t) * this.earlySpawnMul;
     if (this.hasLiveBoss(world)) rate *= 0.12;
     this.acc += rate * dt;
+
+    // 方向轮换：普通怪不四面八方同时涌来，而是按「上 → 右 → 下 → 左」顺时针，
+    // 每 SPAWN_DIR_SECONDS 秒换一个主方向刷新；同屏四面围堵压力因此缓解，留出走位方向。
+    this.spawnDirT += dt;
+    if (this.spawnDirT >= SPAWN_DIR_SECONDS) {
+      this.spawnDirT = 0;
+      this.spawnDir = (this.spawnDir + 1) % SPAWN_DIR_ANGLES.length;
+    }
+
     const half = Math.max(viewW, viewH) * 0.5 + SPAWN_MARGIN;
+    const dirCenter = SPAWN_DIR_ANGLES[this.spawnDir];
     let guard = 64; // 单步生成上限，防止极端掉帧后一次性铺满
     const hp = hpScale(t);
     const dmg = damageScale(t);
@@ -197,7 +217,8 @@ export class SpawnSystem {
       this.acc -= 1;
       const pick = this.pickWeighted(world, SPAWN_TABLE, t);
       if (pick < 0) break;
-      const a = world.rng.next() * TAU;
+      // 在当前方向扇区内随机取角，怪潮从同一个大方向压来但带些散布
+      const a = dirCenter + (world.rng.next() * 2 - 1) * SPAWN_DIR_SECTOR;
       const x = p.x + Math.cos(a) * half;
       const y = p.y + Math.sin(a) * half;
       spawnEnemy(world, pick, x, y, hp, dmg);

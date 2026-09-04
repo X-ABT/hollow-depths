@@ -1,11 +1,13 @@
 import type { Build } from '../core/Build';
-import { formatNum, formatTime } from '../core/MathUtil';
+import { formatNum, formatSouls, formatTime } from '../core/MathUtil';
 import { atlas } from '../render/Textures';
 
 export interface RunResult {
   win: boolean;
   time: number;
   kills: number;
+  /** 本局击杀转化的灵魂（单位 0.01），已存入永久账户 */
+  soulEarnedCents: number;
   level: number;
   build: Build;
   damageByWeapon: Float64Array;
@@ -44,6 +46,7 @@ export class GameOverScreen {
         <div class="result-build-title">本 局 构 筑</div>
         <div class="result-build-list"></div>
       </div>
+      <div class="result-soul-line">本局凝聚灵魂 <b data-s="soul"></b>　已存入永久账户</div>
       <div class="result-actions">
         <button class="btn btn--primary" data-act="restart">再来一局</button>
         <button class="btn" data-act="title">返回标题</button>
@@ -56,6 +59,7 @@ export class GameOverScreen {
     (el.querySelector('.result-title') as HTMLElement).textContent = r.win ? '逃出幽墟' : '葬身幽墟';
     (el.querySelector('[data-s="time"]') as HTMLElement).textContent = formatTime(r.time);
     (el.querySelector('[data-s="kills"]') as HTMLElement).textContent = formatNum(r.kills);
+    (el.querySelector('[data-s="soul"]') as HTMLElement).textContent = `+${formatSouls(r.soulEarnedCents)}`;
     (el.querySelector('[data-s="level"]') as HTMLElement).textContent = String(r.level);
     (el.querySelector('[data-s="top"]') as HTMLElement).textContent = r.topWeaponName;
 

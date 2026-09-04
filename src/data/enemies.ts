@@ -60,9 +60,9 @@ export const ENEMIES: readonly EnemyDef[] = [
     id: 'slime',
     name: '史莱姆',
     sprite: Tex.Slime,
-    hp: 22,
+    hp: 60, // 被动型怪：不主动逼近、血偏厚，作为"软障碍"
     speed: 44,
-    damage: 11,
+    damage: 4,
     radius: 17,
     xp: 4,
     ai: Ai.Grow,
@@ -170,13 +170,13 @@ export const ELITES: readonly EnemyDef[] = [
     speed: 46,
     damage: 18,
     radius: 20,
-    xp: 0, // 不靠 xp 单宝石，改为死亡时爆 4 颗经验宝石（见 CleanupSystem 特判）
+    xp: 0, // 不靠 xp 单宝石；死亡走精英统一掉落（5~7 颗黄经验，见 CleanupSystem）
     ai: Ai.Gunner,
     armor: 0,
     elite: true,
     boss: false,
-    // 射击间隔（含 0.7s 蓄力前摇节奏）/ 弹速
-    p0: 2.2,
+    // 射击间隔（秒，较初版翻倍避免太频繁；另有 0.7s 蓄力前摇）/ 弹速
+    p0: 4.4,
     p1: 300,
   },
 ];

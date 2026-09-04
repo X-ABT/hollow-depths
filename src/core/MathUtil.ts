@@ -48,3 +48,8 @@ export function formatNum(n: number): string {
   if (n >= 1e4) return (n / 1e3).toFixed(n >= 1e5 ? 0 : 1) + 'k';
   return String(Math.floor(n));
 }
+
+/** 灵魂显示：内部以 0.01 为单位，展示两位小数（100 = 1.00） */
+export function formatSouls(cents: number): string {
+  return (Math.floor(cents) / 100).toFixed(2);
+}

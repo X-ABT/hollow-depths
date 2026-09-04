@@ -57,6 +57,8 @@ export function damageEnemy(
   dmg = Math.max(1, dmg - e.armor);
   e.hp -= dmg;
   e.flash = 0.12;
+  // 挨过打就进入激怒：被动型怪（如史莱姆）由此开始追击玩家
+  e.aggro = 1;
   e.knockX += knockX;
   e.knockY += knockY;
   if (slot >= 0) world.dmgByWeapon[slot] += dmg;

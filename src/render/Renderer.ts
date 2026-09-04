@@ -99,9 +99,10 @@ export class WorldRenderer {
 
   /** 视野缩放因子：>1 放大（看得更近、更细），<1 缩小（视野更开阔） */
   zoom = 1;
-  /** 缩放下限：地板为贴屏无限平铺，任意下限都不会露边 */
-  private static readonly ZOOM_MIN = 0.5;
-  private static readonly ZOOM_MAX = 1.5;
+  /** 缩放下限（桌面 0.5；手机端可放宽到 0.3）。地板为贴屏无限平铺，任意下限都不会露边 */
+  zoomMin = 0.5;
+  /** 缩放上限 */
+  zoomMax = 1.5;
   private viewW = 0;
   private viewH = 0;
 
@@ -170,14 +171,9 @@ export class WorldRenderer {
     }
   }
 
-  /** 设定视野缩放（0.7~1.5）。实际投影在 sync() 中按 cam 应用。 */
+  /** 设定视野缩放（[zoomMin, zoomMax]）。实际投影在 sync() 中按 cam 应用。 */
   setZoom(z: number): void {
-    this.zoom =
-      z < WorldRenderer.ZOOM_MIN
-        ? WorldRenderer.ZOOM_MIN
-        : z > WorldRenderer.ZOOM_MAX
-          ? WorldRenderer.ZOOM_MAX
-          : z;
+    this.zoom = z < this.zoomMin ? this.zoomMin : z > this.zoomMax ? this.zoomMax : z;
   }
 
   /** 每渲染帧调用：alpha 为固定步长的插值系数 */
@@ -299,7 +295,8 @@ export class WorldRenderer {
       );
       s.x = x;
       s.y = y + Math.sin(k.bob) * 3;
-      const size = k.radius * 3.2;
+      // 经验宝石整体缩小一半（宝箱/心等保持原尺寸），减少满屏拾取物的视觉遮挡
+      const size = k.radius * (k.kind === PickupKind.Xp ? 1.6 : 3.2);
       s.width = size;
       s.height = size;
       s.tint = 0xffffff;
