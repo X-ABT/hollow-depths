@@ -542,6 +542,36 @@ body {
   transition: transform 0.16s ease-out;
 }
 
+/* 下一个 Boss 出现倒计时（左上角，避开顶部血条行与居中 Boss 血条） */
+.hud-boss-cd {
+  position: absolute;
+  left: calc(12px + var(--safe-l));
+  top: calc(34px + var(--safe-t));
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--p-amber);
+  text-shadow:
+    0 0 10px rgba(245, 196, 81, 0.55),
+    0 1px 3px rgba(0, 0, 0, 0.85);
+  animation: cd-blink 1s ease-in-out infinite;
+  white-space: nowrap;
+}
+
+.hud-boss-cd[hidden] {
+  display: none;
+}
+
+@keyframes cd-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
 /* 底部槽位 */
 .hud-slots {
   position: absolute;

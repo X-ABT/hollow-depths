@@ -47,12 +47,15 @@ export const DENSITY_STEPS: readonly { t: number; mul: number }[] = [
   { t: 660, mul: 3 },
 ];
 
-/** Boss 出场时间轴 */
-export const BOSS_TIMES: readonly { t: number; id: string }[] = [
-  { t: 300, id: 'herald' },
-  { t: 480, id: 'calamity' },
-  { t: 720, id: 'endless' }, // 终焉 12:00 出现，击败它即通关
-];
+/**
+ * Boss 出场规则：古神于开局 5:00 出现；之后每击败一个 Boss，隔 4:00 才出现下一个。
+ * 剩余时间由 SpawnSystem 维护并在 HUD 左上角实时倒计时。
+ */
+export const BOSS_ORDER: readonly string[] = ['herald', 'calamity', 'endless'];
+/** 首个 Boss（古神）出现的延迟（秒） */
+export const FIRST_BOSS_AT = 300;
+/** 击败一个 Boss 后，下一个 Boss 出现的间隔（秒） */
+export const NEXT_BOSS_GAP = 240;
 
 /** 精英刷新间隔（秒）：从 4:00 起每隔一段时间刷一只 */
 export const ELITE_INTERVAL = 26;

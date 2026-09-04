@@ -1,10 +1,12 @@
 import { TAU } from '../../core/MathUtil';
 import {
-  BOSS_TIMES,
+  BOSS_ORDER,
   ELITE_FIRST,
   ELITE_INTERVAL,
   ELITE_TABLE,
+  FIRST_BOSS_AT,
   MAX_ALIVE,
+  NEXT_BOSS_GAP,
   SPAWN_MARGIN,
   SPAWN_TABLE,
   GRACE_SECONDS,
@@ -23,7 +25,7 @@ const IDX = new Map<string, number>(ENEMY_BY_INDEX.map((d, i) => [d.id, i]));
 const GUNNER_IDX = ENEMY_BY_INDEX.findIndex((d) => d.id === 'gunner');
 /** 深渊炮手单次批量间隔（秒）与同屏上限 */
 const GUNNER_INTERVAL = 5;
-const GUNNER_MAX = 5;
+const GUNNER_MAX = 3;
 
 /**
  * 波次生成：按时间轴决定「生成什么、生成多快、多强」。
@@ -32,7 +34,10 @@ const GUNNER_MAX = 5;
 export class SpawnSystem {
   private acc = 0;
   private eliteT = ELITE_FIRST;
+  /** BOSS_ORDER 中「下一个要出现的 Boss」下标 */
   private nextBoss = 0;
+  /** 该 Boss 计划出现的绝对时间；Infinity 表示「等上一只 Boss 死亡后再排」 */
+  private bossSpawnAt = FIRST_BOSS_AT;
   private bossAnnounce: ((name: string) => void) | null = null;
   /** 古神是否已被击败（击败后才允许周期刷深渊炮手） */
   private postHerald = false;
@@ -40,25 +45,43 @@ export class SpawnSystem {
   private gunnerT = 0;
   /** 首次是否一次性批量 3 只（之后每次 1 只） */
   private gunnerFirst = true;
-  /** 击败首个 Boss 前普通怪生成倍率：减半让开局更从容；击败古神后恢复 1 */
+  /** 击败首个 Boss 前普通怪生成倍率：减半让开局更从容；击败古神后升到 0.7（仍少于满额） */
   private earlySpawnMul = 0.5;
 
   onBoss(cb: (name: string) => void): void {
     this.bossAnnounce = cb;
   }
 
-  /** 古神被击败：恢复普通怪生成 + 开启深渊炮手的周期刷新（首次立即批量刷 3 只） */
+  /** 古神被击败：生成倍率升到 70% + 开启深渊炮手的周期刷新（首次立即批量刷 3 只） */
   onHeraldDown(): void {
     this.postHerald = true;
     this.gunnerT = 0;
     this.gunnerFirst = true;
-    this.earlySpawnMul = 1;
+    this.earlySpawnMul = 0.7;
+  }
+
+  /** 上一只 Boss 已被击败：若还有后续 Boss，安排它在 4 分钟后出现 */
+  scheduleNextBoss(now: number): void {
+    if (this.nextBoss < BOSS_ORDER.length) this.bossSpawnAt = now + NEXT_BOSS_GAP;
+  }
+
+  /** 下一次 Boss 倒计时信息；当前无待出的 Boss 或 Boss 正在场时返回 null */
+  nextBossInfo(world: World): { name: string; remain: number } | null {
+    if (this.nextBoss >= BOSS_ORDER.length) return null;
+    if (this.hasLiveBoss(world)) return null;
+    if (!Number.isFinite(this.bossSpawnAt)) return null;
+    const remain = this.bossSpawnAt - world.time;
+    if (remain <= 0) return null;
+    const idx = IDX.get(BOSS_ORDER[this.nextBoss]) ?? -1;
+    const name = idx >= 0 ? ENEMY_BY_INDEX[idx].name : '';
+    return { name, remain };
   }
 
   reset(): void {
     this.acc = 0;
     this.eliteT = ELITE_FIRST;
     this.nextBoss = 0;
+    this.bossSpawnAt = FIRST_BOSS_AT;
     this.postHerald = false;
     this.gunnerT = 0;
     this.gunnerFirst = true;
@@ -69,11 +92,16 @@ export class SpawnSystem {
     const t = world.time;
     const p = world.player;
 
-    // ——— Boss ———
-    while (this.nextBoss < BOSS_TIMES.length && t >= BOSS_TIMES[this.nextBoss].t) {
-      const entry = BOSS_TIMES[this.nextBoss];
+    // ——— Boss：事件驱动（古神 5:00 出场；之后每击败一个，隔 4 分钟出下一个）———
+    if (
+      this.nextBoss < BOSS_ORDER.length &&
+      t >= this.bossSpawnAt &&
+      !this.hasLiveBoss(world)
+    ) {
+      const id = BOSS_ORDER[this.nextBoss];
       this.nextBoss++;
-      const idx = IDX.get(entry.id) ?? -1;
+      this.bossSpawnAt = Number.POSITIVE_INFINITY; // 出完后等击败再排下一只
+      const idx = IDX.get(id) ?? -1;
       if (idx >= 0) {
         const a = world.rng.next() * TAU;
         const dist = Math.max(viewW, viewH) * 0.42 + 120;
@@ -93,7 +121,7 @@ export class SpawnSystem {
       }
     }
 
-    // ——— 深渊炮手：古神死后周期刷新（Boss 存活期间不刷，同屏最多 5 只） ———
+    // ——— 深渊炮手：古神死后周期刷新（Boss 存活期间不刷，同屏最多 3 只） ———
     if (this.postHerald && GUNNER_IDX >= 0 && !this.hasLiveBoss(world)) {
       this.gunnerT -= dt;
       if (this.gunnerT <= 0) {

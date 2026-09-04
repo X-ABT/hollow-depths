@@ -18,6 +18,7 @@ export class Hud {
   private readonly bossWrap: HTMLElement;
   private readonly bossName: HTMLElement;
   private readonly bossFill: HTMLElement;
+  private readonly bossCd: HTMLElement;
   private readonly zoomResetBtn: HTMLElement;
   private lastZoomLabel = -1;
 
@@ -47,6 +48,7 @@ export class Hud {
         <div class="hud-boss-name"></div>
         <div class="hud-boss-bar"><i></i></div>
       </div>
+      <div class="hud-boss-cd" hidden></div>
       <div class="hud-slots">
         <div class="slot-row" data-row="w"></div>
         <div class="slot-row" data-row="p"></div>
@@ -70,6 +72,7 @@ export class Hud {
     this.bossWrap = el.querySelector('.hud-boss') as HTMLElement;
     this.bossName = el.querySelector('.hud-boss-name') as HTMLElement;
     this.bossFill = el.querySelector('.hud-boss-bar > i') as HTMLElement;
+    this.bossCd = el.querySelector('.hud-boss-cd') as HTMLElement;
     this.weaponRow = el.querySelector('[data-row="w"]') as HTMLElement;
     this.passiveRow = el.querySelector('[data-row="p"]') as HTMLElement;
     this.zoomResetBtn = el.querySelector('[data-zoom="reset"]') as HTMLElement;
@@ -129,6 +132,16 @@ export class Hud {
       this.bossWrap.classList.add('is-on');
     }
     this.bossFill.style.transform = `scaleX(${Math.max(0, Math.min(1, ratio))})`;
+  }
+
+  /** 左上角显示下一个 Boss 出现的倒计时（name 为 null 时隐藏） */
+  setBossCountdown(name: string | null, remain: number): void {
+    if (name === null || remain <= 0) {
+      this.bossCd.hidden = true;
+      return;
+    }
+    this.bossCd.hidden = false;
+    this.bossCd.textContent = `⚔ ${name} ${formatTime(Math.ceil(remain))}`;
   }
 
   /** build 变化时重建图标槽（用签名避免每帧重建 DOM） */
@@ -192,5 +205,6 @@ export class Hud {
     this.lastHp = -1;
     this.buildSig = '';
     this.setBoss(null, 0);
+    this.setBossCountdown(null, 0);
   }
 }

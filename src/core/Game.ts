@@ -101,6 +101,8 @@ export class Game {
       this.camera.addShake(22);
       // 击败古神：开启深渊炮手的周期刷新（Boss 存活期间暂停）
       if (name === 'herald') this.spawn.onHeraldDown();
+      // Boss 已死 → 安排下一个 Boss 在 4 分钟后出现（终焉被击败即通关，无需再排）
+      if (name !== 'endless') this.spawn.scheduleNextBoss(this.world.time);
       // 通关条件：击败最终 Boss「终焉」即胜利
       if (name === 'endless') {
         // 终焉被击杀 → 立即胜利（endRun 自带 gameover 重入保护，不会重复触发）
@@ -453,6 +455,9 @@ export class Game {
       } else {
         this.hud.setBoss(null, 0);
       }
+      // 无 Boss 在场时显示下一个 Boss 出现的倒计时
+      const next = this.spawn.nextBossInfo(this.world);
+      this.hud.setBossCountdown(next ? next.name : null, next ? next.remain : 0);
     }
 
     if (this.perf.visible) {

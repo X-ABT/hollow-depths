@@ -1,6 +1,5 @@
 import { PickupKind, type Enemy } from '../Components';
 import { spawnPickup } from '../Spawn';
-import { ENEMY_BY_INDEX } from '../../data/enemies';
 import type { World } from '../World';
 import type { Vfx } from '../../render/Vfx';
 
@@ -28,10 +27,10 @@ export class CleanupSystem {
       world.kills++;
 
       if (e.isBoss) {
-        // Boss：大爆炸 + 三个宝箱 + 全屏吸经验
+        // Boss：大爆炸 + 五个技能宝箱 + 全屏吸经验
         this.vfx?.explosion(e.x, e.y, 46, 0xf5c451);
-        for (let k = 0; k < 3; k++) {
-          const a = (k / 3) * Math.PI * 2;
+        for (let k = 0; k < 5; k++) {
+          const a = (k / 5) * Math.PI * 2;
           spawnPickup(world, PickupKind.Chest, 1, e.x + Math.cos(a) * 46, e.y + Math.sin(a) * 46);
         }
         const plist = world.pickups.items;
@@ -39,17 +38,14 @@ export class CleanupSystem {
           if (plist[k].kind === PickupKind.Xp) plist[k].magnet = true;
         }
         this.onBossKilled(e.bossIdx === 2 ? 'endless' : e.bossIdx === 1 ? 'calamity' : 'herald');
-      } else if (ENEMY_BY_INDEX[e.defIdx].id === 'gunner') {
-        // 深渊炮手：不给宝箱，爆一圈 4 颗经验宝石作为主要奖励
-        this.vfx?.explosion(e.x, e.y, 20, 0x43e0ff);
-        for (let k = 0; k < 4; k++) {
-          const a = (k / 4) * Math.PI * 2;
-          spawnPickup(world, PickupKind.Xp, 5, e.x + Math.cos(a) * 20, e.y + Math.sin(a) * 20);
-        }
       } else if (e.isElite) {
-        this.vfx?.explosion(e.x, e.y, 18, 0xa97cff);
-        spawnPickup(world, PickupKind.Chest, 1, e.x, e.y);
-        spawnPickup(world, PickupKind.Xp, e.xp, e.x + 14, e.y);
+        // 精英（含深渊炮手）：不给宝箱，爆 5~7 颗黄色经验宝石（value>6 → 大经验渲染）
+        this.vfx?.explosion(e.x, e.y, 18, 0xffd97a);
+        const n = 5 + ((world.rng.next() * 3) | 0); // 5..7
+        for (let k = 0; k < n; k++) {
+          const a = (k / n) * Math.PI * 2;
+          spawnPickup(world, PickupKind.Xp, 7, e.x + Math.cos(a) * 20, e.y + Math.sin(a) * 20);
+        }
       } else {
         this.vfx?.burst(e.x, e.y, 5, 0x9dfbc4);
         // 约 45% 概率掉落，价值按比例补偿，控制同屏拾取物总量

@@ -184,10 +184,10 @@ export class EnemyAISystem {
               e.cast -= dt;
               if (e.cast <= 0) {
                 e.cast = 0;
-                // 蓄力结束，真正召唤（数量较初版减 2：3 → 1 只）
+                // 蓄力结束，真正召唤（数量较初版减 2：3 → 1 只；Boss 随从小怪血量 ×2）
                 for (let k = 0; k < 1; k++) {
                   const a = rng.next() * TAU;
-                  const s = spawnEnemy(world, 1, e.x + Math.cos(a) * 70, e.y + Math.sin(a) * 70, 1.6, 1);
+                  const s = spawnEnemy(world, 1, e.x + Math.cos(a) * 70, e.y + Math.sin(a) * 70, 3.2, 1);
                   if (s) s.xp = 0.3; // 召唤的骚扰小怪几乎不给经验
                 }
                 this.vfx?.burst(e.x, e.y, 10, 0x7c5cff);
@@ -402,34 +402,30 @@ export class EnemyAISystem {
         }
 
         case Ai.Gunner: {
-          // 深渊炮手：缓慢逼近，节奏性朝玩家喷射可躲避的直线弹幕（带蓄力警示）
+          // 深渊炮手：缓慢逼近，周期性朝玩家射出单发直线弹（带蓄力警示）
           vx = nx * speed;
           vy = ny * speed;
           if (e.cast > 0) {
             e.cast -= dt;
             if (e.cast <= 0) {
               e.cast = 0;
-              const shots = 3;
-              const base = Math.atan2(dy, dx);
-              for (let k = 0; k < shots; k++) {
-                const a = base + (k - (shots - 1) / 2) * 0.16;
-                spawnProj(world, (pr) => {
-                  pr.behavior = Behavior.Linear;
-                  pr.hostile = 1;
-                  pr.x = pr.px = e.x;
-                  pr.y = pr.py = e.y;
-                  pr.vx = Math.cos(a) * def.p1;
-                  pr.vy = Math.sin(a) * def.p1;
-                  pr.radius = 9;
-                  pr.damage = e.damage;
-                  pr.life = pr.maxLife = 4;
-                  pr.pierce = 1;
-                  pr.srcId = 650 + i;
-                  pr.spriteKey = 14; // Tex.Shard
-                  pr.rot = a;
-                  pr.rotSpeed = 4;
-                });
-              }
+              const a = Math.atan2(dy, dx);
+              spawnProj(world, (pr) => {
+                pr.behavior = Behavior.Linear;
+                pr.hostile = 1;
+                pr.x = pr.px = e.x;
+                pr.y = pr.py = e.y;
+                pr.vx = Math.cos(a) * def.p1;
+                pr.vy = Math.sin(a) * def.p1;
+                pr.radius = 9;
+                pr.damage = e.damage;
+                pr.life = pr.maxLife = 4;
+                pr.pierce = 1;
+                pr.srcId = 650 + i;
+                pr.spriteKey = 14; // Tex.Shard
+                pr.rot = a;
+                pr.rotSpeed = 4;
+              });
               this.vfx?.burst(e.x, e.y, 5, 0xff5470);
               e.timer = def.p0;
             }

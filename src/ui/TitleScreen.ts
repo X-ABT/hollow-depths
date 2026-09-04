@@ -31,7 +31,7 @@ export class TitleScreen {
         <div>移动端：左半屏任意位置按下拖动即可移动</div>
         <div>击杀敌人拾取灵魂碎片，升级时三选一构筑你的流派</div>
         <div>胜利条件：击败最终 Boss「终焉」即获胜</div>
-        <div>5:00 / 8:00 / 12:00 各有一场 Boss 战，越强越要小心</div>
+        <div>5:00 古神现身，每击败一个 Boss，4 分钟后迎来下一场 Boss 战</div>
         <div><kbd>Esc</kbd> 或 <kbd>P</kbd> 暂停</div>
       </div>
     `;
