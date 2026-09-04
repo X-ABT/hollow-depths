@@ -18,6 +18,10 @@ const CAST_WINDOW = 0.7;
 const HERALD_FIELD_WARN = 1.4;
 /** Boss 技能释放后的安全间歇区间（秒） */
 const SKILL_GAP: readonly [number, number] = [2.0, 3.0];
+/** 终焉单轮无敌时长（秒）：期间不受伤害、边界固定 900，只能躲避环向弹幕 */
+const ENDLESS_INVULN = 15;
+/** 终焉破防窗口时长（秒）：窗口内可被击杀；超时未击杀则再次进入无敌（循环） */
+const ENDLESS_OPEN = 30;
 
 /**
  * 敌人 AI + 分离力 + 位移积分。
@@ -318,17 +322,30 @@ export class EnemyAISystem {
         }
 
         case Ai.BossEndless: {
+          // 终焉：无敌 15s（环向弹幕、边界固定 900）↔ 破防 30s（近身锥形弹、可被击杀）循环
           if (e.state === 1) {
-            // 无敌倒计时：环向弹幕（每轮都带 0.7s 蓄力警示），只能躲
-            // 边界保持 900 固定，不再随时间收缩
-            e.timer -= dt;
+            // —— 无敌阶段：不受伤害（Damage 已拦截），只能躲避；边界固定 900 不再收缩 ——
             world.arenaR = 900;
+            vx = nx * speed * 0.4;
+            vy = ny * speed * 0.4;
+            e.timer -= dt;
+            if (e.timer <= 0) {
+              // 破防：解除无敌与收缩，进入 30s 近身锥形弹窗口
+              e.state = 0;
+              e.timer = ENDLESS_OPEN;
+              world.arenaR = 0;
+              e.cast = 0;
+              e.sub = 0;
+              e.flash = 0.6;
+              this.vfx?.burst(e.x, e.y, 10, 0xf5c451);
+              break;
+            }
             if (e.cast > 0) {
               e.cast -= dt;
               if (e.cast <= 0) {
                 e.cast = 0;
                 e.angle += 0.31;
-                const shots = 14;
+                const shots = 16;
                 for (let k = 0; k < shots; k++) {
                   const a = e.angle + (k / shots) * TAU;
                   spawnProj(world, (pr) => {
@@ -353,30 +370,35 @@ export class EnemyAISystem {
               }
             } else if (e.sub > 0) {
               e.sub -= dt;
-            } else if (e.timer > 0) {
+            } else {
               // 进入下一轮弹幕的 0.7s 蓄力警示
               e.cast = CAST_WINDOW;
             }
-            if (e.timer <= 0) {
-              // 破防：结束无敌弹幕阶段，转入近身锥形弹
-              e.state = 0;
-              world.arenaR = 0;
-              e.flash = 0.6;
-              e.timer = 1.0;
-            }
-            vx = nx * speed * 0.4;
-            vy = ny * speed * 0.4;
           } else {
-            // 近身锥形弹（同样先 0.7s 蓄力警示再喷射）
+            // —— 破防阶段：近身锥形弹（每轮先 0.7s 蓄力警示），窗口内可被击杀 ——
+            world.arenaR = 0;
             vx = nx * speed;
             vy = ny * speed;
+            e.timer -= dt;
+            if (e.timer <= 0) {
+              // 30s 内未击败 → 再次进入 15s 无敌（循环，直到某次破防窗口内被击杀）
+              e.state = 1;
+              e.timer = ENDLESS_INVULN;
+              world.arenaR = 900;
+              e.cast = 0;
+              e.sub = 0;
+              e.flash = 0.6;
+              this.vfx?.burst(e.x, e.y, 10, 0x43e0ff);
+              break;
+            }
             if (e.cast > 0) {
               e.cast -= dt;
               if (e.cast <= 0) {
                 e.cast = 0;
-                const shots = 6;
+                const shots = 8;
+                const base = Math.atan2(dy, dx);
                 for (let k = 0; k < shots; k++) {
-                  const a = Math.atan2(dy, dx) + (k - (shots - 1) / 2) * 0.18;
+                  const a = base + (k - (shots - 1) / 2) * 0.18;
                   spawnProj(world, (pr) => {
                     pr.behavior = Behavior.Linear;
                     pr.hostile = 1;
@@ -389,19 +411,18 @@ export class EnemyAISystem {
                     pr.life = pr.maxLife = 4;
                     pr.pierce = 1;
                     pr.srcId = 700 + k;
-                    pr.spriteKey = 14;
+                    pr.spriteKey = 14; // Tex.Shard
                     pr.rot = a;
                     pr.rotSpeed = 3;
                   });
                 }
                 this.vfx?.burst(e.x, e.y, 6, 0xf5c451);
-                e.timer = this.gap(rng);
+                e.sub = this.gap(rng);
               }
+            } else if (e.sub > 0) {
+              e.sub -= dt;
             } else {
-              e.timer -= dt;
-              if (e.timer <= 0) {
-                e.cast = CAST_WINDOW;
-              }
+              e.cast = CAST_WINDOW;
             }
           }
           break;

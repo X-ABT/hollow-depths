@@ -139,14 +139,15 @@ export class Hud {
     this.bossHp.textContent = `${Math.ceil(hp)} / ${Math.ceil(maxHp)}`;
   }
 
-  /** 左上角显示下一个 Boss 出现的倒计时（name 为 null 时隐藏） */
-  setBossCountdown(name: string | null, remain: number): void {
+  /** 左上角显示下一个 Boss 出现的倒计时（name 为 null 时隐藏）；mul 为快杀叠加的血量倍率 */
+  setBossCountdown(name: string | null, remain: number, mul = 1): void {
     if (name === null || remain <= 0) {
       this.bossCd.hidden = true;
       return;
     }
     this.bossCd.hidden = false;
-    this.bossCd.textContent = `⚔ ${name} ${formatTime(Math.ceil(remain))}`;
+    const tag = mul > 1 ? `<em class="cd-mul">×${mul}</em>` : '';
+    this.bossCd.innerHTML = `⚔ ${name}${tag} ${formatTime(Math.ceil(remain))}`;
   }
 
   /** build 变化时重建图标槽（用签名避免每帧重建 DOM） */

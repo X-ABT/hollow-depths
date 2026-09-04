@@ -84,3 +84,17 @@ export function hpScale(t: number): number {
 export function damageScale(t: number): number {
   return 1 + (t / 60) * 0.18;
 }
+
+/**
+ * 快杀激励（挑战成长）：Boss 被击杀得越快，下一只 Boss 的血量越厚。
+ * @param killSec 上一只 Boss 从刷出到被击杀的耗时（秒）
+ * @returns 下一只 Boss 血量倍率（≥1）。命中多个档位时按最快档（更高倍率）结算；超过 2 分钟无加成。
+ */
+export function bossHpMulByKillTime(killSec: number): number {
+  if (killSec <= 15) return 10; // 15 秒内 → ×10
+  if (killSec <= 30) return 5; // 30 秒内 → ×5
+  if (killSec <= 60) return 4; // 1 分钟内 → ×4
+  if (killSec <= 90) return 3; // 1.5 分钟内 → ×3
+  if (killSec <= 120) return 2; // 2 分钟内 → ×2
+  return 1;
+}

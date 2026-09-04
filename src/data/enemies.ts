@@ -230,8 +230,8 @@ export const BOSSES: readonly EnemyDef[] = [
     armor: 10,
     elite: false,
     boss: true,
-    // 无敌倒计时 30s（期间只能躲避），结束后破防
-    p0: 30,
+    // 首轮无敌 15s（期间只能躲避、边界固定 900）；之后循环：破防 30s → 无敌 15s
+    p0: 15,
     p1: 0.55,
   },
 ];

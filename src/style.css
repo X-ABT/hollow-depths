@@ -571,6 +571,13 @@ body {
   white-space: nowrap;
 }
 
+/* 快杀后下一只 Boss 血量倍率：血红高亮，区别于金色倒计时 */
+.hud-boss-cd em.cd-mul {
+  font-style: normal;
+  color: #ff5470;
+  text-shadow: 0 0 10px rgba(255, 84, 112, 0.7);
+}
+
 .hud-boss-cd[hidden] {
   display: none;
 }

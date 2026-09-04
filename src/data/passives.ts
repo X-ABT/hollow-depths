@@ -63,7 +63,7 @@ export const PASSIVES: readonly PassiveDef[] = [
     en: 'Twin Mirror',
     icon: Tex.IconMirror,
     maxLevel: 5,
-    desc: '每次攻击额外生成投射物或分身。',
+    desc: '强化每次攻击：额外多射一枚投射物，光束则贯穿更深。',
     lvlText: (lv) => `投射物数量 +${lv}`,
     apply: (s, lv) => {
       s.projBonus += lv; // 每级 +1 投射物数量

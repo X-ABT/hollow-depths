@@ -603,9 +603,9 @@ export class Game {
       } else {
         this.hud.setBoss(null, 0, 0);
       }
-      // 无 Boss 在场时显示下一个 Boss 出现的倒计时
+      // 无 Boss 在场时显示下一个 Boss 出现的倒计时（快杀后倍率 >1 时附带标注）
       const next = this.spawn.nextBossInfo(this.world);
-      this.hud.setBossCountdown(next ? next.name : null, next ? next.remain : 0);
+      this.hud.setBossCountdown(next ? next.name : null, next ? next.remain : 0, next ? next.mul : 1);
     }
 
     if (this.perf.visible) {

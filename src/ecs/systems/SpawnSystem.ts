@@ -10,6 +10,7 @@ import {
   SPAWN_MARGIN,
   SPAWN_TABLE,
   GRACE_SECONDS,
+  bossHpMulByKillTime,
   damageScale,
   densityMul,
   hpScale,
@@ -43,6 +44,12 @@ export class SpawnSystem {
   private nextBoss = 0;
   /** 该 Boss 计划出现的绝对时间；Infinity 表示「等上一只 Boss 死亡后再排」 */
   private bossSpawnAt = FIRST_BOSS_AT;
+  /** 当前这只 Boss 实际刷出的游戏时刻（击杀后用于计算战斗耗时） */
+  private bossBornAt = 0;
+  /** 下一只 Boss 的血量倍率：由上一只 Boss 的击杀耗时决定（快杀则更肉，默认 1） */
+  private nextBossHpMul = 1;
+  /** 普通小怪刷新永久倍率：每次快杀 Boss 累乘对应档位，永不回退（仅普通怪，精英/炮手不受影响） */
+  private minionRushMul = 1;
   private bossAnnounce: ((name: string) => void) | null = null;
   /** 古神是否已被击败（击败后才允许周期刷深渊炮手） */
   private postHerald = false;
@@ -68,13 +75,20 @@ export class SpawnSystem {
     this.earlySpawnMul = 0.7;
   }
 
-  /** 上一只 Boss 已被击败：若还有后续 Boss，安排它在 4 分钟后出现 */
+  /**
+   * 上一只 Boss 已被击败：按「击杀耗时」结算下一只 Boss 的血量倍率，
+   * 并安排它在 4 分钟后出现。若无后续 Boss（终焉被击杀）则不再调度。
+   */
   scheduleNextBoss(now: number): void {
-    if (this.nextBoss < BOSS_ORDER.length) this.bossSpawnAt = now + NEXT_BOSS_GAP;
+    if (this.nextBoss >= BOSS_ORDER.length) return;
+    const mul = bossHpMulByKillTime(now - this.bossBornAt);
+    this.nextBossHpMul = mul; // 下一只 Boss 血量：按击杀耗时档位
+    this.minionRushMul *= mul; // 快杀 → 普通小怪刷新永久提速（慢杀为 ×1，不影响；不设回退）
+    this.bossSpawnAt = now + NEXT_BOSS_GAP;
   }
 
-  /** 下一次 Boss 倒计时信息；当前无待出的 Boss 或 Boss 正在场时返回 null */
-  nextBossInfo(world: World): { name: string; remain: number } | null {
+  /** 下一次 Boss 倒计时信息（含血量倍率）；当前无待出的 Boss 或 Boss 正在场时返回 null */
+  nextBossInfo(world: World): { name: string; remain: number; mul: number } | null {
     if (this.nextBoss >= BOSS_ORDER.length) return null;
     if (this.hasLiveBoss(world)) return null;
     if (!Number.isFinite(this.bossSpawnAt)) return null;
@@ -82,7 +96,7 @@ export class SpawnSystem {
     if (remain <= 0) return null;
     const idx = IDX.get(BOSS_ORDER[this.nextBoss]) ?? -1;
     const name = idx >= 0 ? ENEMY_BY_INDEX[idx].name : '';
-    return { name, remain };
+    return { name, remain, mul: this.nextBossHpMul };
   }
 
   reset(): void {
@@ -90,6 +104,9 @@ export class SpawnSystem {
     this.eliteT = ELITE_FIRST;
     this.nextBoss = 0;
     this.bossSpawnAt = FIRST_BOSS_AT;
+    this.bossBornAt = 0;
+    this.nextBossHpMul = 1;
+    this.minionRushMul = 1;
     this.postHerald = false;
     this.gunnerT = 0;
     this.gunnerFirst = true;
@@ -120,12 +137,15 @@ export class SpawnSystem {
           idx,
           p.x + Math.cos(a) * dist,
           p.y + Math.sin(a) * dist,
-          hpScale(t),
+          // 快杀激励：上一只 Boss 击杀耗时越短，这一只血量越厚
+          hpScale(t) * this.nextBossHpMul,
           damageScale(t),
         );
         if (e) {
           world.arenaX = e.x;
           world.arenaY = e.y;
+          this.bossBornAt = world.time; // 记录刷出时刻，供本次击杀耗时计算
+          this.nextBossHpMul = 1; // 本次倍率已消费，等下一只被击败后再由击杀耗时决定
           this.bossAnnounce?.(ENEMY_BY_INDEX[idx].name);
         }
       }
@@ -196,7 +216,7 @@ export class SpawnSystem {
     // Boss 战：场上存活的怪大多是 Boss 附近的伴生怪，让玩家难以安全清怪。
     // 大幅降低普通怪的补充刷新，让 Boss 战聚焦在 Boss 本体与其主动召唤物上，
     // 避免「Boss 带着铺天盖地的小怪」同时追着玩家。
-    let rate = spawnRate(t) * densityMul(t) * this.earlySpawnMul;
+    let rate = spawnRate(t) * densityMul(t) * this.earlySpawnMul * this.minionRushMul;
     if (this.hasLiveBoss(world)) rate *= 0.12;
     this.acc += rate * dt;
 
