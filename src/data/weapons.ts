@@ -435,13 +435,18 @@ export const WEAPONS: readonly WeaponDef[] = [
   },
 ];
 
-/** 由基础武器派生进化形态：按比例放大数值并替换开火逻辑（部分进化有专属行为） */
+/**
+ * 由基础武器派生进化形态：以「满级 Lv8 行」为数值锚点 × 进化系数，再替换开火逻辑。
+ * 进化是终局质变（单层，maxLevel=1），因此数值绝不能低于满级基础，
+ * 否则等于没收玩家已投入的升级；机制强的形态（必暴/溅射/双向…）数值系数会适当下调。
+ */
 function derive(
   base: WeaponDef,
   over: Partial<WeaponDef> & { id: string; name: string; en: string },
   mul: { dmg?: number; cd?: number; a?: number; b?: number },
 ): WeaponDef {
-  const scale = (arr: number[], k: number): number[] => arr.map((v) => v * k);
+  // 取基础武器满级行的数值（进化开火时 level=1，只用数组第 0 项）
+  const top = (arr: number[]): number => arr[arr.length - 1];
   return {
     ...base,
     ...over,
@@ -449,10 +454,10 @@ function derive(
     evolveWith: undefined,
     evolved: undefined,
     maxLevel: 1,
-    cd: mul.cd ? scale(base.cd, mul.cd) : [999],
-    dmg: scale(base.dmg, mul.dmg ?? 1),
-    a: scale(base.a, mul.a ?? 1),
-    b: scale(base.b, mul.b ?? 1),
+    cd: mul.cd ? [top(base.cd) * mul.cd] : [999],
+    dmg: [top(base.dmg) * (mul.dmg ?? 1)],
+    a: [top(base.a) * (mul.a ?? 1)],
+    b: [top(base.b) * (mul.b ?? 1)],
   };
 }
 
@@ -463,10 +468,11 @@ export const EVOLVED: readonly WeaponDef[] = [
       id: 'rift_abyss',
       name: '深渊裂隙',
       en: 'Abyssal Rift',
-      desc: '裂地印记的进化：印记同时撕裂三处，且必定暴击。',
+      desc: '裂地印记的进化：印记必定暴击、范围更广、频率更高。',
       icon: Tex.IconRift,
     },
-    { dmg: 1.9, a: 1.35, b: 3, cd: 0.9 },
+    // 机制「必定暴击」≈ 稳定 ×1.5~2.75 伤害，故单发伤害适当下调补偿
+    { dmg: 0.72, a: 1.15, b: 1, cd: 0.9 },
   ),
   derive(
     WEAPONS[1],
@@ -474,10 +480,11 @@ export const EVOLVED: readonly WeaponDef[] = [
       id: 'halo_twin',
       name: '双生圣环',
       en: 'Twin Halo',
-      desc: '圣环的进化：内外两圈光球反向旋转，范围与伤害大幅提升。',
+      desc: '圣环的进化：内外两圈光球反向旋转，范围与伤害显著提升。',
       icon: Tex.IconHalo,
     },
-    { dmg: 1.7, a: 2, b: 1.25 },
+    // 机制「双圈反向」不改变光球数量，伤害与环绕半径小幅提升即可
+    { dmg: 1.15, a: 1, b: 1.1 },
   ),
   derive(
     WEAPONS[2],
@@ -488,7 +495,8 @@ export const EVOLVED: readonly WeaponDef[] = [
       desc: '追猎印记的进化：命中后引爆，对周围造成溅射。',
       icon: Tex.IconSeeker,
     },
-    { dmg: 1.8, a: 1.6, b: 1.15, cd: 0.85 },
+    // 机制「每发命中都溅射 82」补群伤，单体伤害略微下调补偿
+    { dmg: 0.9, a: 1, b: 1.15, cd: 0.85 },
   ),
   derive(
     WEAPONS[3],
@@ -499,7 +507,8 @@ export const EVOLVED: readonly WeaponDef[] = [
       desc: '震击波的进化：冷却大幅缩短，击退范围扩展。',
       icon: Tex.IconShock,
     },
-    { dmg: 1.6, a: 1.3, b: 1.3, cd: 0.4 },
+    // 机制「高频震波」靠 CD ×0.7 实现，单发伤害略降保持总 DPS 略高于满级
+    { dmg: 0.85, a: 1.1, b: 1.1, cd: 0.7 },
   ),
   derive(
     WEAPONS[4],
@@ -507,10 +516,11 @@ export const EVOLVED: readonly WeaponDef[] = [
       id: 'shard_rain',
       name: '星陨暴雨',
       en: 'Starfall Rain',
-      desc: '碎星弹的进化：弹幕数量翻倍，射速进一步提升。',
+      desc: '碎星弹的进化：弹幕数量大幅提升，射速更快。',
       icon: Tex.IconShard,
     },
-    { dmg: 1.5, a: 2, b: 1.2, cd: 0.8 },
+    // 弹幕数量 ×1.5 + 射速提升，单发略降补偿，清潮总量更高
+    { dmg: 0.75, a: 1.5, b: 1, cd: 0.9 },
   ),
   derive(
     WEAPONS[5],
@@ -518,10 +528,11 @@ export const EVOLVED: readonly WeaponDef[] = [
       id: 'beam_twin',
       name: '苍穹裂光',
       en: 'Fissure of the Sky',
-      desc: '贯穿光束的进化：同时射出双向光柱，穿透数大幅提升。',
+      desc: '贯穿光束的进化：同时射出双向光柱，长度与穿透更高。',
       icon: Tex.IconBeam,
     },
-    { dmg: 1.7, a: 1.35, b: 2, cd: 0.75 },
+    // 机制「双向光柱」= 覆盖翻倍，单条光束伤害略降补偿
+    { dmg: 0.85, a: 1.2, b: 1.2, cd: 0.85 },
   ),
   derive(
     WEAPONS[6],
@@ -532,7 +543,8 @@ export const EVOLVED: readonly WeaponDef[] = [
       desc: '霜噬领域的进化：领域跟随自身移动，减速更严寒。',
       icon: Tex.IconFrost,
     },
-    { dmg: 1.8, a: 1.2, b: 1.4, cd: 0.8 },
+    // 跟随机制让领域持续覆盖移动路径，范围/时长/伤害小幅提升
+    { dmg: 1.2, a: 1.15, b: 1.1, cd: 0.85 },
   ),
 ];
 
