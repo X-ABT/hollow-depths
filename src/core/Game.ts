@@ -158,6 +158,8 @@ export class Game {
       return {
         state: this.state,
         parkOpen: this.petParkOpen,
+        parkZoom: this.petParkOpen ? this.petPark.cameraZoom : undefined,
+        parkFit: this.petParkOpen ? this.petPark.cameraFit : undefined,
         time: Math.round(this.world.time),
         kills: this.world.kills,
         xp: this.world.player.xp,

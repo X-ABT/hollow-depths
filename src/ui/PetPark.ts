@@ -19,7 +19,7 @@ import { Storage, type SaveData } from '../save/Storage';
 const PARK_BASE_W = 72;
 /** 展示区四周留白（世界坐标，留出草地观感） */
 const PAD = 170;
-const ZOOM_MIN = 0.16;
+/** 放大上限固定；缩小下限为动态值 = 最近一次「适应全部」视野缩放 × 0.1 */
 const ZOOM_MAX = 1.35;
 const RARITY_COLOR: Record<PetRarity, number> = {
   common: 0x9fb2e0,
@@ -72,6 +72,8 @@ export class PetPark {
 
   /** 视角：zoom 缩放、camX/camY 为视野中心（世界坐标） */
   private zoom = 0.5;
+  /** 最近一次「适应全部」的实际视野缩放；缩小下限 = 该值 × 0.1（随屏幕自适应） */
+  private fitZoom = 1;
   private camX = 0;
   private camY = 0;
   private field: Rectangle = new Rectangle(0, 0, 800, 600);
@@ -91,6 +93,15 @@ export class PetPark {
 
   get visible(): boolean {
     return this.ui !== null;
+  }
+
+  /** 供调试/自动化读取的当前缩放与全览基准（只读） */
+  get cameraZoom(): number {
+    return this.zoom;
+  }
+
+  get cameraFit(): number {
+    return this.fitZoom;
   }
 
   show(app: Application, uiRoot: HTMLElement, save: SaveData, onClose: () => void): void {
@@ -334,7 +345,7 @@ export class PetPark {
   }
 
   private clampZoom(z: number): number {
-    return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+    return Math.min(ZOOM_MAX, Math.max(0.1 * this.fitZoom, z));
   }
 
   zoomIn(): void {
@@ -355,7 +366,10 @@ export class PetPark {
     const h = Math.max(1, app.screen.height);
     const fw = Math.max(1, this.field.width);
     const fh = Math.max(1, this.field.height);
-    this.zoom = this.clampZoom(Math.min((w * 0.92) / fw, (h * 0.92) / fh));
+    const fit = Math.min((w * 0.92) / fw, (h * 0.92) / fh);
+    // 记录实际生效的全览缩放：fit 若超放大上限则以可见上限 1.35 为基准
+    this.fitZoom = Math.min(ZOOM_MAX, fit);
+    this.zoom = this.clampZoom(fit);
     this.camX = this.field.x + fw / 2;
     this.camY = this.field.y + fh / 2;
     this.applyView();
