@@ -157,6 +157,7 @@ export class Game {
       const p = this.world.player;
       return {
         state: this.state,
+        parkOpen: this.petParkOpen,
         time: Math.round(this.world.time),
         kills: this.world.kills,
         xp: this.world.player.xp,

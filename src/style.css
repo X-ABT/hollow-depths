@@ -2214,9 +2214,10 @@ body.park-open #ui-root > .stick {
 }
 .park-detail {
   position: absolute;
-  left: 50%;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
   bottom: calc(70px + var(--safe-b));
-  transform: translateX(-50%);
   width: min(360px, 86vw);
   padding: 14px 16px;
   border: 1px solid color-mix(in srgb, var(--pet-accent, #f5c451) 55%, transparent);
@@ -2305,5 +2306,73 @@ body.park-open #ui-root > .stick {
   }
   .pet-stat-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ============================ 宠物园 · 手机端小屏适配 ============================ */
+/* 公园打开时，画布手势只交给公园（拖拽平移），不触发页面滚动/橡皮筋 */
+body.park-open #stage canvas {
+  touch-action: none;
+}
+body.park-open {
+  overscroll-behavior: contain;
+}
+body.park-open #ui-root > .park-ui {
+  touch-action: none;
+}
+
+/* 窄屏（竖屏手机）：隐藏长提示、放大触控目标、详情卡避让操作条并允许内部滚动 */
+@media (max-width: 700px) and (pointer: coarse), (max-width: 520px) {
+  #ui-root > .park-ui .park-hint {
+    display: none;
+  }
+  #ui-root > .park-ui .park-back {
+    min-width: 48px;
+    min-height: 46px;
+    padding: 0 18px;
+  }
+  #ui-root > .park-ui .park-ctl {
+    min-width: 48px;
+    min-height: 48px;
+  }
+  #ui-root > .park-ui .park-controls {
+    right: calc(12px + var(--safe-r));
+    bottom: calc(16px + var(--safe-b));
+    gap: 10px;
+  }
+  #ui-root > .park-ui .park-detail {
+    width: min(340px, 90vw);
+    bottom: calc(84px + var(--safe-b));
+    max-height: calc(100vh - 200px - var(--safe-t) - var(--safe-b));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* 横屏小高度（landscape 手机）：详情卡限高可滚、顶部条不越安全区 */
+@media (max-height: 480px) and (orientation: landscape) {
+  #ui-root > .park-ui .park-hint {
+    display: none;
+  }
+  #ui-root > .park-ui .park-topbar {
+    top: calc(8px + var(--safe-t));
+  }
+  #ui-root > .park-ui .park-back {
+    min-width: 48px;
+    min-height: 44px;
+    padding: 0 16px;
+  }
+  #ui-root > .park-ui .park-ctl {
+    min-width: 48px;
+    min-height: 48px;
+  }
+  #ui-root > .park-ui .park-controls {
+    bottom: calc(10px + var(--safe-b));
+  }
+  #ui-root > .park-ui .park-detail {
+    bottom: calc(70px + var(--safe-b));
+    max-height: calc(100vh - 130px - var(--safe-t) - var(--safe-b));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
