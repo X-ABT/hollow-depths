@@ -40,16 +40,19 @@ export class SpawnSystem {
   private gunnerT = 0;
   /** 首次是否一次性批量 3 只（之后每次 1 只） */
   private gunnerFirst = true;
+  /** 击败首个 Boss 前普通怪生成倍率：减半让开局更从容；击败古神后恢复 1 */
+  private earlySpawnMul = 0.5;
 
   onBoss(cb: (name: string) => void): void {
     this.bossAnnounce = cb;
   }
 
-  /** 古神被击败：开启深渊炮手的周期刷新（首次立即批量刷 3 只） */
+  /** 古神被击败：恢复普通怪生成 + 开启深渊炮手的周期刷新（首次立即批量刷 3 只） */
   onHeraldDown(): void {
     this.postHerald = true;
     this.gunnerT = 0;
     this.gunnerFirst = true;
+    this.earlySpawnMul = 1;
   }
 
   reset(): void {
@@ -59,6 +62,7 @@ export class SpawnSystem {
     this.postHerald = false;
     this.gunnerT = 0;
     this.gunnerFirst = true;
+    this.earlySpawnMul = 0.5;
   }
 
   update(world: World, dt: number, viewW: number, viewH: number): void {
@@ -154,7 +158,7 @@ export class SpawnSystem {
     // Boss 战：场上存活的怪大多是 Boss 附近的伴生怪，让玩家难以安全清怪。
     // 大幅降低普通怪的补充刷新，让 Boss 战聚焦在 Boss 本体与其主动召唤物上，
     // 避免「Boss 带着铺天盖地的小怪」同时追着玩家。
-    let rate = spawnRate(t) * densityMul(t);
+    let rate = spawnRate(t) * densityMul(t) * this.earlySpawnMul;
     if (this.hasLiveBoss(world)) rate *= 0.12;
     this.acc += rate * dt;
     const half = Math.max(viewW, viewH) * 0.5 + SPAWN_MARGIN;

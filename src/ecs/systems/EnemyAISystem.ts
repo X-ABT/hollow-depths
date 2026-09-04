@@ -12,6 +12,8 @@ const SEP_FORCE = 240;
 const BOSS_SEP_MUL = 0.12;
 /** Boss 技能前摇（蓄力警示）时长（秒） */
 const CAST_WINDOW = 0.7;
+/** 古神霜噬领域的落点警示时长（秒）：比通用前摇更长，给玩家留足走位反应时间 */
+const HERALD_FIELD_WARN = 1.4;
 /** Boss 技能释放后的安全间歇区间（秒） */
 const SKILL_GAP: readonly [number, number] = [2.0, 3.0];
 
@@ -199,7 +201,7 @@ export class EnemyAISystem {
               e.ty = e.y;
             }
           } else if (phase === 1) {
-            // —— 阶段 1：玩家脚下落点伤害区（先 0.7s 落点警示再落下）——
+            // —— 阶段 1：玩家脚下落点伤害区（先 HERALD_FIELD_WARN 落点警示再落下）——
             vx = nx * speed * 0.7;
             vy = ny * speed * 0.7;
             if (e.cast > 0) {
@@ -212,11 +214,11 @@ export class EnemyAISystem {
                   pr.hostile = 1;
                   pr.x = pr.px = e.tx;
                   pr.y = pr.py = e.ty;
-                  pr.radius = 120;
+                  pr.radius = 105;
                   pr.damage = 0;
-                  pr.dotDps = 14;
+                  pr.dotDps = 5; // 每次仅 ~5 HP/s：重在逼迫走位而非秒杀
                   pr.slowF = 1;
-                  pr.life = pr.maxLife = 4;
+                  pr.life = pr.maxLife = 2.2;
                   pr.pierce = 9999;
                   pr.srcId = 900 + i;
                   pr.spriteKey = 17; // Tex.Frost
@@ -227,8 +229,8 @@ export class EnemyAISystem {
                 e.timer = this.gap(rng);
               }
             } else if (e.timer <= 0) {
-              // 锁落点为玩家当前位置，并进入蓄力警示
-              e.cast = CAST_WINDOW;
+              // 锁落点为玩家当前位置，进入更长的落点警示，给足走位反应时间
+              e.cast = HERALD_FIELD_WARN;
               e.tx = p.x;
               e.ty = p.y;
             }
