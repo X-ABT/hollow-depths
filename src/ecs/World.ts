@@ -8,6 +8,8 @@ import { Ai, Behavior } from './Components';
 export const MAX_ENEMIES = 2600;
 export const MAX_PROJ = 1600;
 export const MAX_PICKUPS = 1100;
+/** 上阵宠物最多 3 只，池留余量 */
+export const MAX_PETS = 8;
 /** 格边长 ≈ 2× 最大普通敌人半径（普通怪最大 r≈26），保证只查 3×3 邻格即可覆盖 */
 export const HASH_CELL = 64;
 
@@ -48,6 +50,43 @@ function makePickup(): Pickup {
   };
 }
 
+/** 局内宠物运行时数据（由 PetSystem 驱动，仅供渲染读取；不进入敌人哈希/掉落流程） */
+export interface Pet {
+  /** PETS 表下标 */
+  petIdx: number;
+  level: number;
+  x: number; y: number; px: number; py: number; vx: number; vy: number;
+  /** 当前血量 / 上限 / 单口基础伤害 */
+  hp: number; maxHp: number; dmg: number;
+  /** 受击判定半径（随体积增长但封顶，避免满屏敌人摸到巨兽） */
+  radius: number;
+  /** 视觉比例 = 当前体积 / 基础体积（渲染宽 = 基准宽 × scale） */
+  scale: number;
+  /** 0 出战 / 1 灰心逃跑（期间无敌） */
+  state: number;
+  /** 逃跑剩余时间等通用计时 */
+  timer: number;
+  /** 攻击冷却 */
+  atkCd: number;
+  /** 受击冷却 */
+  hurtCd: number;
+  /** 受击闪白 */
+  flash: number;
+  /** 上阵槽位 0..2（影响跟随偏移与渲染优先级） */
+  slot: number;
+}
+
+function makePet(): Pet {
+  return {
+    petIdx: 0, level: 1,
+    x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0,
+    hp: 1, maxHp: 1, dmg: 1,
+    radius: 13, scale: 1,
+    state: 0, timer: 0, atkCd: 0, hurtCd: 0, flash: 0,
+    slot: 0,
+  };
+}
+
 function makePlayer(): Player {
   return {
     x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0,
@@ -63,6 +102,7 @@ export class World {
   readonly enemies = new Pool<Enemy>(MAX_ENEMIES, makeEnemy);
   readonly projs = new Pool<Proj>(MAX_PROJ, makeProj);
   readonly pickups = new Pool<Pickup>(MAX_PICKUPS, makePickup);
+  readonly pets = new Pool<Pet>(MAX_PETS, makePet);
   readonly hash = new SpatialHash(MAX_ENEMIES, HASH_CELL);
   readonly rng = new Rng();
 
@@ -90,6 +130,7 @@ export class World {
     this.enemies.clear();
     this.projs.clear();
     this.pickups.clear();
+    this.pets.clear();
     this.hash.clear();
     this.player = makePlayer();
     this.time = 0;

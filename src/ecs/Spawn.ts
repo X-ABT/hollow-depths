@@ -1,6 +1,8 @@
 import { Ai, Behavior, PickupKind, type Pickup, type Proj, type Enemy } from './Components';
 import { ENEMY_BY_ID, ENEMY_BY_INDEX, IDX_BOSS_START } from '../data/enemies';
-import type { World } from './World';
+import { PETS } from '../data/pets';
+import { dmgFor, hpFor, visualScale } from '../data/pets';
+import type { Pet, World } from './World';
 
 /** 把一个复用出来的投射物重置为默认状态，再交给调用方按需覆盖 */
 function reset(p: Proj): void {
@@ -129,6 +131,40 @@ export function spawnEnemyById(
   const def = ENEMY_BY_ID[id];
   if (!def) return null;
   return spawnEnemy(world, ENEMY_BY_INDEX.indexOf(def), x, y, hpMul, dmgMul, scale);
+}
+
+/**
+ * 生成一局中的出战宠物：挂在玩家身边起始位置，所有战斗属性由等级即时换算。
+ * @param petIdx PETS 表下标
+ * @param level  宠物当前等级
+ * @param slot   上阵槽位（决定跟随偏移的相位，0..2）
+ */
+export function spawnPet(world: World, petIdx: number, level: number, slot: number): Pet | null {
+  const def = PETS[petIdx];
+  const p = world.pets.spawn();
+  if (!p || !def) return null;
+  const p0 = world.player;
+  const scale = visualScale(def, level);
+  const ang = (slot / 3) * Math.PI * 2 + 0.6;
+  p.petIdx = petIdx;
+  p.level = level;
+  p.x = p.px = p0.x + Math.cos(ang) * 46;
+  p.y = p.py = p0.y + Math.sin(ang) * 46;
+  p.vx = 0;
+  p.vy = 0;
+  p.maxHp = hpFor(def, level);
+  p.hp = p.maxHp;
+  p.dmg = dmgFor(def, level);
+  p.scale = scale;
+  // 受击判定半径随体积增长但封顶，避免巨型宠物被全屏敌人都摸到
+  p.radius = Math.min(88, 12 + scale * 9);
+  p.state = 0;
+  p.timer = 0;
+  p.atkCd = 0.6;
+  p.hurtCd = 0;
+  p.flash = 0;
+  p.slot = slot;
+  return p;
 }
 
 export function spawnPickup(

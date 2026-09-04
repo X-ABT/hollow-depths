@@ -6,7 +6,7 @@ import {
   TilingSprite,
   type Renderer as PixiRenderer,
 } from 'pixi.js';
-import { MAX_ENEMIES, MAX_PICKUPS, MAX_PROJ, type World } from '../ecs/World';
+import { MAX_ENEMIES, MAX_PETS, MAX_PICKUPS, MAX_PROJ, type World } from '../ecs/World';
 import { Behavior, PickupKind } from '../ecs/Components';
 import { Camera } from './Camera';
 import { atlas } from './Textures';
@@ -81,10 +81,14 @@ export class WorldRenderer {
   private vignette: Sprite | null = null;
 
   private readonly enemySprites: Sprite[] = [];
+  private readonly petSprites: Sprite[] = [];
   private readonly projSprites: Sprite[] = [];
   private readonly pickSprites: Sprite[] = [];
   private readonly playerSprite = new Sprite();
   private readonly arenaRing = new Graphics();
+
+  /** 宠物紧凑显示：隐藏超过阈值的巨兽本体（保留玩家视野） */
+  petCompact = false;
 
   /** Boss 施法蓄力警示环（跟随正在蓄力的 Boss） */
   private readonly warnLayer = new Container();
@@ -92,6 +96,7 @@ export class WorldRenderer {
 
   private enemyLayer = new Container();
   private pickLayer = new Container();
+  private petLayer = new Container();
   private projLayer = new Container();
 
   /** 上一帧可见实体数（性能面板） */
@@ -110,6 +115,7 @@ export class WorldRenderer {
     this.world.addChild(this.arenaRing);
     this.world.addChild(this.pickLayer);
     this.world.addChild(this.enemyLayer);
+    this.world.addChild(this.petLayer);
     this.world.addChild(this.warnLayer);
     this.world.addChild(this.projLayer);
     this.world.addChild(this.playerSprite);
@@ -144,6 +150,14 @@ export class WorldRenderer {
       s.visible = false;
       this.pickSprites.push(s);
       this.pickLayer.addChild(s);
+    }
+    // 出战宠物（最多 3 只，备 MAX_PETS 份）
+    for (let i = 0; i < MAX_PETS; i++) {
+      const s = new Sprite();
+      s.anchor.set(0.5);
+      s.visible = false;
+      this.petSprites.push(s);
+      this.petLayer.addChild(s);
     }
     // Boss 蓄力警示环（同屏最多一个 Boss，备 3 个保险）
     for (let i = 0; i < 3; i++) {
@@ -232,6 +246,39 @@ export class WorldRenderer {
       }
     }
     for (let i = world.enemies.count; i < MAX_ENEMIES; i++) this.enemySprites[i].visible = false;
+
+    // ——— 出战宠物（基准宽 40；巨型化后 width = 40 × 体积比例）———
+    const petArr = world.pets.items;
+    for (let i = 0; i < world.pets.count; i++) {
+      const pe = petArr[i];
+      const s = this.petSprites[i];
+      const x = pe.px + (pe.x - pe.px) * alpha;
+      const y = pe.py + (pe.y - pe.py) * alpha;
+      const w = 40 * pe.scale;
+      // 紧凑模式：超过阈值的巨兽本体收起，避免遮屏（攻击特效仍可见）
+      if (this.petCompact && w > 160) {
+        s.visible = false;
+        continue;
+      }
+      s.visible = true;
+      s.texture = atlas.get(Tex.Pet + pe.petIdx);
+      s.x = x;
+      s.y = y;
+      s.width = w;
+      s.height = w;
+      if (pe.state === 1) {
+        s.alpha = 0.5;
+        s.tint = 0x88aaff;
+      } else if (pe.flash > 0) {
+        s.alpha = 1;
+        s.tint = 0xffffff;
+      } else {
+        s.alpha = 0.96;
+        s.tint = 0xffffff;
+      }
+      visible++;
+    }
+    for (let i = world.pets.count; i < MAX_PETS; i++) this.petSprites[i].visible = false;
 
     // ——— Boss 蓄力警示环（cast>0 时在施法/落点处脉动提示）———
     {

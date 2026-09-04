@@ -7,6 +7,10 @@ export interface TitleHandlers {
   onTogglePause: () => void;
   /** 打开商店（仅主界面可用） */
   onShop: () => void;
+  /** 打开宠物中心（饲养园，仅主界面可用） */
+  onPet: () => void;
+  /** 打开宠物园（绿地展示场景，仅主界面可用） */
+  onPark: () => void;
 }
 
 /** 标题页：进入游戏 / 商店 / 玩法说明 / 性能面板开关 */
@@ -27,6 +31,8 @@ export class TitleScreen {
       <div class="title-actions">
         <button class="btn btn--primary" data-act="start">进入幽墟</button>
         <button class="btn" data-act="shop">商店</button>
+        <button class="btn" data-act="pet">饲养园</button>
+        <button class="btn" data-act="park">宠物园</button>
         <button class="btn" data-act="help">玩法说明</button>
         <button class="btn btn--ghost" data-act="perf">性能面板</button>
       </div>
@@ -39,6 +45,7 @@ export class TitleScreen {
         <div>5:00 古神现身，每击败一个 Boss，4 分钟后迎来下一场 Boss 战</div>
         <div>Boss 被击杀越快，挑战越强：2分钟内×2 / 1分30秒内×3 / 1分钟内×4 / 30秒内×5 / 15秒内×10</div>
         <div>下一只 Boss 血量按上表提高；普通小怪刷新永久提速（每次快杀累乘，不会回落）</div>
+        <div>「饲养园」用灵魂抽宠物/粮食，投喂升级属性随等级成长，出战宠物跟随你自动战斗</div>
         <div><kbd>Esc</kbd> 或 <kbd>P</kbd> 暂停</div>
       </div>
     `;
@@ -57,6 +64,8 @@ export class TitleScreen {
 
     el.querySelector('[data-act="start"]')?.addEventListener('click', h.onStart);
     el.querySelector('[data-act="shop"]')?.addEventListener('click', h.onShop);
+    el.querySelector('[data-act="pet"]')?.addEventListener('click', h.onPet);
+    el.querySelector('[data-act="park"]')?.addEventListener('click', h.onPark);
     el.querySelector('[data-act="perf"]')?.addEventListener('click', h.onTogglePerf);
     const help = el.querySelector('.title-help') as HTMLElement;
     el.querySelector('[data-act="help"]')?.addEventListener('click', () => {

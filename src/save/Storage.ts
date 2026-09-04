@@ -23,6 +23,20 @@ export interface SaveData {
   weaponLevels: Record<string, number>;
   /** 永久升级后的被动起始等级 */
   passiveLevels: Record<string, number>;
+  /** 已获得的宠物 id（顺序即图鉴/列表顺序，去重） */
+  petsOwned: string[];
+  /** petId → 宠物等级（缺省视作 1） */
+  petLevels: Record<string, number>;
+  /** 宠物粮袋数量（整数） */
+  petFood: number;
+  /** 宠物碎片（宠物商店通用货币，整数） */
+  petShards: number;
+  /** 本局上阵的宠物 id（长度不超过槽位数） */
+  petLoadout: string[];
+  /** 局内「紧凑模式」：隐藏超大宠物巨兽本体，避免遮挡走位/弹幕视野 */
+  petCompact: boolean;
+  /** 是否已领取饲养园的免费基础宠物（一生一次） */
+  freePetClaimed: boolean;
 }
 
 const DEFAULT: SaveData = {
@@ -38,16 +52,37 @@ const DEFAULT: SaveData = {
   unlockedPassives: [...DEFAULT_UNLOCKED_PASSIVES],
   weaponLevels: {},
   passiveLevels: {},
+  petsOwned: [],
+  petLevels: {},
+  petFood: 0,
+  petShards: 0,
+  petLoadout: [],
+  petCompact: false,
+  freePetClaimed: false,
 };
 
 /** localStorage 读写：任何异常都不应影响游戏进行（无痕模式 / 禁用存储） */
 export class Storage {
+  /** 深拷贝一份默认存档（数组/对象各自复制，避免跨存档共享引用） */
+  private static freshDefault(): SaveData {
+    return {
+      ...DEFAULT,
+      unlockedWeapons: [...DEFAULT_UNLOCKED_WEAPONS],
+      unlockedPassives: [...DEFAULT_UNLOCKED_PASSIVES],
+      weaponLevels: {},
+      passiveLevels: {},
+      petsOwned: [],
+      petLevels: {},
+      petLoadout: [],
+    };
+  }
+
   static load(): SaveData {
     try {
       const raw = localStorage.getItem(KEY);
-      if (!raw) return { ...DEFAULT, unlockedWeapons: [...DEFAULT_UNLOCKED_WEAPONS], unlockedPassives: [...DEFAULT_UNLOCKED_PASSIVES] };
+      if (!raw) return this.freshDefault();
       const parsed = JSON.parse(raw) as Partial<SaveData>;
-      // 数组字段一律复制，避免跨存档共享引用后被 push 污染
+      // 数组/对象字段一律复制，避免跨存档共享引用后被 push 污染；老存档缺字段时回退默认
       const merged: SaveData = {
         ...DEFAULT,
         ...parsed,
@@ -65,10 +100,20 @@ export class Storage {
           parsed.passiveLevels && typeof parsed.passiveLevels === 'object'
             ? { ...parsed.passiveLevels }
             : {},
+        petsOwned: Array.isArray(parsed.petsOwned) ? [...parsed.petsOwned] : [],
+        petLevels:
+          parsed.petLevels && typeof parsed.petLevels === 'object'
+            ? { ...parsed.petLevels }
+            : {},
+        petFood: typeof parsed.petFood === 'number' && Number.isFinite(parsed.petFood) ? Math.max(0, Math.floor(parsed.petFood)) : 0,
+        petShards: typeof parsed.petShards === 'number' && Number.isFinite(parsed.petShards) ? Math.max(0, Math.floor(parsed.petShards)) : 0,
+        petLoadout: Array.isArray(parsed.petLoadout) ? [...parsed.petLoadout] : [],
+        petCompact: parsed.petCompact === true,
+        freePetClaimed: parsed.freePetClaimed === true,
       };
       return merged;
     } catch {
-      return { ...DEFAULT, unlockedWeapons: [...DEFAULT_UNLOCKED_WEAPONS], unlockedPassives: [...DEFAULT_UNLOCKED_PASSIVES] };
+      return this.freshDefault();
     }
   }
 

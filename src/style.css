@@ -1732,3 +1732,578 @@ body.is-touch .hud-zoom {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+/* ============================ 饲养园（宠物中心） ============================ */
+.pet-screen {
+  justify-content: flex-start;
+  padding-top: calc(4vh + var(--safe-t));
+}
+.pet-panel {
+  width: min(720px, 100%);
+  max-height: min(90vh, 900px);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px 14px;
+  animation: rise-in 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+.pet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.pet-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--t-bright);
+}
+.pet-close {
+  flex: none;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 15px;
+}
+.pet-balance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pet-res {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  background: var(--glass-hi);
+  font-size: 12px;
+  color: var(--t-mid);
+}
+.pet-res b {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.pet-res--soul b { color: var(--p-soul); }
+.pet-res--food b { color: #e6d7ae; }
+.pet-res--shard b { color: #c79bff; }
+.pet-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.pet-tab {
+  flex: 1;
+  padding: 8px 0;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--t-mid);
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.pet-tab:hover {
+  color: var(--t-bright);
+  border-color: rgba(167, 158, 201, 0.4);
+}
+.pet-tab.is-on {
+  color: #fff3cf;
+  border-color: rgba(245, 196, 81, 0.55);
+  background: rgba(245, 196, 81, 0.08);
+  text-shadow: 0 0 12px rgba(245, 196, 81, 0.4);
+}
+.pet-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 2px 4px;
+}
+
+/* —— 稀有度 —— */
+.pet-r-common { --pet-accent: #9fb2e0; --pet-glow: rgba(159, 178, 224, 0.4); }
+.pet-r-rare { --pet-accent: #c58cff; --pet-glow: rgba(178, 107, 255, 0.5); }
+.pet-r-legend { --pet-accent: #f5c451; --pet-glow: rgba(245, 196, 81, 0.55); }
+.pet-tag {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--pet-accent, var(--t-dim));
+  border: 1px solid color-mix(in srgb, var(--pet-accent, #8a81a6) 55%, transparent);
+  background: color-mix(in srgb, var(--pet-accent, #8a81a6) 12%, transparent);
+}
+.pet-lv {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--t-mid);
+  font-variant-numeric: tabular-nums;
+}
+
+/* —— 抽奖页签 —— */
+.pet-gacha-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 8px 0 10px;
+}
+.pet-gacha-btn {
+  min-width: 132px;
+  padding: 12px 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.3;
+  border-color: rgba(245, 196, 81, 0.45);
+  color: #ffe6ab;
+}
+.pet-gacha-btn--ten {
+  border-color: rgba(178, 107, 255, 0.6);
+  color: #ecd4ff;
+  background: linear-gradient(180deg, rgba(178, 107, 255, 0.16), rgba(178, 107, 255, 0.04));
+}
+.pet-gacha-note {
+  margin: 0 auto 12px;
+  max-width: 460px;
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--t-dim);
+}
+.pet-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 40px;
+}
+.pet-result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  background: var(--glass-hi);
+  animation: rise-in 0.25s ease both;
+}
+.pet-result-row--new {
+  border-color: rgba(245, 196, 81, 0.5);
+  box-shadow: 0 0 14px rgba(245, 196, 81, 0.18);
+}
+.pet-result-ico {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+.pet-result-text {
+  font-size: 13px;
+  color: var(--t-bright);
+}
+
+/* —— 饲养页签 —— */
+.pet-farm {
+  display: grid;
+  grid-template-columns: minmax(240px, 340px) 1fr;
+  gap: 14px;
+  align-items: start;
+}
+.pet-farm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 340px;
+  overflow: auto;
+  padding-right: 2px;
+}
+.pet-farm-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  background: var(--glass-hi);
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+.pet-farm-row:hover {
+  border-color: color-mix(in srgb, var(--pet-accent, #8a81a6) 55%, transparent);
+}
+.pet-farm-row.is-sel {
+  border-color: var(--pet-accent, var(--p-amber));
+  box-shadow: 0 0 12px var(--pet-glow, rgba(245, 196, 81, 0.2));
+}
+.pet-ic {
+  flex: none;
+  display: flex;
+}
+.pet-farm-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--t-bright);
+}
+.pet-farm-info b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pet-mini {
+  flex: none;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  border-color: rgba(74, 222, 128, 0.45);
+  color: #b8f6ce;
+}
+.pet-mini--off {
+  border-color: rgba(255, 84, 112, 0.4);
+  color: #ffb3c0;
+}
+.pet-empty {
+  padding: 22px 10px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--t-dim);
+}
+.pet-slots {
+  display: flex;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+.pet-slot {
+  flex: 1;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--pet-accent, #8a81a6) 55%, transparent);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--pet-accent, #8a81a6) 8%, transparent);
+  font-size: 12px;
+  color: var(--t-mid);
+}
+.pet-slot--empty {
+  border-style: dashed;
+  border-color: var(--stroke);
+  background: transparent;
+  color: var(--t-dim);
+}
+.pet-slot-tip {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 11px;
+  color: var(--t-dim);
+  text-align: center;
+}
+.pet-detail {
+  padding: 12px 14px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--glass-hi), var(--glass));
+}
+.pet-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.pet-detail-ico {
+  flex: none;
+  display: flex;
+}
+.pet-detail-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: var(--pet-accent, var(--t-bright));
+}
+.pet-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pet-stat {
+  padding: 8px 4px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  background: var(--glass-hi);
+  text-align: center;
+}
+.pet-stat b {
+  display: block;
+  font-size: 15px;
+  color: var(--t-bright);
+  font-variant-numeric: tabular-nums;
+}
+.pet-stat span {
+  font-size: 11px;
+  color: var(--t-dim);
+}
+.pet-rule {
+  margin: 0 0 12px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--t-dim);
+  text-align: center;
+}
+.pet-feed {
+  width: 100%;
+}
+.pet-toggle {
+  width: 100%;
+  margin-top: 8px;
+}
+.pet-mini.pet-toggle.pet-mini--off {
+  border-color: rgba(255, 84, 112, 0.4);
+}
+
+/* —— 碎片商店页签 —— */
+.pet-shop {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pet-shop-item {
+  border-color: color-mix(in srgb, var(--pet-accent, #8a81a6) 35%, var(--stroke));
+}
+.pet-buy {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  border-color: rgba(199, 155, 255, 0.55);
+  color: #e5ccff;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pet-buy.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: var(--stroke);
+  color: var(--t-dim);
+}
+.pet-food-shop {
+  display: flex;
+  gap: 10px;
+}
+.pet-food-buy {
+  flex: 1;
+  min-height: 52px;
+  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  border-color: rgba(230, 215, 174, 0.4);
+  color: #f0e3c0;
+}
+.pet-food-buy.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: var(--stroke);
+  color: var(--t-dim);
+}
+.pet-cost {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--t-dim);
+}
+
+/* 暂停弹窗内的紧凑显示开关 */
+.pause-panel .pet-compact-toggle {
+  width: 100%;
+  min-height: 36px;
+  margin: 0 0 10px;
+  border-color: rgba(178, 107, 255, 0.45);
+  color: #e5ccff;
+}
+
+/* ============================ 宠物园（绿地展示场景） ============================ */
+#ui-root > .park-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none !important;
+}
+.park-ui button,
+.park-ui .park-detail {
+  pointer-events: auto;
+}
+/* 进入公园后，把所有战斗中才会用的 HUD/调试/音乐/暂停提示全部隐藏，避免遮挡草地 */
+body.park-open #ui-root > .hud,
+body.park-open #ui-root > .hud-zoom,
+body.park-open #ui-root > .music-toggle,
+body.park-open #ui-root > .cheat-btn,
+body.park-open #ui-root > .cheat-input,
+body.park-open #ui-root > .hud-pause-tip,
+body.park-open #ui-root > .perf-hud,
+body.park-open #ui-root > .btn-pause,
+body.park-open #ui-root > .stick-zone,
+body.park-open #ui-root > .stick {
+  display: none !important;
+}
+.park-topbar {
+  position: absolute;
+  top: calc(12px + var(--safe-t));
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 calc(14px + var(--safe-l)) 0 calc(14px + var(--safe-r));
+}
+.park-back {
+  flex: none;
+  min-height: 36px;
+  padding: 0 14px;
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #f2ffe8;
+  background: rgba(10, 7, 19, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.park-hint {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: rgba(242, 255, 232, 0.75);
+  text-shadow: 0 1px 4px rgba(10, 7, 19, 0.8);
+}
+.park-controls {
+  position: absolute;
+  right: calc(14px + var(--safe-r));
+  bottom: calc(16px + var(--safe-b));
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.park-ctl {
+  min-width: 44px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 18px;
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #f2ffe8;
+  background: rgba(10, 7, 19, 0.42);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.park-ctl--fit {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  border-color: rgba(245, 196, 81, 0.55);
+  color: #ffe6ab;
+}
+.park-detail {
+  position: absolute;
+  left: 50%;
+  bottom: calc(70px + var(--safe-b));
+  transform: translateX(-50%);
+  width: min(360px, 86vw);
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--pet-accent, #f5c451) 55%, transparent);
+  border-radius: var(--r-lg);
+  background: rgba(13, 9, 22, 0.86);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 24px var(--pet-glow, rgba(245, 196, 81, 0.2));
+  animation: rise-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+.park-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.park-detail-ico {
+  flex: none;
+  display: flex;
+}
+.park-detail-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: var(--pet-accent, var(--t-bright));
+}
+.park-feed {
+  width: 100%;
+  margin-top: 2px;
+}
+.park-detail-close {
+  width: 100%;
+  margin-top: 8px;
+  min-height: 34px;
+}
+
+/* 免费基础宠物领取横幅 */
+.pet-free {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px dashed rgba(74, 222, 128, 0.5);
+  border-radius: var(--r-md);
+  background: rgba(74, 222, 128, 0.07);
+}
+.pet-free .btn {
+  flex: none;
+  min-height: 34px;
+}
+.pet-free-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--t-mid);
+}
+.pet-free-text b {
+  color: #b8f6ce;
+}
+
+/* 百连按钮（红金强调，区别于九折紫） */
+.pet-gacha-actions {
+  flex-wrap: wrap;
+}
+.pet-gacha-btn--hundred {
+  border-color: rgba(255, 84, 112, 0.5);
+  color: #ffc9d2;
+  background: linear-gradient(180deg, rgba(255, 84, 112, 0.14), rgba(255, 84, 112, 0.04));
+}
+
+/* 粮袋整包特惠 */
+.pet-food-buy--bulk {
+  border-color: rgba(74, 222, 128, 0.5);
+  color: #c9f7dd;
+  background: linear-gradient(180deg, rgba(74, 222, 128, 0.12), rgba(74, 222, 128, 0.03));
+}
+
+@media (max-width: 700px) {
+  .pet-farm {
+    grid-template-columns: 1fr;
+  }
+  .pet-farm-list {
+    max-height: 240px;
+  }
+  .pet-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

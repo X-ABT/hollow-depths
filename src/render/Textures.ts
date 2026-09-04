@@ -1,5 +1,6 @@
 import { Container, Graphics, Rectangle, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
 import { TEX_SIZE, Tex } from './TexKeys';
+import { PETS, type PetDef } from '../data/pets';
 
 /**
  * 程序化图集：用 Graphics 画出全部精灵，一次性烘焙成单张 RenderTexture 并按需切分。
@@ -35,9 +36,203 @@ function eyes(g: G, x: number, y: number, d: number, r: number, color: number = 
   g.circle(x + d, y, r).fill(color);
 }
 
+/** HSL → 0xRRGGBB（s / l 用 0-100 的百分数传入） */
+function hsl(h: number, s: number, l: number): number {
+  const S = s / 100;
+  const L = l / 100;
+  const f = (n: number): number => {
+    const k = (n + h / 30) % 12;
+    const a = S * Math.min(L, 1 - L);
+    const c = L - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+    return Math.max(0, Math.min(255, Math.round(c * 255)));
+  };
+  return ((f(0) & 0xff) << 16) | ((f(8) & 0xff) << 8) | (f(4) & 0xff);
+}
+
+/** 幽域龙裔：蓝紫幼龙立绘（双翼张开 + 卷尾 + 龙角），专属绘制 */
+function drawDrake(g: G, def: PetDef): void {
+  const main = hsl(def.hue, 70, 56); // 亮蓝紫龙身
+  const dark = hsl(def.hue, 76, 28); // 深紫描边/暗鳞
+  const wing = hsl(def.hue, 62, 46); // 翼膜蓝紫
+  const belly = hsl(def.hue, 50, 82); // 胸腹亮鳞
+  const glint = hsl(def.hue, 55, 88);
+  // 传说金环辉光
+  g.circle(32, 32, 31).fill({ color: 0xf5c451, alpha: 0.09 });
+  g.circle(32, 32, 31).stroke({ width: 1.8, color: C.amber, alpha: 0.7 });
+
+  // —— 双翼（先画，压在身体之后呈张开状）——
+  // 左翼
+  g.poly([20, 32, 3, 8, 30, 14]).fill({ color: wing, alpha: 0.92 });
+  g.poly([20, 32, 3, 8, 30, 14]).stroke({ width: 1.2, color: dark, alpha: 0.7 });
+  g.moveTo(20, 31).lineTo(10, 18).stroke({ width: 1, color: glint, alpha: 0.6 }); // 翼指
+  g.moveTo(20, 31).lineTo(20, 12).stroke({ width: 1, color: glint, alpha: 0.45 });
+  // 右翼
+  g.poly([44, 32, 61, 8, 34, 14]).fill({ color: wing, alpha: 0.92 });
+  g.poly([44, 32, 61, 8, 34, 14]).stroke({ width: 1.2, color: dark, alpha: 0.7 });
+  g.moveTo(44, 31).lineTo(54, 18).stroke({ width: 1, color: glint, alpha: 0.6 });
+  g.moveTo(44, 31).lineTo(44, 12).stroke({ width: 1, color: glint, alpha: 0.45 });
+
+  // —— 卷尾（从右下绕到右上，蓝紫色长尾）——
+  g.moveTo(44, 46).quadraticCurveTo(60, 50, 57, 30).stroke({ width: 6.5, color: main, alpha: 0.98 });
+  g.moveTo(44, 46).quadraticCurveTo(60, 50, 57, 30).stroke({ width: 2.2, color: dark, alpha: 0.6 });
+  g.poly([54, 27, 62, 20, 61, 31]).fill({ color: glint, alpha: 0.95 }); // 尾端鳞片
+
+  // —— 身体：正视坐姿龙躯 ——
+  g.ellipse(32, 43, 15, 16).fill({ color: main, alpha: 0.98 });
+  g.ellipse(32, 43, 15, 16).stroke({ width: 2, color: dark, alpha: 0.9 });
+  g.ellipse(32, 48, 9, 9).fill({ color: belly, alpha: 0.85 }); // 亮胸腹
+  // 前肢双爪（坐在画面下方）
+  g.ellipse(22, 56, 5, 3.4).fill({ color: main, alpha: 1 });
+  g.ellipse(42, 56, 5, 3.4).fill({ color: main, alpha: 1 });
+  g.roundRect(19.5, 57.5, 6, 3.4, 1.4).fill({ color: dark, alpha: 0.9 });
+  g.roundRect(38.5, 57.5, 6, 3.4, 1.4).fill({ color: dark, alpha: 0.9 });
+
+  // —— 头颈（上部前倾）——
+  g.poly([24, 34, 14, 20, 40, 20, 34, 34]).fill({ color: main, alpha: 0.98 });
+  // 头
+  g.ellipse(26, 18, 13, 11).fill({ color: main, alpha: 1 });
+  g.ellipse(26, 18, 13, 11).stroke({ width: 1.8, color: dark, alpha: 0.85 });
+  // 吻部（朝左下方）
+  g.poly([12, 20, 3, 24, 13, 27]).fill({ color: main, alpha: 1 });
+  g.circle(7, 24, 1.3).fill({ color: dark, alpha: 0.9 }); // 鼻孔
+  // 双角：向后上方弯曲
+  g.poly([17, 8, 12, 0, 23, 3]).fill({ color: dark, alpha: 0.98 });
+  g.poly([31, 6, 33, 0, 38, 2]).fill({ color: dark, alpha: 0.85 });
+  g.moveTo(17, 8).lineTo(19, 1).stroke({ width: 1.1, color: glint, alpha: 0.5 });
+  g.moveTo(31, 6).lineTo(32, 1).stroke({ width: 1.1, color: glint, alpha: 0.5 });
+
+  // —— 龙眼：竖瞳琥珀光 ——
+  g.circle(17, 19, 2.7).fill({ color: C.amber, alpha: 1 });
+  g.circle(17, 19, 1).fill({ color: 0xffffff, alpha: 0.9 });
+  g.circle(32, 18, 2.6).fill({ color: C.amber, alpha: 0.95 });
+  g.circle(32, 18, 0.95).fill({ color: 0xffffff, alpha: 0.85 });
+
+  // 龙鳞高光
+  g.circle(27, 38, 1.3).fill({ color: glint, alpha: 0.8 });
+  g.circle(37, 36, 1).fill({ color: glint, alpha: 0.7 });
+  g.circle(24, 30, 1).fill({ color: glint, alpha: 0.7 });
+}
+
+/** 星噬之眼：浮空深渊之眼（星环 + 深邃球体 + 琥珀竖瞳） */
+function drawStareye(g: G, def: PetDef): void {
+  const voidC = 0x0b0622;
+  const neb = hsl(262, 60, 16);
+  const nebHi = hsl(262, 48, 30);
+  // 传说金环辉光
+  g.circle(32, 32, 31).fill({ color: 0xf5c451, alpha: 0.1 });
+  g.circle(32, 32, 31).stroke({ width: 1.8, color: C.amber, alpha: 0.75 });
+
+  // 眼窝外圈（深紫晕）
+  g.circle(32, 32, 27).fill({ color: neb, alpha: 1 });
+  g.circle(32, 32, 27).stroke({ width: 2.2, color: 0x7c5cff, alpha: 0.85 });
+
+  // 虹膜内环
+  g.circle(32, 32, 21).fill({ color: hsl(264, 62, 12), alpha: 1 });
+  g.circle(32, 32, 15).stroke({ width: 1.6, color: 0x9b7dff, alpha: 0.5 });
+
+  // 垂直琥珀竖瞳 + 外层光晕
+  g.roundRect(30.2, 18, 3.6, 28, 1.8).fill({ color: C.amber, alpha: 0.95 });
+  g.circle(32, 32, 9).fill({ color: C.amber, alpha: 0.16 });
+  g.circle(32, 32, 4).fill({ color: 0xffe9a8, alpha: 0.9 }); // 瞳心亮点
+  // 眼眶高光弧（顶部）
+  g.circle(26, 20, 4.5).fill({ color: nebHi, alpha: 0.5 });
+  g.circle(24, 18, 2).fill({ color: 0xffffff, alpha: 0.16 });
+
+  // 瞳孔四周的微型“星芒/吞噬”纹
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    g.circle(32 + Math.cos(a) * 17, 32 + Math.sin(a) * 17, 0.9).fill({ color: 0xd9c8ff, alpha: 0.55 });
+  }
+  // 环绕运行的小星子（太空感）
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 + 0.6;
+    const rr = i % 2 === 0 ? 27.5 : 25.5;
+    g.circle(32 + Math.cos(a) * rr, 32 + Math.sin(a) * rr, i === 1 ? 1.8 : 1.1).fill({
+      color: i === 1 ? 0xf5c451 : 0xbfd8ff,
+      alpha: 0.9,
+    });
+  }
+  // 四向细短星芒
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const x1 = 32 + Math.cos(a) * 31;
+    const y1 = 32 + Math.sin(a) * 31;
+    const x2 = 32 + Math.cos(a) * 35;
+    const y2 = 32 + Math.sin(a) * 35;
+    g.moveTo(x1, y1).lineTo(x2, y2).stroke({ width: 1.1, color: 0x7c5cff, alpha: 0.9 });
+  }
+  void def;
+  void voidC;
+}
+
+/** 宠物身体：按体型族程序化绘制；传说加金环辉光（图鉴大头贴与局内共用同一张贴图） */
+function drawPet(g: G, def: PetDef): void {
+  // 专属传说形象优先（龙裔 / 星噬之眼各有定制立绘）
+  if (def.id === 'drake') {
+    drawDrake(g, def);
+    return;
+  }
+  if (def.id === 'stareye') {
+    drawStareye(g, def);
+    return;
+  }
+  const main = hsl(def.hue, 44, 60);
+  const deep = hsl(def.hue, 50, 34);
+  const soft = hsl(def.hue, 38, 78);
+  const eye = def.rarity === 'legend' ? C.amber : def.rarity === 'rare' ? 0x9fe8ff : C.void;
+  if (def.rarity === 'legend') {
+    g.circle(32, 32, 31).fill({ color: 0xf5c451, alpha: 0.08 });
+    g.circle(32, 32, 31).stroke({ width: 1.8, color: C.amber, alpha: 0.7 });
+  }
+  switch (def.bodyKind) {
+    case 0: {
+      // 团身系：圆胖身体 + 头顶圆耳
+      g.ellipse(32, 40, 19, 15).fill({ color: main, alpha: 0.98 });
+      g.ellipse(32, 40, 19, 15).stroke({ width: 2, color: deep, alpha: 0.9 });
+      g.circle(21, 27, 5.5).fill({ color: soft, alpha: 0.95 });
+      g.circle(43, 27, 5.5).fill({ color: soft, alpha: 0.95 });
+      g.circle(32, 27, 10).fill({ color: hsl(def.hue, 58, 76), alpha: 1 });
+      g.ellipse(32, 46, 10, 5).fill({ color: soft, alpha: 0.55 });
+      eyes(g, 32, 28, 3.6, 2.2, eye);
+      break;
+    }
+    case 1: {
+      // 兽系：四足 + 竖耳 + 卷尾
+      g.ellipse(32, 47, 19, 11).fill({ color: main, alpha: 0.98 });
+      g.ellipse(32, 47, 19, 11).stroke({ width: 2, color: deep, alpha: 0.9 });
+      for (const x of [21, 28, 36, 43]) {
+        g.roundRect(x - 2.4, 52, 5, 9, 2).fill({ color: deep, alpha: 0.95 });
+      }
+      g.circle(32, 26, 11.5).fill({ color: main, alpha: 1 });
+      g.poly([21, 23, 15, 9, 28, 18]).fill({ color: deep, alpha: 0.9 });
+      g.poly([43, 23, 49, 9, 36, 18]).fill({ color: deep, alpha: 0.9 });
+      eyes(g, 32, 27, 4.2, 2.1, eye);
+      g.moveTo(13, 47).quadraticCurveTo(4, 34, 10, 24).stroke({ width: 4, color: main, alpha: 0.95 });
+      break;
+    }
+    default: {
+      // 飞翼系：小圆身 + 大张双翼
+      g.poly([22, 38, 5, 20, 7, 45]).fill({ color: deep, alpha: 0.95 });
+      g.poly([42, 38, 59, 20, 57, 45]).fill({ color: deep, alpha: 0.95 });
+      g.ellipse(32, 40, 13, 11).fill({ color: main, alpha: 0.98 });
+      g.ellipse(32, 40, 13, 11).stroke({ width: 1.8, color: soft, alpha: 0.9 });
+      g.circle(32, 40, 6).fill({ color: hsl(def.hue, 62, 76), alpha: 1 });
+      eyes(g, 32, 40, 3, 1.9, eye);
+      g.moveTo(27, 49).quadraticCurveTo(32, 58, 37, 49).stroke({ width: 2, color: deep, alpha: 0.7 });
+      break;
+    }
+  }
+}
+
 /** 单个纹理的绘制（坐标系固定为 0..64，烘焙时统一缩放） */
 export function drawTex(g: G, key: number): void {
   g.clear();
+  // 宠物身体：Tex.Pet + 下标 0..N-1 依次对应 PETS 表
+  const petIdx = key - Tex.Pet;
+  if (petIdx >= 0 && petIdx < PETS.length) {
+    drawPet(g, PETS[petIdx]);
+    return;
+  }
   switch (key) {
     // ——————————————— 角色与敌人 ———————————————
     case Tex.Player: {
@@ -474,6 +669,26 @@ export function drawTex(g: G, key: number): void {
       glow(g, 32, 32, 16, C.bad, 0.9);
       g.circle(32, 32, 8).fill({ color: 0xff5470, alpha: 0.95 });
       g.circle(32, 32, 8).stroke({ width: 1.4, color: 0xffd9a0, alpha: 0.9 });
+      break;
+    }
+    case Tex.PetFood: {
+      // 宠物粮袋：束口小麻袋 + 高光
+      g.ellipse(32, 39, 17, 15).fill({ color: 0xb98a52, alpha: 0.98 });
+      g.ellipse(32, 39, 17, 15).stroke({ width: 2, color: 0x6e4a26, alpha: 0.9 });
+      g.roundRect(23, 24, 18, 9, 3).fill({ color: 0x6e4a26, alpha: 0.95 });
+      g.moveTo(32, 14).lineTo(32, 26).stroke({ width: 2.4, color: 0xe6d7ae, alpha: 0.9 });
+      g.circle(32, 14, 3.4).fill({ color: 0xf2e2b8, alpha: 0.95 });
+      g.circle(43, 32, 4.5).fill({ color: 0xfff2cc, alpha: 0.4 });
+      break;
+    }
+    case Tex.PetClaw: {
+      // 宠物爪击：三条醒目的竖直划痕（中心在 (32,32)）
+      for (let i = -1; i <= 1; i++) {
+        const x = 32 - 2 + i * 11;
+        g.roundRect(x, 17, 4, 30, 2).fill({ color: 0xffffff, alpha: 0.98 });
+        g.roundRect(x, 17, 4, 30, 2).stroke({ width: 1.6, color: 0x43e0ff, alpha: 0.75 });
+        g.roundRect(x - 1.6, 17, 1.6, 30, 0.8).fill({ color: 0x9fd8ff, alpha: 0.5 });
+      }
       break;
     }
     default:

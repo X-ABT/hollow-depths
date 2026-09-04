@@ -28,8 +28,18 @@ interface FloatText {
   crit: boolean;
 }
 
+/** 宠物爪击「三竖线」短特效 */
+interface Claw {
+  x: number;
+  y: number;
+  life: number;
+  maxLife: number;
+  size: number;
+}
+
 const MAX_PARTICLES = 700;
 const MAX_TEXTS = 26;
+const MAX_CLAWS = 18;
 
 /**
  * 特效层：粒子与伤害飘字。
@@ -53,6 +63,11 @@ export class Vfx {
   }));
   private readonly tObjs: Text[] = [];
 
+  private readonly claws = new Pool<Claw>(MAX_CLAWS, () => ({
+    x: 0, y: 0, life: 0, maxLife: 0.16, size: 1,
+  }));
+  private readonly cSprites: Sprite[] = [];
+
   /** 飘字节流计数：普通伤害每 N 次显示一次 */
   private hitCounter = 0;
 
@@ -64,6 +79,15 @@ export class Vfx {
       s.anchor.set(0.5);
       s.visible = false;
       this.pSprites.push(s);
+      this.pLayer.addChild(s);
+    }
+    for (let i = 0; i < MAX_CLAWS; i++) {
+      const s = new Sprite();
+      s.anchor.set(0.5);
+      s.visible = false;
+      // 注意：不能在构造函数里 atlas.get()——Game 字段初始化早于 atlas.build()，
+      // 这里纹理会在 render 时按需补齐
+      this.cSprites.push(s);
       this.pLayer.addChild(s);
     }
     const critStyle: TextStyleOptions = {
@@ -99,8 +123,10 @@ export class Vfx {
   reset(): void {
     this.parts.clear();
     this.texts.clear();
+    this.claws.clear();
     for (const s of this.pSprites) s.visible = false;
     for (const t of this.tObjs) t.visible = false;
+    for (const s of this.cSprites) s.visible = false;
     this.hitCounter = 0;
   }
 
@@ -158,6 +184,16 @@ export class Vfx {
     }
   }
 
+  /** 宠物单体爪击：在命中位置亮出醒目的「三条竖线」 */
+  claw(x: number, y: number): void {
+    const c = this.claws.spawn();
+    if (!c) return;
+    c.x = x + (Math.random() - 0.5) * 14;
+    c.y = y + (Math.random() - 0.5) * 10;
+    c.life = c.maxLife = 0.42;
+    c.size = 1.25 + Math.random() * 0.4;
+  }
+
   // ——————————————— 更新 ———————————————
 
   update(dt: number): void {
@@ -176,6 +212,13 @@ export class Vfx {
       p.vy *= k;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
+    }
+
+    const cl = this.claws.items;
+    for (let i = this.claws.count - 1; i >= 0; i--) {
+      const c = cl[i];
+      c.life -= dt;
+      if (c.life <= 0) this.claws.releaseAt(i);
     }
 
     const tl = this.texts.items;
@@ -209,6 +252,23 @@ export class Vfx {
       s.height = sz * 3;
     }
     for (let i = this.parts.count; i < MAX_PARTICLES; i++) this.pSprites[i].visible = false;
+
+    // 爪击三竖线：命中瞬间放大并快速收窄淡出
+    const cl = this.claws.items;
+    for (let i = 0; i < this.claws.count; i++) {
+      const c = cl[i];
+      const s = this.cSprites[i];
+      const t = c.life / c.maxLife;
+      s.visible = true;
+      if (s.texture !== atlas.get(Tex.PetClaw)) s.texture = atlas.get(Tex.PetClaw);
+      s.x = c.x;
+      s.y = c.y;
+      s.tint = 0xf2f7ff;
+      s.alpha = Math.min(1, t * 3);
+      const sc = (1.1 + t * 1.0) * c.size;
+      s.scale.set(sc, sc);
+    }
+    for (let i = this.claws.count; i < MAX_CLAWS; i++) this.cSprites[i].visible = false;
 
     const tl = this.texts.items;
     for (let i = 0; i < this.texts.count; i++) {

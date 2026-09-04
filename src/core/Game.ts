@@ -9,6 +9,7 @@ import { EnemyAISystem, findBoss } from '../ecs/systems/EnemyAISystem';
 import { WeaponSystem } from '../ecs/systems/WeaponSystem';
 import { ProjectileSystem } from '../ecs/systems/ProjectileSystem';
 import { CollisionSystem } from '../ecs/systems/CollisionSystem';
+import { PetSystem } from '../ecs/systems/PetSystem';
 import { PickupSystem } from '../ecs/systems/PickupSystem';
 import { CleanupSystem } from '../ecs/systems/CleanupSystem';
 import { Camera } from '../render/Camera';
@@ -20,12 +21,16 @@ import { TitleScreen } from '../ui/TitleScreen';
 import { LevelUpModal } from '../ui/LevelUpModal';
 import { GameOverScreen, type RunResult } from '../ui/GameOverScreen';
 import { ShopScreen } from '../ui/ShopScreen';
+import { PetScreen } from '../ui/PetScreen';
+import { PetPark } from '../ui/PetPark';
 import { PerfHud } from '../ui/PerfHud';
 import { Storage, type SaveData } from '../save/Storage';
 import { Bgm } from '../audio/Bgm';
 import { DEFAULT_CHARACTER } from '../data/characters';
 import { ENEMY_BY_INDEX } from '../data/enemies';
 import { RUN_SECONDS } from '../data/waves';
+import { PETS } from '../data/pets';
+import { spawnPet } from '../ecs/Spawn';
 
 export type GameState = 'title' | 'playing' | 'levelup' | 'gameover';
 
@@ -50,6 +55,7 @@ export class Game {
   private readonly weapon = new WeaponSystem();
   private readonly projectiles = new ProjectileSystem();
   private readonly collision = new CollisionSystem();
+  private readonly pets = new PetSystem();
   private readonly pickup = new PickupSystem();
   private readonly cleanup = new CleanupSystem();
 
@@ -58,6 +64,9 @@ export class Game {
   private readonly levelUp = new LevelUpModal();
   private readonly gameOver = new GameOverScreen();
   private readonly shop = new ShopScreen();
+  private readonly pet = new PetScreen();
+  private readonly petPark = new PetPark();
+  private petParkOpen = false;
   private readonly perf: PerfHud;
 
   private readonly bgm = new Bgm();
@@ -98,6 +107,7 @@ export class Game {
     this.collision.attachVfx(this.vfx);
     this.cleanup.attachVfx(this.vfx);
     this.ai.attachVfx(this.vfx);
+    this.pets.attachVfx(this.vfx);
 
     this.input.attach(uiRoot);
     // 手机端视野规则：初始 0.5，最小可缩放到 0.3
@@ -156,6 +166,15 @@ export class Game {
         enemies: this.world.enemies.count,
         projs: this.world.projs.count,
         pickups: this.world.pickups.count,
+        pets: this.world.pets.count,
+        petInfo: this.world.pets.items.slice(0, this.world.pets.count).map((pet) => ({
+          slot: pet.slot,
+          state: pet.state,
+          hp: Math.round(pet.hp),
+          atkCd: pet.atkCd.toFixed(2),
+          px: Math.round(pet.x),
+          py: Math.round(pet.y),
+        })),
         hp: Math.round(this.world.player.hp),
         range: Math.round(this.world.player.pickupRange),
         // 若场上第一颗拾取物存在，返回其与玩家的距离（诊断用）
@@ -215,18 +234,27 @@ export class Game {
     });
     cheatInput.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
-      if (cheatInput.value.trim() === '541888') {
+      const code = cheatInput.value.trim();
+      if (code === '541888') {
         this.save.soulCents += 99999999 * 100;
         Storage.save(this.save);
         this.title.refreshSouls(this.save.soulCents);
         if (this.shop.visible) this.shop.refresh();
-        cheatInput.value = '';
-        cheatInput.style.display = 'none';
-        cheat.classList.add('is-done');
-        window.setTimeout(() => cheat.classList.remove('is-done'), 600);
+        if (this.pet.visible) this.pet.refresh();
+      } else if (code === '541999') {
+        // 调试：发宠物粮袋与碎片（便于验证喂养/碎片商店）
+        this.save.petFood += 5000;
+        this.save.petShards += 5000;
+        Storage.save(this.save);
+        if (this.pet.visible) this.pet.refresh();
       } else {
         cheatInput.value = '';
+        return;
       }
+      cheatInput.value = '';
+      cheatInput.style.display = 'none';
+      cheat.classList.add('is-done');
+      window.setTimeout(() => cheat.classList.remove('is-done'), 600);
     });
   }
 
@@ -266,6 +294,38 @@ export class Game {
       },
       onTogglePause: () => this.togglePause(),
       onShop: () => this.openShop(),
+      onPet: () => this.openPet(),
+      onPark: () => this.openPetPark(),
+    });
+  }
+
+  /** 宠物园（绿地展示场景）仅在主界面可打开：隐藏标题 DOM 与战斗世界，挂载公园场景 */
+  private openPetPark(): void {
+    if (this.state !== 'title' || this.petParkOpen) return;
+    this.petParkOpen = true;
+    document.body.classList.add('park-open');
+    this.title.hide();
+    this.hud.setVisible(false);
+    this.renderer.root.visible = false;
+    this.vfx.container.visible = false;
+    this.petPark.show(this.app, this.uiRoot, this.save, () => this.closePetPark());
+  }
+
+  /** 退出宠物园：移除场景、恢复战斗世界与标题页 */
+  private closePetPark(): void {
+    if (!this.petParkOpen) return;
+    this.petParkOpen = false;
+    document.body.classList.remove('park-open');
+    this.renderer.root.visible = true;
+    this.vfx.container.visible = true;
+    this.showTitle();
+  }
+
+  /** 宠物中心仅在主界面可打开 */
+  private openPet(): void {
+    if (this.state !== 'title') return;
+    this.pet.show(this.uiRoot, this.save, () => {
+      this.title.refreshSouls(this.save.soulCents);
     });
   }
 
@@ -314,9 +374,27 @@ export class Game {
     this.input.reset();
     this.manualPause = false;
     this.state = 'playing';
+    // 同步紧凑模式（暂停弹窗可随时切）
+    this.renderer.petCompact = this.save.petCompact;
+    // 按上阵配置生成出战宠物（生命/伤害随宠物等级换算）
+    this.deployPets();
     // 进入对局才开放移动摇杆
     this.input.setEnabled(true);
     this.loop.setPaused(false);
+  }
+
+  /** 读取存档上阵列表生成宠物，最多 3 只 */
+  private deployPets(): void {
+    const loadout = this.save.petLoadout;
+    let slot = 0;
+    for (let i = 0; i < loadout.length && slot < 3; i++) {
+      const id = loadout[i];
+      const idx = PETS.findIndex((p) => p.id === id);
+      if (idx < 0 || !this.save.petsOwned.includes(id)) continue;
+      const level = this.save.petLevels[id] ?? 1;
+      spawnPet(this.world, idx, level, slot);
+      slot++;
+    }
   }
 
   private pauseDialogOpen(): boolean {
@@ -342,6 +420,7 @@ export class Game {
       <div class="panel pause-panel">
         <h2 class="pause-title">已暂停</h2>
         <p class="pause-sub">本局凝聚的灵魂 <b class="pause-soul"></b> 退出时仍会入账</p>
+        <button class="btn btn--ghost pet-compact-toggle">宠物紧凑显示：关</button>
         <div class="pause-actions">
           <button class="btn btn--primary pause-resume">继续战斗</button>
           <button class="btn btn--ghost pause-quit">退出到主界面</button>
@@ -353,6 +432,17 @@ export class Game {
     // 点击遮罩任意空白处 = 继续
     dlg.addEventListener('click', (e) => {
       if (e.target === dlg) this.resumeFromPause();
+    });
+    const syncCompact = (): void => {
+      const c = dlg.querySelector('.pet-compact-toggle') as HTMLElement | null;
+      if (c) c.textContent = `宠物紧凑显示：${this.save.petCompact ? '开' : '关'}`;
+    };
+    syncCompact();
+    dlg.querySelector('.pet-compact-toggle')?.addEventListener('click', () => {
+      this.save.petCompact = !this.save.petCompact;
+      Storage.save(this.save);
+      this.renderer.petCompact = this.save.petCompact;
+      syncCompact();
     });
     dlg.querySelector('.pause-resume')?.addEventListener('click', () => this.resumeFromPause());
     dlg.querySelector('.pause-quit')?.addEventListener('click', () => this.quitToTitle());
@@ -560,6 +650,8 @@ export class Game {
     this.projectiles.update(world, dt);
     this.collision.update(world, dt);
     this.pickup.update(world, dt);
+    // 出战宠物咬怪产生的击杀在 cleanup 前结算，奖励照常入账
+    this.pets.update(world, dt);
     this.cleanup.update(world);
     this.vfx.update(dt);
 
@@ -588,6 +680,10 @@ export class Game {
   private render(alpha: number, frameDt: number): void {
     const w = this.app.screen.width;
     const h = this.app.screen.height;
+    // 宠物园打开时：隐藏世界/特效层仍在绘制但不可见；推进公园待机动画
+    if (this.petParkOpen) {
+      this.petPark.update(frameDt);
+    }
     this.renderer.sync(this.world, alpha, this.camera, w, h);
     this.vfx.render(alpha);
 

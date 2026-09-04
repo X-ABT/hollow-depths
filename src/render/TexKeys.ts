@@ -55,7 +55,15 @@ export const enum Tex {
   IconCrit = 41,
   Gunner = 42,
 
-  COUNT = 43,
+  /** 宠物粮袋图标 */
+  PetFood = 43,
+  /** 宠物身体贴图：Pet + 下标 0..N-1 依次对应 pets.ts 的 PETS 表（当前 13 只） */
+  Pet = 44,
+
+  /** 宠物爪击特效：三条竖线 */
+  PetClaw = 57,
+
+  COUNT = 58,
 }
 
 export const TEX_SIZE = 64;
