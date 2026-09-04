@@ -178,13 +178,35 @@ export class Game {
           px: Math.round(pet.x),
           py: Math.round(pet.y),
         })),
+        enemyInfo: this.world.enemies.items.slice(0, this.world.enemies.count).map((e) => ({
+          x: Math.round(e.x),
+          y: Math.round(e.y),
+          r: Math.round(e.radius),
+          hp: Math.round(e.hp),
+        })),
         hp: Math.round(this.world.player.hp),
         range: Math.round(this.world.player.pickupRange),
+        // 爪击特效投影诊断：世界坐标 → 屏幕坐标，确认其落在可见区域内（而非屏外）
+        clawCount: this.vfx.debugClaws().length,
+        clawScreen: this.vfx.debugClaws().map((c) => {
+          const z = this.renderer.zoom;
+          return {
+            wx: Math.round(c.x),
+            wy: Math.round(c.y),
+            sx: Math.round(this.app.screen.width * 0.5 + (c.x - this.camera.viewX) * z),
+            sy: Math.round(this.app.screen.height * 0.5 + (c.y - this.camera.viewY) * z),
+          };
+        }),
         // 若场上第一颗拾取物存在，返回其与玩家的距离（诊断用）
         pDist: pk
           ? Math.round(Math.hypot(pk.x - p.x, pk.y - p.y))
           : -1,
         pMag: pk ? pk.magnet : false,
+        // 相机与特效容器变换（确认 vfx.container 已与世界层同投影）
+        cam: { x: Math.round(this.camera.viewX), y: Math.round(this.camera.viewY), zoom: this.renderer.zoom },
+        vfx: { x: Math.round(this.vfx.container.x), y: Math.round(this.vfx.container.y), s: this.vfx.container.scale.x },
+        screen: { w: this.app.screen.width, h: this.app.screen.height },
+        player: { x: Math.round(this.world.player.x), y: Math.round(this.world.player.y) },
       };
     };
   }
@@ -688,6 +710,10 @@ export class Game {
       this.petPark.update(frameDt);
     }
     this.renderer.sync(this.world, alpha, this.camera, w, h);
+    // 特效层需与世界层同相机投影：否则世界坐标的特效（如宠物爪击）会被画到错误屏幕位置
+    const z = this.renderer.zoom;
+    this.vfx.container.scale.set(z, z);
+    this.vfx.container.position.set(w * 0.5 - this.camera.viewX * z, h * 0.5 - this.camera.viewY * z);
     this.vfx.render(alpha);
 
     if (this.state === 'playing' || this.state === 'levelup') {

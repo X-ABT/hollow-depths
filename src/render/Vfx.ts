@@ -194,6 +194,14 @@ export class Vfx {
     c.size = 1.25 + Math.random() * 0.4;
   }
 
+  /** 调试：返回当前活跃爪击的世界坐标（验证特效层投影用） */
+  debugClaws(): { x: number; y: number }[] {
+    const out: { x: number; y: number }[] = [];
+    const cl = this.claws.items;
+    for (let i = 0; i < this.claws.count; i++) out.push({ x: cl[i].x, y: cl[i].y });
+    return out;
+  }
+
   // ——————————————— 更新 ———————————————
 
   update(dt: number): void {
