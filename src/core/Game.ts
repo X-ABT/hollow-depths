@@ -250,6 +250,21 @@ export class Game {
     cheatInput.style.display = 'none';
     this.uiRoot.appendChild(cheat);
     this.uiRoot.appendChild(cheatInput);
+    // —— 一次性调试码表：每个代码每档存档只生效一次（「清除数据」重置后才可再用）——
+    const applyCode: Record<string, () => void> = {
+      '541888': () => {
+        this.save.soulCents += 99999999 * 100;
+      },
+      '10000': () => {
+        // 调试：加 10000 灵魂（1 灵魂 = 100 分）
+        this.save.soulCents += 10000 * 100;
+      },
+      '541999': () => {
+        // 调试：发宠物粮袋与碎片（便于验证喂养/碎片商店）
+        this.save.petFood += 5000;
+        this.save.petShards += 5000;
+      },
+    };
     cheat.addEventListener('click', () => {
       cheatInput.style.display = cheatInput.style.display === 'none' ? 'block' : 'none';
       if (cheatInput.style.display === 'block') cheatInput.focus();
@@ -257,26 +272,22 @@ export class Game {
     cheatInput.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       const code = cheatInput.value.trim();
-      if (code === '541888') {
-        this.save.soulCents += 99999999 * 100;
+      const action = applyCode[code];
+      if (action && !this.save.usedCodes.includes(code)) {
+        action();
+        this.save.usedCodes.push(code);
         Storage.save(this.save);
         this.title.refreshSouls(this.save.soulCents);
         if (this.shop.visible) this.shop.refresh();
         if (this.pet.visible) this.pet.refresh();
-      } else if (code === '541999') {
-        // 调试：发宠物粮袋与碎片（便于验证喂养/碎片商店）
-        this.save.petFood += 5000;
-        this.save.petShards += 5000;
-        Storage.save(this.save);
-        if (this.pet.visible) this.pet.refresh();
-      } else {
         cheatInput.value = '';
-        return;
+        cheatInput.style.display = 'none';
+        cheat.classList.add('is-done');
+        window.setTimeout(() => cheat.classList.remove('is-done'), 600);
+      } else {
+        // 无效或已用过的代码：仅清空，便于重输其它代码
+        cheatInput.value = '';
       }
-      cheatInput.value = '';
-      cheatInput.style.display = 'none';
-      cheat.classList.add('is-done');
-      window.setTimeout(() => cheat.classList.remove('is-done'), 600);
     });
   }
 

@@ -36,6 +36,8 @@ export interface SaveData {
   petCompact: boolean;
   /** 是否已领取饲养园的免费基础宠物（一生一次） */
   freePetClaimed: boolean;
+  /** 已生效的一次性调试码（每档存档各只生效一次，清除数据后重置） */
+  usedCodes: string[];
 }
 
 const DEFAULT: SaveData = {
@@ -57,6 +59,7 @@ const DEFAULT: SaveData = {
   petLoadout: [],
   petCompact: false,
   freePetClaimed: false,
+  usedCodes: [],
 };
 
 /** localStorage 读写：任何异常都不应影响游戏进行（无痕模式 / 禁用存储） */
@@ -72,6 +75,7 @@ export class Storage {
       petsOwned: [],
       petLevels: {},
       petLoadout: [],
+      usedCodes: [],
     };
   }
 
@@ -108,6 +112,7 @@ export class Storage {
         petLoadout: Array.isArray(parsed.petLoadout) ? [...parsed.petLoadout] : [],
         petCompact: parsed.petCompact === true,
         freePetClaimed: parsed.freePetClaimed === true,
+        usedCodes: Array.isArray(parsed.usedCodes) ? [...parsed.usedCodes] : [],
       };
       return merged;
     } catch {
