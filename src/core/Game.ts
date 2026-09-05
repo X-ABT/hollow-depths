@@ -32,6 +32,11 @@ import { ExpeditionOverlay } from '../ui/ExpeditionOverlay';
 
 /** 远征相机水平偏移：使英雄落在屏幕左侧约 1/3 处 */
 const EXP_CAM_X = 240;
+/** 远征英雄距屏幕左缘的安全边距（px）：窄屏据此收缩相机偏移，保证英雄不被挤出画面 */
+const EXP_MARGIN = 60;
+/** 远征视野下限（0.3 时竖屏可完整看到 0~920 的战场横幅）；上限到 1（桌面原生观感） */
+const EXP_ZOOM_MIN = 0.3;
+const EXP_ZOOM_MAX = 1;
 import { Bgm } from '../audio/Bgm';
 import { DEFAULT_CHARACTER } from '../data/characters';
 import { ENEMY_BY_INDEX } from '../data/enemies';
@@ -79,6 +84,12 @@ export class Game {
   /** 待自动续的下一关（第 2 关起清关后免点，倒计时归零即开打；0=无） */
   private expNextStage = 0;
   private expNextTimer = 0;
+  /** 远征视野（null=未手动调过，开战按设备默认）；可被 HUD ＋/－ 临时调整 */
+  private expZoom: number | null = null;
+  /** 进入远征前的 zoomMin（退出营地时还原，避免影响主局的桌面缩放下限） */
+  private expSavedZoomMin = 0.5;
+  /** 是否正处于远征放宽缩放下限中（只有开过战才需要还原） */
+  private expViewActive = false;
   private readonly levelUp = new LevelUpModal();
   private readonly gameOver = new GameOverScreen();
   private readonly shop = new ShopScreen();
@@ -674,6 +685,14 @@ export class Game {
 
   // ——————————————————— 每逻辑步 ———————————————————
 
+  /**
+   * 远征相机目标 x：宽屏沿用固定偏移 EXP_CAM_X（英雄落在左侧约 1/3）；
+   * 窄屏按 (屏宽/2 − 安全边距) / 缩放 收缩，保证任何竖屏宽度下英雄都完整留在画面内。
+   */
+  private expCamX(screenW: number): number {
+    return Math.min(EXP_CAM_X, Math.max(0, (screenW * 0.5 - EXP_MARGIN) / this.renderer.zoom));
+  }
+
   /** 打开远征营地：选宠 / 星币升技能 / 星币兑碎片 / 开始挑战 */
   private openExpedition(): void {
     this.expHud.hide();
@@ -686,6 +705,12 @@ export class Game {
     this.expResolved = true;
     this.expNextStage = 0;
     this.expNextTimer = 0;
+    // 回到营地：重置手动视野；若刚从战斗退回，把远征放宽的 zoomMin 还原，避免影响主局
+    this.expZoom = null;
+    if (this.expViewActive) {
+      this.expViewActive = false;
+      this.renderer.zoomMin = this.expSavedZoomMin;
+    }
     this.title.hide();
     // 存档点续关：击败过 Boss → 从其下一关开打；否则第 1 关
     const resume = this.save.expBossStage > 0 ? this.save.expBossStage + 1 : 1;
@@ -716,12 +741,29 @@ export class Game {
     this.vfx.container.visible = true;
     this.expedition.attachVfx(this.vfx);
     this.expedition.start(this.world, def, level, skLv, stage);
-    this.camera.reset(EXP_CAM_X, 0);
+    // 远征专用视野：触屏默认拉到底 EXP_ZOOM_MIN（进场即看完整条战场），桌面保持 1；
+    // 手动缩放期间沿用上次值，退出营地后还原
+    this.expSavedZoomMin = this.renderer.zoomMin;
+    this.renderer.zoomMin = EXP_ZOOM_MIN;
+    this.expViewActive = true;
+    if (this.expZoom === null) this.expZoom = this.mobile ? EXP_ZOOM_MIN : this.defaultZoom;
+    this.renderer.setZoom(this.expZoom);
+    this.camera.reset(this.expCamX(this.app.screen.width), 0);
     this.state = 'expedition';
     this.expHud.show(this.uiRoot, {
       onSkill: () => this.expedition.castSkill(this.world),
       onQuit: () => this.openExpedition(),
+      onZoom: (step: number) => this.adjustExpZoom(step),
     });
+  }
+
+  /** HUD ＋/−：在 [EXP_ZOOM_MIN, EXP_ZOOM_MAX] 内步进调整远征视野（相机偏移随每帧自动重算） */
+  private adjustExpZoom(step: number): void {
+    if (this.state !== 'expedition') return;
+    const cur = this.expZoom ?? this.renderer.zoom;
+    const nz = Math.min(EXP_ZOOM_MAX, Math.max(EXP_ZOOM_MIN, cur + step));
+    this.expZoom = nz;
+    this.renderer.setZoom(nz);
   }
 
   /** 远征每个逻辑步：推进战斗 + 相机 + 结算（过关发星币 / 自动续关 / 失败回营地） */
@@ -729,7 +771,7 @@ export class Game {
     // 第 2 关起清关后免点自动续关：先走完倒计时横幅再开下一关
     if (this.expNextStage > 0) {
       this.expNextTimer -= dt;
-      this.camera.update(EXP_CAM_X, 0, dt);
+      this.camera.update(this.expCamX(this.app.screen.width), 0, dt);
       // 远征不跑主局 fixed() 里的 vfx.update，这里自行驱动特效老化，避免攻击特效残留不消失
       this.vfx.update(dt);
       if (this.expNextTimer <= 0) {
@@ -740,7 +782,7 @@ export class Game {
       return;
     }
     if (!this.expResolved) this.expedition.update(this.world, dt);
-    this.camera.update(EXP_CAM_X, 0, dt);
+    this.camera.update(this.expCamX(this.app.screen.width), 0, dt);
     this.vfx.update(dt);
     const st = this.expedition.getState();
     if (this.expResolved || (!st.cleared && !st.failed)) return;

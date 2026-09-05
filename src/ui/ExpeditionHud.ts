@@ -3,6 +3,8 @@ import type { ExpeditionState } from '../ecs/systems/ExpeditionSystem';
 export interface ExpeditionHudHandlers {
   onSkill: () => void;
   onQuit: () => void;
+  /** 视野微调：+0.05 放大（拉近）/ −0.05 缩小（看更全） */
+  onZoom?: (step: number) => void;
 }
 
 /** 远征战斗 HUD：顶部英雄血条 + Boss 血条 + 关卡/剩余；底部技能按钮（CD 遮罩）；过关横幅 */
@@ -42,6 +44,10 @@ export class ExpeditionHud {
           <span class="exp-skill-name"></span>
           <span class="exp-skill-cd"></span>
         </button>
+      </div>
+      <div class="exp-zoom">
+        <button class="exp-zoom-btn" data-zoom="in" title="放大">＋</button>
+        <button class="exp-zoom-btn" data-zoom="out" title="缩小">－</button>
       </div>`;
     root.appendChild(el);
     this.el = el;
@@ -58,6 +64,9 @@ export class ExpeditionHud {
     this.bannerEl = el.querySelector('.exp-banner');
     this.skillBtn?.addEventListener('click', () => h.onSkill());
     el.querySelector('.exp-quit')?.addEventListener('click', () => h.onQuit());
+    el.querySelectorAll<HTMLButtonElement>('[data-zoom]').forEach((b) => {
+      b.addEventListener('click', () => h.onZoom?.(b.dataset.zoom === 'in' ? 0.05 : -0.05));
+    });
   }
 
   update(st: ExpeditionState): void {
