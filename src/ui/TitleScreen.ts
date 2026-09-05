@@ -33,7 +33,6 @@ export class TitleScreen {
       <div class="title-emblem"></div>
       <h1 class="title-main">HOLLOW DEPTHS</h1>
       <div class="title-sub">幽墟幸存者</div>
-      <p class="title-tag">纯前端 · 零后端 · 打开即玩</p>
       <div class="title-soul">灵魂　<b>${formatSouls(save.soulCents)}</b></div>
       <div class="title-actions">
         <button class="btn btn--primary" data-act="start">进入幽墟</button>
@@ -68,7 +67,7 @@ export class TitleScreen {
         save.bestKills,
       )}</b>　等级 <b>${save.bestLevel}</b>`;
     } else {
-      best.textContent = '首次进入幽墟，祝你好运';
+      best.textContent = '欢迎进入幽墟，祝你游玩愉快';
     }
 
     el.querySelector('[data-act="start"]')?.addEventListener('click', () => this.openStartChoice(h));
