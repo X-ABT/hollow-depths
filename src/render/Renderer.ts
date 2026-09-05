@@ -73,6 +73,8 @@ function makeVignetteTexture(): Texture {
  */
 export class WorldRenderer {
   readonly root = new Container();
+  /** 是否绘制主角精灵（宠物远征时隐藏，仅显示出战宠物） */
+  showPlayer = true;
   private readonly bg = new Container();
   private readonly world = new Container();
   private readonly fg = new Container();
@@ -435,18 +437,21 @@ export class WorldRenderer {
     }
     for (let i = world.projs.count; i < MAX_PROJ; i++) this.projSprites[i].visible = false;
 
-    // ——— 玩家 ———
+    // ——— 玩家（宠物远征时隐藏，仅显示出战宠物）———
     const p = world.player;
     const px = p.px + (p.x - p.px) * alpha;
     const py = p.py + (p.y - p.py) * alpha;
-    this.playerSprite.x = px;
-    this.playerSprite.y = py;
-    this.playerSprite.width = p.radius * 3.4;
-    this.playerSprite.height = p.radius * 3.4;
-    this.playerSprite.scale.x = Math.abs(this.playerSprite.scale.x) * (p.face < 0 ? -1 : 1);
-    // 无敌帧闪烁
-    this.playerSprite.alpha = p.iframe > 0 ? 0.35 + 0.65 * Math.abs(Math.sin(p.iframe * 26)) : 1;
-    visible++;
+    this.playerSprite.visible = this.showPlayer;
+    if (this.showPlayer) {
+      this.playerSprite.x = px;
+      this.playerSprite.y = py;
+      this.playerSprite.width = p.radius * 3.4;
+      this.playerSprite.height = p.radius * 3.4;
+      this.playerSprite.scale.x = Math.abs(this.playerSprite.scale.x) * (p.face < 0 ? -1 : 1);
+      // 无敌帧闪烁
+      this.playerSprite.alpha = p.iframe > 0 ? 0.35 + 0.65 * Math.abs(Math.sin(p.iframe * 26)) : 1;
+      visible++;
+    }
 
     // ——— 终焉收缩边界 ———
     this.arenaRing.clear();

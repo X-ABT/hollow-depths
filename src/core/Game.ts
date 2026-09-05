@@ -24,14 +24,22 @@ import { ShopScreen } from '../ui/ShopScreen';
 import { PetScreen } from '../ui/PetScreen';
 import { PetPark } from '../ui/PetPark';
 import { Storage, type SaveData } from '../save/Storage';
+import { stagePlan } from '../data/expedition';
+import { ExpeditionSystem } from '../ecs/systems/ExpeditionSystem';
+import { ExpeditionHub } from '../ui/ExpeditionHub';
+import { ExpeditionHud } from '../ui/ExpeditionHud';
+import { ExpeditionOverlay } from '../ui/ExpeditionOverlay';
+
+/** 远征相机水平偏移：使英雄落在屏幕左侧约 1/3 处 */
+const EXP_CAM_X = 240;
 import { Bgm } from '../audio/Bgm';
 import { DEFAULT_CHARACTER } from '../data/characters';
 import { ENEMY_BY_INDEX } from '../data/enemies';
 import { RUN_SECONDS } from '../data/waves';
-import { PETS } from '../data/pets';
+import { PETS, PET_BY_ID, skillLevel } from '../data/pets';
 import { spawnPet } from '../ecs/Spawn';
 
-export type GameState = 'title' | 'playing' | 'levelup' | 'gameover';
+export type GameState = 'title' | 'playing' | 'levelup' | 'gameover' | 'expedition';
 
 /**
  * 游戏总装：状态机 + 系统编排。
@@ -60,6 +68,17 @@ export class Game {
 
   private readonly hud: Hud;
   private readonly title = new TitleScreen();
+  // ——— 宠物远征 ———
+  private readonly expedition = new ExpeditionSystem();
+  private readonly expHub = new ExpeditionHub();
+  private readonly expHud = new ExpeditionHud();
+  private readonly expOverlay = new ExpeditionOverlay();
+  private expStage = 1;
+  private expPetId = '';
+  private expResolved = true;
+  /** 待自动续的下一关（第 2 关起清关后免点，倒计时归零即开打；0=无） */
+  private expNextStage = 0;
+  private expNextTimer = 0;
   private readonly levelUp = new LevelUpModal();
   private readonly gameOver = new GameOverScreen();
   private readonly shop = new ShopScreen();
@@ -112,6 +131,13 @@ export class Game {
     if (this.mobile) this.renderer.zoomMin = 0.3;
     // 键盘（Esc / P）与暂停按钮行为一致：弹出「继续 / 退出」窗口
     this.input.onPause = () => this.openPauseDialog();
+    // 远征：数字键 1 / 空格 释放出战宠物技能
+    window.addEventListener('keydown', (e) => {
+      if (this.state === 'expedition' && !this.expResolved && (e.key === '1' || e.key === ' ')) {
+        e.preventDefault();
+        this.expedition.castSkill(this.world);
+      }
+    });
     this.pickup.onChest = (times) => {
       this.world.player.pendingLevels += times;
     };
@@ -307,6 +333,10 @@ export class Game {
 
   private showTitle(): void {
     this.state = 'title';
+    // 远征/宠物园可能把世界与特效层隐藏过，回到标题统一恢复（否则开新局会看不见世界）
+    this.renderer.root.visible = true;
+    this.vfx.container.visible = true;
+    this.renderer.showPlayer = true;
     // 标题页关闭摇杆，把触摸还给界面按钮
     this.input.setEnabled(false);
     // 清理可能残留的结算页 / 升级弹窗 DOM，避免它们叠在标题页之下
@@ -326,6 +356,7 @@ export class Game {
       onTogglePause: () => this.togglePause(),
       onShop: () => this.openShop(),
       onPet: () => this.openPet(),
+      onExpedition: () => this.openExpedition(),
       onPark: () => this.openPetPark(),
     });
   }
@@ -643,7 +674,117 @@ export class Game {
 
   // ——————————————————— 每逻辑步 ———————————————————
 
+  /** 打开远征营地：选宠 / 星币升技能 / 星币兑碎片 / 开始挑战 */
+  private openExpedition(): void {
+    this.expHud.hide();
+    this.expOverlay.hide();
+    this.renderer.showPlayer = true;
+    this.renderer.root.visible = false;
+    this.vfx.container.visible = false;
+    this.state = 'title';
+    this.expStage = 1;
+    this.expResolved = true;
+    this.expNextStage = 0;
+    this.expNextTimer = 0;
+    this.title.hide();
+    // 存档点续关：击败过 Boss → 从其下一关开打；否则第 1 关
+    const resume = this.save.expBossStage > 0 ? this.save.expBossStage + 1 : 1;
+    this.expHub.show(this.uiRoot, this.save, {
+      onClose: () => {
+        this.expHub.hide();
+        this.showTitle();
+      },
+      onStart: (id: string) => this.startExpedition(id, resume),
+    });
+  }
+
+  /** 开打第 stage 关（单宠驻守，敌宠从右侧涌入） */
+  private startExpedition(petId: string, stage: number): void {
+    const def = PET_BY_ID[petId];
+    if (!def) return;
+    this.expPetId = petId;
+    this.expStage = stage;
+    this.expResolved = false;
+    this.expNextStage = 0;
+    this.expNextTimer = 0;
+    this.expOverlay.hide();
+    this.expHub.hide();
+    const level = this.save.petLevels[petId] ?? 1;
+    const skLv = skillLevel(this.save, petId);
+    this.renderer.showPlayer = false;
+    this.renderer.root.visible = true;
+    this.vfx.container.visible = true;
+    this.expedition.attachVfx(this.vfx);
+    this.expedition.start(this.world, def, level, skLv, stage);
+    this.camera.reset(EXP_CAM_X, 0);
+    this.state = 'expedition';
+    this.expHud.show(this.uiRoot, {
+      onSkill: () => this.expedition.castSkill(this.world),
+      onQuit: () => this.openExpedition(),
+    });
+  }
+
+  /** 远征每个逻辑步：推进战斗 + 相机 + 结算（过关发星币 / 自动续关 / 失败回营地） */
+  private fixedExpedition(dt: number): void {
+    // 第 2 关起清关后免点自动续关：先走完倒计时横幅再开下一关
+    if (this.expNextStage > 0) {
+      this.expNextTimer -= dt;
+      this.camera.update(EXP_CAM_X, 0, dt);
+      // 远征不跑主局 fixed() 里的 vfx.update，这里自行驱动特效老化，避免攻击特效残留不消失
+      this.vfx.update(dt);
+      if (this.expNextTimer <= 0) {
+        const next = this.expNextStage;
+        this.expNextStage = 0;
+        this.startExpedition(this.expPetId, next);
+      }
+      return;
+    }
+    if (!this.expResolved) this.expedition.update(this.world, dt);
+    this.camera.update(EXP_CAM_X, 0, dt);
+    this.vfx.update(dt);
+    const st = this.expedition.getState();
+    if (this.expResolved || (!st.cleared && !st.failed)) return;
+    this.expResolved = true;
+    if (st.cleared) {
+      const reward = stagePlan(this.expStage).starReward;
+      this.save.starCoins += reward;
+      // 击败 Boss 关 → 推进存档点（仅随清除数据重置，失败不倒退）
+      if (this.expStage % 6 === 0) {
+        this.save.expBossStage = Math.max(this.save.expBossStage, this.expStage);
+      }
+      Storage.save(this.save);
+      if (this.expStage === 1) {
+        // 第 1 关通关（仅无存档点时可达）：手动选择 进入第 2 关 / 留本关刷星币 / 返回营地
+        this.expHud.hide();
+        this.expOverlay.showClear(
+          this.uiRoot,
+          { stage: this.expStage, reward, starCoins: this.save.starCoins },
+          {
+            onNext: () => this.startExpedition(this.expPetId, this.expStage + 1),
+            onStay: () => this.startExpedition(this.expPetId, 1),
+            onBack: () => this.openExpedition(),
+          },
+        );
+      } else {
+        // 第 2 关起：横幅提示后自动进入下一关
+        this.expHud.showBanner(
+          `第 ${this.expStage} 关通过 · 获得 ★${reward} · 自动进入第 ${this.expStage + 1} 关`,
+        );
+        this.expNextStage = this.expStage + 1;
+        this.expNextTimer = 1.6;
+      }
+    } else {
+      this.expHud.hide();
+      const resume = this.save.expBossStage > 0 ? this.save.expBossStage + 1 : 1;
+      this.expOverlay.showFail(this.uiRoot, { stage: this.expStage, resume }, { onBack: () => this.openExpedition() });
+    }
+  }
+
   private fixed(dt: number): void {
+    if (this.state === 'expedition') {
+      this.fixedExpedition(dt);
+      return;
+    }
     if (this.state !== 'playing') return;
 
     const world = this.world;
@@ -753,6 +894,8 @@ export class Game {
       // 无 Boss 在场时显示下一个 Boss 出现的倒计时（快杀后倍率 >1 时附带标注）
       const next = this.spawn.nextBossInfo(this.world);
       this.hud.setBossCountdown(next ? next.name : null, next ? next.remain : 0, next ? next.mul : 1);
+    } else if (this.state === 'expedition') {
+      this.expHud.update(this.expedition.getState());
     }
   }
 

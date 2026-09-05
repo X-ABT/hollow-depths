@@ -16,6 +16,7 @@ import {
   RARITY_CHANCE,
   RARITY_LABEL,
   RARITY_RANK,
+  sortOwnedPets,
   VOL_GROWTH,
   dmgFor,
   foodToNext,
@@ -234,7 +235,7 @@ export class PetScreen {
   // ——————————————— 饲养页签 ———————————————
   private renderFarm(body: HTMLElement): void {
     if (!this.save) return;
-    const owned = this.save.petsOwned
+    const owned = sortOwnedPets(this.save.petsOwned, this.save.petLevels)
       .map((id) => PET_BY_ID[id])
       .filter((p): p is PetDef => !!p);
     const slots = petSlotCount(owned.length);
@@ -424,12 +425,12 @@ export class PetScreen {
       if (this.save.petShards < cost) btn.classList.add('is-disabled');
       food.appendChild(btn);
     }
-    // 整包特惠：100 碎片换 100 袋粮
+    // 整包特惠：100 碎片换 FOOD_BULK_COUNT 袋粮
     const bulkCost = FOOD_BULK_COST;
     const bulk = document.createElement('button');
     bulk.className = 'btn pet-food-buy pet-food-buy--bulk';
     bulk.dataset.bulkfood = '1';
-    bulk.innerHTML = `100 袋粮（特惠）<br><span class="pet-cost">${FOOD_BULK_COUNT} 袋 · ${bulkCost} 碎片</span>`;
+    bulk.innerHTML = `${FOOD_BULK_COUNT} 袋粮（特惠）<br><span class="pet-cost">${FOOD_BULK_COUNT} 袋 · ${bulkCost} 碎片</span>`;
     if (this.save.petShards < bulkCost) bulk.classList.add('is-disabled');
     food.appendChild(bulk);
     d.appendChild(food);

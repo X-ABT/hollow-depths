@@ -181,6 +181,86 @@ export const PET_SHOP_COST: Record<PetRarity, number> = {
 };
 /** 1 袋粮的碎片价格 */
 export const FOOD_COST_SHARDS = 2;
-/** 碎片商店整包特惠：100 碎片换 100 袋粮 */
-export const FOOD_BULK_COUNT = 100;
+/** 碎片商店整包特惠：100 碎片换 60 袋粮 */
+export const FOOD_BULK_COUNT = 60;
 export const FOOD_BULK_COST = 100;
+
+// ——————————————————— 宠物远征：招牌技能 ———————————————————
+import type { SaveData } from '../save/Storage';
+
+export type SkillKind = 'beam' | 'nova' | 'heal' | 'dash';
+export interface PetSkill {
+  id: string;
+  name: string;
+  kind: SkillKind;
+  /** 冷却（秒） */
+  cd: number;
+  /** 技能伤害 = 英雄当前伤害 × dmgMul × (1 + 0.25 × 技能等级) */
+  dmgMul: number;
+  /** 作用半径（beam 为射线长度）；heal 类忽略 */
+  radius: number;
+  /** heal 类：恢复量占英雄最大生命比例 */
+  heal?: number;
+  /** dash 类：命中击退强度（像素/秒） */
+  knock?: number;
+}
+
+/** 每只宠物的招牌技能（按 petId 查表；缺失时回退默认新星） */
+const PET_SKILLS: Record<string, PetSkill> = {
+  // ——— 普通 ———
+  soulbat:   { id: 'soulbat',   name: '魂能爆发', kind: 'nova', cd: 5, dmgMul: 4, radius: 140 },
+  rustbug:   { id: 'rustbug',   name: '铁壳冲撞', kind: 'dash', cd: 6, dmgMul: 3, radius: 200, knock: 260 },
+  bonehound: { id: 'bonehound', name: '裂骨飞扑', kind: 'dash', cd: 6, dmgMul: 3, radius: 200, knock: 260 },
+  paperlamp: { id: 'paperlamp', name: '灯焰新星', kind: 'nova', cd: 5, dmgMul: 4, radius: 140 },
+  mistfrog:  { id: 'mistfrog',  name: '雾爆',     kind: 'nova', cd: 5, dmgMul: 4, radius: 140 },
+  sproutling:{ id: 'sproutling',name: '荆棘新星', kind: 'nova', cd: 5, dmgMul: 4, radius: 140 },
+  // ——— 稀有 ———
+  abysshound:{ id: 'abysshound',name: '深渊吐息', kind: 'beam', cd: 4, dmgMul: 5, radius: 540 },
+  crystalcoot:{ id: 'crystalcoot',name: '晶盾回响', kind: 'heal', cd: 7, dmgMul: 2, radius: 0, heal: 0.5 },
+  glowmoth:  { id: 'glowmoth',  name: '噬光射线', kind: 'beam', cd: 4, dmgMul: 5, radius: 540 },
+  frostcat:  { id: 'frostcat',  name: '霜刃突袭', kind: 'dash', cd: 6, dmgMul: 3, radius: 200, knock: 260 },
+  // ——— 传说 ———
+  drake:     { id: 'drake',     name: '龙息焚天', kind: 'beam', cd: 4, dmgMul: 5, radius: 560 },
+  stareye:   { id: 'stareye',   name: '星噬湮灭', kind: 'nova', cd: 5, dmgMul: 5, radius: 170 },
+  // ——— 免费基础宠 ———
+  budling:   { id: 'budling',   name: '翠芽治愈', kind: 'heal', cd: 7, dmgMul: 2, radius: 0, heal: 0.5 },
+};
+
+/** 取宠物招牌技能（缺失回退默认新星） */
+export function skillFor(def: PetDef): PetSkill {
+  return (
+    PET_SKILLS[def.id] ?? { id: def.id, name: '新星', kind: 'nova', cd: 5, dmgMul: 4, radius: 140 }
+  );
+}
+
+/** 读取某宠物当前的远征技能等级（缺省 0） */
+export function skillLevel(save: SaveData, petId: string): number {
+  return save.petSkillLevels[petId] ?? 0;
+}
+
+/** 技能升到下一级所需星币：20 × (当前等级 + 1)（Lv0→1 花 20，Lv1→2 花 40…） */
+export function skillUpgradeCost(level: number): number {
+  return 20 * (level + 1);
+}
+
+/**
+ * 拥有的宠物列表排序：稀有度从高到低（传说 → 稀有 → 普通），
+ * 同稀有度按等级从高到低，其余保持原有先后顺序。
+ */
+export function sortOwnedPets(ids: readonly string[], levels: Record<string, number>): string[] {
+  return [...ids]
+    .map((id, i) => ({ id, i }))
+    .sort((a, b) => {
+      const da = PET_BY_ID[a.id];
+      const db = PET_BY_ID[b.id];
+      if (!da || !db) return a.i - b.i;
+      if (RARITY_RANK[db.rarity] !== RARITY_RANK[da.rarity]) {
+        return RARITY_RANK[db.rarity] - RARITY_RANK[da.rarity];
+      }
+      const la = levels[a.id] ?? 1;
+      const lb = levels[b.id] ?? 1;
+      if (lb !== la) return lb - la;
+      return a.i - b.i;
+    })
+    .map((x) => x.id);
+}

@@ -30,6 +30,12 @@ export interface SaveData {
   petFood: number;
   /** 宠物碎片（宠物商店通用货币，整数） */
   petShards: number;
+  /** 宠物远征专属货币「星币」（仅用于升级宠物技能等级与兑换宠物碎片，独立于 petShards） */
+  starCoins: number;
+  /** 宠物远征存档点：上次击败的最高 Boss 关号（0=从未击败，仅 6 的倍数）；再次进入从其下一关开始 */
+  expBossStage: number;
+  /** petId → 宠物远征技能等级（缺省视作 0） */
+  petSkillLevels: Record<string, number>;
   /** 本局上阵的宠物 id（长度不超过槽位数） */
   petLoadout: string[];
   /** 局内「紧凑模式」：隐藏超大宠物巨兽本体，避免遮挡走位/弹幕视野 */
@@ -56,6 +62,12 @@ const DEFAULT: SaveData = {
   petLevels: {},
   petFood: 0,
   petShards: 0,
+  /** 宠物远征专属货币「星币」 */
+  starCoins: 0,
+  /** 宠物远征存档点（0=尚未击败过 Boss） */
+  expBossStage: 0,
+  /** petId → 远征技能等级 */
+  petSkillLevels: {},
   petLoadout: [],
   petCompact: false,
   freePetClaimed: false,
@@ -74,6 +86,9 @@ export class Storage {
       passiveLevels: {},
       petsOwned: [],
       petLevels: {},
+      starCoins: 0,
+      expBossStage: 0,
+      petSkillLevels: {},
       petLoadout: [],
       usedCodes: [],
     };
@@ -109,6 +124,12 @@ export class Storage {
             : {},
         petFood: typeof parsed.petFood === 'number' && Number.isFinite(parsed.petFood) ? Math.max(0, Math.floor(parsed.petFood)) : 0,
         petShards: typeof parsed.petShards === 'number' && Number.isFinite(parsed.petShards) ? Math.max(0, Math.floor(parsed.petShards)) : 0,
+        starCoins: typeof parsed.starCoins === 'number' && Number.isFinite(parsed.starCoins) ? Math.max(0, Math.floor(parsed.starCoins)) : 0,
+        expBossStage: typeof parsed.expBossStage === 'number' && Number.isFinite(parsed.expBossStage) ? Math.max(0, Math.floor(parsed.expBossStage)) : 0,
+        petSkillLevels:
+          parsed.petSkillLevels && typeof parsed.petSkillLevels === 'object'
+            ? { ...parsed.petSkillLevels }
+            : {},
         petLoadout: Array.isArray(parsed.petLoadout) ? [...parsed.petLoadout] : [],
         petCompact: parsed.petCompact === true,
         freePetClaimed: parsed.freePetClaimed === true,

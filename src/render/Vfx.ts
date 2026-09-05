@@ -132,11 +132,14 @@ export class Vfx {
 
   // ——————————————— 生成 ———————————————
 
-  /** 命中粒子 + 飘字 */
-  hit(x: number, y: number, damage: number, crit: boolean): void {
+  /**
+   * 命中粒子 + 飘字。
+   * force=true 时跳过节流（远征内每次真实命中都显示）；仍受 MAX_TEXTS 同屏上限保护。
+   */
+  hit(x: number, y: number, damage: number, crit: boolean, force = false): void {
     // 节流：普通伤害隔几次才飘字，暴击始终显示
     this.hitCounter++;
-    const show = crit || this.hitCounter % 4 === 0;
+    const show = force || crit || this.hitCounter % 4 === 0;
     if (show && this.texts.count < MAX_TEXTS) {
       const f = this.texts.spawn();
       if (f) {

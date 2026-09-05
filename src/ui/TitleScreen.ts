@@ -12,6 +12,8 @@ export interface TitleHandlers {
   onPet: () => void;
   /** 打开宠物园（绿地展示场景，仅主界面可用） */
   onPark: () => void;
+  /** 打开宠物远征（营地 + 横版闯关） */
+  onExpedition: () => void;
 }
 
 /** 标题页：进入游戏 / 商店 / 玩法说明 / 清除数据 */
@@ -35,6 +37,7 @@ export class TitleScreen {
         <button class="btn btn--primary" data-act="start">进入幽墟</button>
         <button class="btn" data-act="shop">商店</button>
         <button class="btn" data-act="pet">饲养园</button>
+        <button class="btn" data-act="expedition">宠物远征</button>
         <button class="btn" data-act="park">宠物园</button>
         <button class="btn" data-act="help">玩法说明</button>
         <button class="btn btn--ghost" data-act="clear">清除数据</button>
@@ -70,6 +73,7 @@ export class TitleScreen {
     el.querySelector('[data-act="shop"]')?.addEventListener('click', h.onShop);
     el.querySelector('[data-act="pet"]')?.addEventListener('click', h.onPet);
     el.querySelector('[data-act="park"]')?.addEventListener('click', h.onPark);
+    el.querySelector('[data-act="expedition"]')?.addEventListener('click', h.onExpedition);
     el.querySelector('[data-act="clear"]')?.addEventListener('click', () => this.openClearConfirm(h));
     const help = el.querySelector('.title-help') as HTMLElement;
     el.querySelector('[data-act="help"]')?.addEventListener('click', () => {
