@@ -90,16 +90,16 @@ export class SpawnSystem {
   }
 
   /** 下一次 Boss 倒计时信息（含血量倍率）；标准局中 Boss 正在场时返回 null，无尽模式常显 */
-  nextBossInfo(world: World): { name: string; remain: number; mul: number } | null {
+  nextBossInfo(world: World): { defIdx: number; remain: number; mul: number } | null {
     const bossOrder = world.endless ? ENDLESS_ORDER : BOSS_ORDER;
     if (this.nextBoss >= bossOrder.length) return null;
     if (!world.endless && this.hasLiveBoss(world)) return null;
     if (!Number.isFinite(this.bossSpawnAt)) return null;
     const remain = this.bossSpawnAt - world.time;
     if (remain <= 0) return null;
-    const idx = IDX.get(bossOrder[this.nextBoss]) ?? -1;
-    const name = idx >= 0 ? ENEMY_BY_INDEX[idx].name : '';
-    return { name, remain, mul: this.nextBossHpMul };
+    const defIdx = IDX.get(bossOrder[this.nextBoss]) ?? -1;
+    if (defIdx < 0) return null;
+    return { defIdx, remain, mul: this.nextBossHpMul };
   }
 
   reset(world?: World): void {

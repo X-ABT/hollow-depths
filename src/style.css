@@ -340,6 +340,90 @@ body {
   text-align: center;
 }
 
+.title-lang {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  margin: 6px 0 18px;
+}
+
+/* 语言切换按钮：面向国际的显眼入口 —— 字号更大(较旧放大 10%)、文字更亮、描边更清晰 */
+.lang-btn {
+  padding: 6px 16px;
+  border: 1px solid rgba(190, 182, 224, 0.5);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--t-bright);
+  font-family: var(--font);
+  font-size: 14px; /* 原 12px × 1.1 ≈ 13.2，取整到 14px 并加粗保证国际可读性 */
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px transparent;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.lang-btn:hover {
+  color: #fff;
+  border-color: rgba(226, 220, 248, 0.85);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.lang-btn.is-active {
+  color: var(--p-amber);
+  border-color: var(--p-amber);
+  background: rgba(245, 196, 81, 0.16);
+  box-shadow: 0 0 10px rgba(245, 196, 81, 0.22);
+}
+
+/* —— 存档作弊标记：醒目警示（双语随 title.tamperBadge / tamperHint），置于灵魂行上方 —— */
+.tamper-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(92%, 560px);
+  margin: 10px auto 2px;
+  padding: 6px 14px 6px 10px;
+  text-align: left;
+  border: 1px solid rgba(255, 84, 112, 0.6);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 84, 112, 0.14), rgba(255, 84, 112, 0.05));
+  color: var(--t-bright);
+  box-shadow: 0 0 14px rgba(255, 84, 112, 0.18), inset 0 0 8px rgba(255, 84, 112, 0.06);
+}
+.tamper-badge-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c-bad);
+  box-shadow: 0 0 8px var(--c-bad);
+  animation: tamper-pulse 1.4s ease-in-out infinite;
+}
+@keyframes tamper-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.tamper-badge b {
+  display: block;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  color: #ffd2da;
+}
+.tamper-badge small {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  color: rgba(255, 210, 218, 0.78);
+  line-height: 1.4;
+}
+
 .title-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1129,6 +1213,36 @@ body {
   border-color: var(--p-amber);
   color: #ffe6ab;
   box-shadow: 0 0 12px rgba(245, 196, 81, 0.28);
+}
+
+.result-double {
+  margin-top: 14px;
+}
+
+.result-double-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border-color: rgba(245, 196, 81, 0.55);
+  color: var(--p-amber);
+}
+
+.result-double-btn small {
+  font-size: 11px;
+  color: var(--t-dim);
+}
+
+.result-double-btn.is-busy {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.result-double-btn.is-done {
+  opacity: 0.6;
+  pointer-events: none;
+  border-color: var(--c-good);
+  color: var(--c-good);
 }
 
 .result-actions {
@@ -2390,6 +2504,27 @@ body.park-open #ui-root > .stick {
   background: linear-gradient(180deg, rgba(255, 84, 112, 0.14), rgba(255, 84, 112, 0.04));
 }
 
+/* 广告免费十连（青金强调，区别于付费三档） */
+.pet-gacha-btn--ad {
+  border-color: rgba(110, 242, 196, 0.55);
+  color: #c9f9e4;
+  background: linear-gradient(180deg, rgba(110, 242, 196, 0.14), rgba(110, 242, 196, 0.04));
+}
+.pet-gacha-btn--ad:hover {
+  border-color: rgba(110, 242, 196, 0.85);
+  box-shadow:
+    0 10px 30px rgba(110, 242, 196, 0.22),
+    0 0 0 1px rgba(110, 242, 196, 0.25);
+}
+.pet-gacha-btn--ad .pet-cost {
+  color: rgba(110, 242, 196, 0.75);
+}
+.pet-gacha-btn.is-busy {
+  opacity: 0.55;
+  cursor: wait;
+  pointer-events: none;
+}
+
 /* 粮袋整包特惠 */
 .pet-food-buy--bulk {
   border-color: rgba(74, 222, 128, 0.5);
@@ -3059,4 +3194,194 @@ body.park-open #ui-root > .park-ui {
   transform: none;
   border-color: var(--stroke);
   box-shadow: none;
+}
+
+/* ============================ 广告激励 · 升级重摇 ============================ */
+/* 三选一弹窗内的「看广告重摇」次级按钮（独立一行，置于卡片与 build 条之间） */
+.lv-reroll {
+  margin-top: 4px;
+  display: flex;
+  justify-content: center;
+}
+.lv-reroll-btn {
+  flex-direction: column;
+  gap: 2px;
+  min-width: 208px;
+  min-height: 46px;
+  padding: 8px 20px;
+  border-color: rgba(178, 107, 255, 0.55);
+  color: #e9d9ff;
+  background: linear-gradient(180deg, rgba(178, 107, 255, 0.14), rgba(178, 107, 255, 0.03));
+}
+.lv-reroll-btn:hover {
+  border-color: rgba(199, 155, 255, 0.85);
+  box-shadow: 0 0 22px rgba(178, 107, 255, 0.28);
+}
+.lv-reroll-btn.is-busy,
+.lv-reroll-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.lv-reroll-btn:disabled:hover {
+  transform: none;
+  border-color: rgba(178, 107, 255, 0.55);
+  box-shadow: none;
+}
+.lv-reroll-label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.lv-reroll-hint {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--t-dim);
+  letter-spacing: 0.02em;
+}
+
+/* ============================ 广告激励 · 模拟浮层 ============================ */
+/* fixed 置顶（z-index 200 > 暂停弹窗 60 / HUD 30 / 各 overlay 40-70），不随游戏弹层上下文 */
+.ads-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(6, 4, 12, 0.74);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  animation: fade-in 0.22s ease both;
+}
+.ads-panel {
+  width: min(356px, 88vw);
+  padding: 24px 22px 20px;
+  text-align: center;
+  border: 1px solid rgba(110, 242, 196, 0.4);
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(150% 130% at 50% 0%, rgba(110, 242, 196, 0.12), transparent 58%),
+    linear-gradient(180deg, var(--glass-hi), var(--glass));
+  box-shadow:
+    0 26px 90px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 0 46px rgba(110, 242, 196, 0.14);
+  animation: rise-in 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+.ads-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  border: 1px solid rgba(110, 242, 196, 0.35);
+  border-radius: 999px;
+  background: rgba(110, 242, 196, 0.08);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #9fffe2;
+}
+.ads-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6ef2c4;
+  box-shadow: 0 0 10px rgba(110, 242, 196, 0.9);
+  animation: ads-pulse 1.3s ease-in-out infinite;
+}
+@keyframes ads-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.7);
+  }
+}
+.ads-title {
+  margin: 14px 0 4px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--t-bright);
+  text-shadow: 0 0 22px rgba(110, 242, 196, 0.35);
+}
+.ads-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--t-mid);
+}
+.ads-count {
+  margin: 20px 0 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.ads-count-num {
+  font-size: 52px;
+  font-weight: 800;
+  line-height: 1;
+  color: #9fffe2;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 30px rgba(110, 242, 196, 0.6);
+}
+.ads-count-tip {
+  font-size: 11px;
+  color: var(--t-dim);
+  letter-spacing: 0.2em;
+}
+.ads-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+.ads-actions .btn {
+  min-width: 118px;
+  min-height: 44px;
+}
+.ads-cancel {
+  color: var(--t-mid);
+}
+.ads-claim:disabled,
+.ads-claim:disabled:hover {
+  opacity: 0.42;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(167, 158, 201, 0.22);
+}
+.ads-claim.is-ready {
+  animation: ads-ready 1.6s ease-in-out infinite;
+}
+@keyframes ads-ready {
+  0%,
+  100% {
+    box-shadow: 0 10px 30px rgba(245, 196, 81, 0.2);
+  }
+  50% {
+    box-shadow: 0 10px 38px rgba(245, 196, 81, 0.5);
+  }
+}
+
+@media (max-width: 520px) {
+  .ads-panel {
+    padding: 20px 16px 16px;
+  }
+  .ads-count-num {
+    font-size: 44px;
+  }
+  .ads-actions {
+    gap: 8px;
+  }
+  .ads-actions .btn {
+    min-width: 104px;
+  }
+  .lv-reroll-btn {
+    min-width: 176px;
+  }
 }

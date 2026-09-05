@@ -6,6 +6,8 @@ export interface CharacterDef {
   en: string;
   /** 一句话定位 */
   tagline: string;
+  /** 英文一句话定位（缺省回退中文） */
+  enTagline?: string;
   sprite: number;
   icon: number;
   base: {
@@ -21,6 +23,10 @@ export interface CharacterDef {
   /** 角色固有被动 */
   perkName: string;
   perkDesc: string;
+  /** 英文固有被动名（缺省回退中文） */
+  enPerkName?: string;
+  /** 英文固有被动描述（缺省回退中文） */
+  enPerkDesc?: string;
   /** 应用于属性重算（在被动之前执行） */
   perk: (s: {
     maxHp: number;
@@ -39,6 +45,7 @@ export const CHARACTERS: readonly CharacterDef[] = [
     name: '游侠',
     en: 'Ranger',
     tagline: '在幽墟深处独自求生的孤独猎手',
+    enTagline: 'A lone hunter surviving the depths of the Hollow',
     sprite: Tex.Player,
     icon: Tex.Player,
     base: {
@@ -55,6 +62,8 @@ export const CHARACTERS: readonly CharacterDef[] = [
     startWeapon: 'rift',
     perkName: '拾荒者',
     perkDesc: '拾取范围 +20%',
+    enPerkName: 'Scavenger',
+    enPerkDesc: 'Pickup Range +20%',
     perk: (s) => {
       s.pickupRange *= 1.2;
     },

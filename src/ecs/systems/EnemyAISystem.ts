@@ -6,6 +6,15 @@ import { Behavior } from '../Components';
 import type { World } from '../World';
 import type { Vfx } from '../../render/Vfx';
 
+/** 非有限坐标告警：只打一次避免刷屏 */
+let warnedBadEnemy = false;
+function warnBadEnemy(id: number): void {
+  if (warnedBadEnemy) return;
+  warnedBadEnemy = true;
+  // eslint-disable-next-line no-console
+  console.warn(`[AI] 敌人 defIdx=${id} 出现非有限坐标，已复位到玩家附近。请用 __HD() 的 enemyInfo 复现并定位 NaN 源头。`);
+}
+
 /** 分离力强度：越大越不容易重叠成一坨 */
 const SEP_FORCE = 240;
 /** 分离目标缝隙（px）：怪与怪之间至少保持的间距，让潮水间留有可走位的缝 */
@@ -56,6 +65,31 @@ export class EnemyAISystem {
       const e = list[i];
       if (e.dead) continue;
       const def = ENEMY_BY_INDEX[e.defIdx];
+
+      // 坐标自愈守卫：单个敌人坐标/速度被污染为 NaN/∞ 时，复位到玩家附近并清速度，
+      // 阻断「一只 NaN → 全敌隐形 / 传染全场」的传播链。
+      if (
+        !Number.isFinite(e.x) ||
+        !Number.isFinite(e.y) ||
+        !Number.isFinite(e.px) ||
+        !Number.isFinite(e.py) ||
+        !Number.isFinite(e.knockX) ||
+        !Number.isFinite(e.knockY)
+      ) {
+        warnBadEnemy(e.defIdx);
+        const px = Number.isFinite(p.x) ? p.x : 0;
+        const py = Number.isFinite(p.y) ? p.y : 0;
+        e.x = px + 200;
+        e.y = py;
+        e.px = e.x;
+        e.py = e.y;
+        e.vx = 0;
+        e.vy = 0;
+        e.knockX = 0;
+        e.knockY = 0;
+        e.timer = 0;
+        e.cast = 0;
+      }
 
       e.px = e.x;
       e.py = e.y;
@@ -677,8 +711,11 @@ export class EnemyAISystem {
       e.knockX *= decay;
       e.knockY *= decay;
 
-      e.x += (vx + e.knockX) * dt;
-      e.y += (vy + e.knockY) * dt;
+      // 位移积分：增量非有限（AI/击退产生 NaN 增量）时丢弃本帧位移，防坐标被污染
+      const stepX = (vx + e.knockX) * dt;
+      const stepY = (vy + e.knockY) * dt;
+      if (Number.isFinite(stepX)) e.x += stepX;
+      if (Number.isFinite(stepY)) e.y += stepY;
     }
   }
 }

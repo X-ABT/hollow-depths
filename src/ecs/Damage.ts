@@ -96,6 +96,7 @@ export function explode(
   critMult: number,
   knock = 0,
   onPlayer: number = 0,
+  buf?: Int32Array,
 ): number {
   let total = 0;
   if (onPlayer) {
@@ -104,10 +105,13 @@ export function explode(
     if (d2 <= radius * radius) damagePlayer(world, damage);
     return 0;
   }
-  const found = world.hash.query(x, y, radius, world.qbuf);
+  // 支持独立查询缓冲：当 explode 在「外层正消费 world.qbuf 的循环体」内被调用时
+  // 必须传入第二缓冲，否则内层查询会覆盖外层尚未读完的结果（别名污染，见 CollisionSystem 溅射）。
+  const qbuf = buf ?? world.qbuf;
+  const found = world.hash.query(x, y, radius, qbuf);
   const list = world.enemies.items;
   for (let i = 0; i < found; i++) {
-    const idx = world.qbuf[i];
+    const idx = qbuf[i];
     const e = list[idx];
     if (e.dead) continue;
     const dx = e.x - x;

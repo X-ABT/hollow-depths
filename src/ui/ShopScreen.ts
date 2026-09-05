@@ -5,6 +5,7 @@ import type { WeaponDef } from '../data/weapons';
 import type { PassiveDef } from '../data/passives';
 import { Storage, type SaveData } from '../save/Storage';
 import { atlas } from '../render/Textures';
+import { i18nDesc, i18nName, t } from '../i18n';
 
 /**
  * 商店（主界面）：用跨局永久「灵魂」解锁新武器 / 被动。
@@ -34,18 +35,18 @@ export class ShopScreen {
     el.innerHTML = `
       <div class="panel shop-panel">
         <div class="shop-head">
-          <h2 class="shop-title">灵魂商店</h2>
-          <button class="btn shop-close" aria-label="关闭商店">✕</button>
+          <h2 class="shop-title">${t('shop.title')}</h2>
+          <button class="btn shop-close" aria-label="${t('shop.close')}">✕</button>
         </div>
         <div class="shop-sub">
-          余额　<b class="shop-souls"></b>
-          <span class="shop-price-hint">本件　<b class="shop-price"></b></span>
+          ${t('shop.balance')}　<b class="shop-souls"></b>
+          <span class="shop-price-hint">${t('shop.priceThis')}　<b class="shop-price"></b></span>
         </div>
-        <div class="shop-note">解锁后才会进入每局升级三选一的卡池 · 已解锁项可花灵魂永久提升「起始等级」，升级后在本局刷到即从此等级起算（价格翻倍：30/60/120…）</div>
+        <div class="shop-note">${t('shop.note')}</div>
         <div class="shop-scroll">
-          <div class="shop-section">武 器</div>
+          <div class="shop-section">${t('shop.weapons')}</div>
           <div class="shop-list" data-list="weapons"></div>
-          <div class="shop-section">装 备</div>
+          <div class="shop-section">${t('shop.gear')}</div>
           <div class="shop-list" data-list="passives"></div>
         </div>
       </div>
@@ -111,7 +112,7 @@ export class ShopScreen {
   refresh(): void {
     if (!this.save) return;
     if (this.soulsEl) this.soulsEl.textContent = formatSouls(this.save.soulCents);
-    if (this.priceEl) this.priceEl.textContent = `${this.currentPrice()} 灵魂`;
+    if (this.priceEl) this.priceEl.textContent = t('shop.soulUnit', { n: this.currentPrice() });
     if (this.listWeapons) this.listWeapons.innerHTML = '';
     if (this.listPassives) this.listPassives.innerHTML = '';
     const ownedW = new Set(this.save.unlockedWeapons);
@@ -131,8 +132,8 @@ export class ShopScreen {
     el.innerHTML = `
       <div class="shop-item-icon"></div>
       <div class="shop-item-info">
-        <div class="shop-item-name">${def.name}<span class="shop-item-tag">武器</span></div>
-        <div class="shop-item-desc">${def.desc} · 满级 Lv${def.maxLevel} · 起始 Lv${base}</div>
+        <div class="shop-item-name">${i18nName(def)}<span class="shop-item-tag">${t('shop.tagWeapon')}</span></div>
+        <div class="shop-item-desc">${t('shop.itemDesc', { desc: i18nDesc(def), max: def.maxLevel, base })}</div>
       </div>
     `;
     (el.querySelector('.shop-item-icon') as HTMLElement).appendChild(atlas.icon(def.icon, 36));
@@ -147,8 +148,8 @@ export class ShopScreen {
     el.innerHTML = `
       <div class="shop-item-icon"></div>
       <div class="shop-item-info">
-        <div class="shop-item-name">${def.name}<span class="shop-item-tag">装备</span></div>
-        <div class="shop-item-desc">${def.desc} · 满级 Lv${def.maxLevel} · 起始 Lv${base}</div>
+        <div class="shop-item-name">${i18nName(def)}<span class="shop-item-tag">${t('shop.tagGear')}</span></div>
+        <div class="shop-item-desc">${t('shop.itemDesc', { desc: i18nDesc(def), max: def.maxLevel, base })}</div>
       </div>
     `;
     (el.querySelector('.shop-item-icon') as HTMLElement).appendChild(atlas.icon(def.icon, 36));
@@ -169,12 +170,14 @@ export class ShopScreen {
     action.className = 'shop-item-action';
     if (owned) {
       if (base >= maxLevel) {
-        action.innerHTML = `<span class="shop-owned">已解锁 · 满级起始 Lv${maxLevel}</span>`;
+        action.innerHTML = `<span class="shop-owned">${t('shop.ownedMax', { lv: maxLevel })}</span>`;
       } else {
         const cost = this.upgradeCost(base);
         const btn = document.createElement('button');
         btn.className = 'btn shop-up';
-        btn.innerHTML = `升起始 Lv${base}→${base + 1}<br><span class="shop-up-cost">${cost} 灵魂</span>`;
+        btn.innerHTML =
+          `${t('shop.upgradeBtn', { from: base, to: base + 1 })}<br>` +
+          `<span class="shop-up-cost">${t('shop.soulUnit', { n: cost })}</span>`;
         if (!this.canAfford(cost)) btn.classList.add('is-disabled');
         btn.addEventListener('click', () => this.upgrade(id, kind, maxLevel));
         action.appendChild(btn);
@@ -183,7 +186,7 @@ export class ShopScreen {
       const price = this.currentPrice();
       const btn = document.createElement('button');
       btn.className = 'btn shop-buy';
-      btn.textContent = `${price} 灵魂`;
+      btn.textContent = t('shop.soulUnit', { n: price });
       if (!this.canAfford(price)) btn.classList.add('is-disabled');
       btn.addEventListener('click', () => this.buy(id, kind));
       action.appendChild(btn);

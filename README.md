@@ -1,8 +1,8 @@
 # Hollow Depths · 幽墟幸存者
 
-> 纯前端、零后端的浏览器幸存者类 Roguelite。打开链接即玩，无需下载、无需注册、没有冷启动。
+> 纯前端、零后端的浏览器幸存者类 Roguelite。打开链接即玩，无需下载、无需注册、没有冷启动。**中英双语可切换**，并已接入 **CrazyGames SDK**（激励视频变现 + 平台事件），适配海外发行。
 
-**[在线游玩 →](https://hollow-depths.onrender.com)**
+**[在线游玩 →](https://hollow-depths.onrender.com)** · **[CrazyGames 上架与 SDK 指南 →](docs/crazygames-guide.md)**
 
 一个 Vite + TypeScript + PixiJS v8 从零实现的 Vampire Survivors 风格游戏：控制游侠在无限地牢中走位求生，武器自动开火，击杀掉落灵魂碎片，升级时三选一构筑属于这一局的流派。
 
@@ -89,7 +89,9 @@
 | 渲染 | **PixiJS v8**（锁定 `8.20.1`） | WebGL 2D 批渲染，同屏数千精灵仍能合批；v8 的异步初始化与新 Graphics API 带来更好的类型安全 |
 | 架构 | 自研轻量 ECS（约 120 行） | 幸存者类只需要「实体 + 若干系统顺序遍历」，引入第三方 ECS 库收益低于成本，自研更好控也更好讲 |
 | UI | DOM 覆盖层 + 手写 CSS | 只有 4 个静态面板，DOM 做文本排版、按钮、无障碍、移动端安全区成本远低于 Canvas 内自绘；不引框架以保证首屏体积 |
-| 状态 | `localStorage` | 无后端，仅存最佳记录与设置 |
+| 状态 | `localStorage` | 无后端，仅存最佳记录与设置；语言偏好独立存储、清除存档不清语言 |
+| 文案 | 自研轻量 i18n（`src/i18n/`） | 中英双语可切换（标题页入口），切换即整页重载零订阅成本；数据层名/描述双语文档化 |
+| 广告 | CrazyGames SDK v3（`src/ads/`） | rewarded 激励视频：升级重摇 / 免费十连 / 结算双倍；非平台环境自动降级为模拟浮层；SingleFlight 防双播 |
 | 素材 | **程序化生成的图集** | 用 Graphics 画出全部精灵后烘焙进单张 RenderTexture：零网络请求、零版权风险、单 BaseTexture 便于合批 |
 | 音频 | **WebAudio 程序化合成 BGM** | 用振荡器实时合成清脆铃音风格的背景音乐（零音频文件），右上角 `♪` 一键静音；不引入素材文件、不占首屏体积 |
 | 部署 | Render Static Site | 见下方「为什么用静态站」 |
@@ -291,7 +293,9 @@ hollow-depths/
 │   ├── main.ts                app.init() → 构建 Game → 启动；WebGL 失败的兜底提示
 │   ├── style.css              UI 层样式（暗黑地牢奇幻 / 玻璃拟态）
 │   ├── audio/
-│   │   └── Bgm.ts             WebAudio 程序化合成 BGM（零音频文件）
+│   │   └── Bgm.ts             WebAudio 程序化合成 BGM（零音频文件；含 iOS 手势 resume）
+│   ├── i18n/                 中英双语：lang（状态/持久化）+ dict（UI 文案字典）+ t()/i18nName 助手
+│   ├── ads/                  CrazyGames SDK：单例入口 / SDK 加载与平台事件 / 激励视频 / 模拟浮层
 │   ├── core/
 │   │   ├── Game.ts            总装：状态机 + 系统编排 + UI 联动 + 结算
 │   │   ├── Loop.ts            固定步长 60Hz + accumulator 插值
@@ -313,8 +317,8 @@ hollow-depths/
 │   │   ├── Renderer.ts        地板平铺 + 精灵池 + 视口剔除 + 插值同步
 │   │   ├── Camera.ts          平滑跟随 + 震屏
 │   │   └── Vfx.ts             粒子与伤害飘字对象池
-│   ├── data/                  纯配置：characters / weapons / passives / enemies / waves
-│   ├── ui/                    Hud / TitleScreen / LevelUpModal / GameOverScreen / PerfHud
+│   ├── data/                  纯配置：characters / weapons / passives / enemies / pets / waves（含英文字段）
+│   ├── ui/                    Hud / Title / LevelUp / GameOver / Shop / Pet / PetPark / ExpeditionHub+Hud+Overlay
 │   └── save/Storage.ts        localStorage（含异常容错）
 ```
 

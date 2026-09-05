@@ -17,6 +17,20 @@ import { Rng } from '../core/Rng';
 /** 剔除边距：略大于视口，避免精灵在边缘突然弹出 */
 const CULL_PAD = 72;
 
+/** 非有限坐标告警：只打一次，避免日志刷屏（Pixi 对 NaN 静默不绘制 =「隐形实体」） */
+let warnedBadCoord = false;
+function warnBadCoord(tag: string): void {
+  if (warnedBadCoord) return;
+  warnedBadCoord = true;
+  // eslint-disable-next-line no-console
+  console.warn(`[render] 检测到非有限坐标，已跳过该实体渲染（${tag}）。请用 __HD() 检查 enemyInfo 定位 NaN 来源。`);
+}
+
+/** 插值坐标是否可用于渲染（NaN/Infinity 会变成 Pixi 静默不绘制的隐形实体） */
+function badCoord(x: number, y: number): boolean {
+  return !Number.isFinite(x) || !Number.isFinite(y);
+}
+
 function makeFloorTexture(renderer: PixiRenderer): Texture {
   const g = new Graphics();
   const rng = new Rng(20240917);
@@ -221,6 +235,12 @@ export class WorldRenderer {
       const s = this.enemySprites[i];
       const x = e.px + (e.x - e.px) * alpha;
       const y = e.py + (e.y - e.py) * alpha;
+      // 非有限坐标防御：Pixi 对 NaN 静默不绘制（隐形但实体仍在），直接跳过并告警一次
+      if (badCoord(x, y)) {
+        warnBadCoord('enemy');
+        s.visible = false;
+        continue;
+      }
       if (x < cx - halfW || x > cx + halfW || y < cy - halfH || y > cy + halfH) {
         s.visible = false;
         continue;
@@ -257,6 +277,11 @@ export class WorldRenderer {
       const s = this.petSprites[i];
       const x = pe.px + (pe.x - pe.px) * alpha;
       const y = pe.py + (pe.y - pe.py) * alpha;
+      if (badCoord(x, y)) {
+        warnBadCoord('pet');
+        s.visible = false;
+        continue;
+      }
       const w = 40 * pe.scale;
       // 紧凑模式：超过阈值的巨兽本体收起，避免遮屏（攻击特效仍可见）
       if (this.petCompact && w > 160) {
@@ -328,6 +353,11 @@ export class WorldRenderer {
       const s = this.pickSprites[i];
       const x = k.px + (k.x - k.px) * alpha;
       const y = k.py + (k.y - k.py) * alpha;
+      if (badCoord(x, y)) {
+        warnBadCoord('pickup');
+        s.visible = false;
+        continue;
+      }
       if (x < cx - halfW || x > cx + halfW || y < cy - halfH || y > cy + halfH) {
         s.visible = false;
         continue;
@@ -364,6 +394,11 @@ export class WorldRenderer {
       const s = this.projSprites[i];
       const x = p.px + (p.x - p.px) * alpha;
       const y = p.py + (p.y - p.py) * alpha;
+      if (badCoord(x, y)) {
+        warnBadCoord('projectile');
+        s.visible = false;
+        continue;
+      }
 
       if (p.behavior === Behavior.Beam) {
         if (Math.abs(x - cx) > halfW + p.length || Math.abs(y - cy) > halfH + p.length) {
@@ -444,8 +479,10 @@ export class WorldRenderer {
     const p = world.player;
     const px = p.px + (p.x - p.px) * alpha;
     const py = p.py + (p.y - p.py) * alpha;
-    this.playerSprite.visible = this.showPlayer;
-    if (this.showPlayer) {
+    const playerOk = this.showPlayer && !badCoord(px, py);
+    this.playerSprite.visible = playerOk;
+    if (this.showPlayer && !playerOk) warnBadCoord('player');
+    if (playerOk) {
       this.playerSprite.x = px;
       this.playerSprite.y = py;
       this.playerSprite.width = p.radius * 3.4;

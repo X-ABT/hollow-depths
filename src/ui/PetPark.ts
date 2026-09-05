@@ -2,7 +2,6 @@ import { Application, Container, Graphics, Rectangle, Sprite, Texture, TilingSpr
 import {
   PETS,
   PET_BY_ID,
-  RARITY_LABEL,
   dmgFor,
   foodToNext,
   hpFor,
@@ -14,6 +13,7 @@ import {
 import { Tex } from '../render/TexKeys';
 import { atlas } from '../render/Textures';
 import { Storage, type SaveData } from '../save/Storage';
+import { i18nName, rarityLabel, t } from '../i18n';
 
 /** 宠物在展示园的基准宽（体积比例 =1 时） */
 const PARK_BASE_W = 72;
@@ -433,13 +433,13 @@ export class PetPark {
     ui.className = 'park-ui';
     ui.innerHTML = `
       <div class="park-topbar">
-        <button class="btn btn--ghost park-back" aria-label="返回主界面">← 返回</button>
-        <span class="park-hint">按住拖拽 · 滚轮/按钮缩放 · 点击宠物查看</span>
+        <button class="btn btn--ghost park-back" aria-label="${t('park.backAria')}">${t('park.back')}</button>
+        <span class="park-hint">${t('park.hint')}</span>
       </div>
       <div class="park-controls">
-        <button class="btn park-ctl" data-act="zoomout" aria-label="缩小">－</button>
-        <button class="btn park-ctl" data-act="zoomin" aria-label="放大">＋</button>
-        <button class="btn park-ctl park-ctl--fit" data-act="fit">适应全部</button>
+        <button class="btn park-ctl" data-act="zoomout" aria-label="${t('hud.zoomOut')}">－</button>
+        <button class="btn park-ctl" data-act="zoomin" aria-label="${t('hud.zoomIn')}">＋</button>
+        <button class="btn park-ctl park-ctl--fit" data-act="fit">${t('park.fit')}</button>
       </div>
     `;
     ui.querySelector('.park-back')?.addEventListener('click', () => this.hide());
@@ -519,27 +519,27 @@ export class PetPark {
     head.appendChild(ic);
     const ti = document.createElement('div');
     ti.className = 'park-detail-title';
-    ti.innerHTML = `<b>${def.name}</b><span class="pet-tag">${RARITY_LABEL[def.rarity]}</span><span class="pet-lv">Lv ${lv}</span>`;
+    ti.innerHTML = `<b>${i18nName(def)}</b><span class="pet-tag">${rarityLabel(def.rarity)}</span><span class="pet-lv">${t('pet.lv', { lv })}</span>`;
     head.appendChild(ti);
     el.appendChild(head);
 
     const stats = document.createElement('div');
     stats.className = 'pet-stat-grid';
     stats.innerHTML = `
-      <div class="pet-stat"><b>${volFor(def, lv).toFixed(1)}</b><span>体积</span></div>
-      <div class="pet-stat"><b>${hpFor(def, lv)}</b><span>血量</span></div>
-      <div class="pet-stat"><b>${dmgFor(def, lv)}</b><span>伤害</span></div>
-      <div class="pet-stat"><b>${Math.round(visualScale(def, lv) * 100)}%</b><span>体型比例</span></div>
+      <div class="pet-stat"><b>${volFor(def, lv).toFixed(1)}</b><span>${t('pet.statVol')}</span></div>
+      <div class="pet-stat"><b>${hpFor(def, lv)}</b><span>${t('pet.statHp')}</span></div>
+      <div class="pet-stat"><b>${dmgFor(def, lv)}</b><span>${t('pet.statDmg')}</span></div>
+      <div class="pet-stat"><b>${Math.round(visualScale(def, lv) * 100)}%</b><span>${t('pet.statSize')}</span></div>
     `;
     el.appendChild(stats);
     const feed = document.createElement('button');
     feed.className = 'btn btn--primary park-feed' + (can ? '' : ' is-disabled');
     feed.dataset.feed = id;
-    feed.innerHTML = `投喂 1 级（需 ${need} 袋粮）`;
+    feed.innerHTML = t('pet.feedNeed', { n: need });
     el.appendChild(feed);
     const close = document.createElement('button');
     close.className = 'btn btn--ghost park-detail-close';
-    close.textContent = '关闭';
+    close.textContent = t('park.close');
     el.appendChild(close);
   }
 }

@@ -34,6 +34,19 @@ export class SpatialHash {
   private curStamp = 0;
   private n = 0;
 
+  /**
+   * 获取下一个查询戳。curStamp 无界自增会超出 Int32 上界导致回绕成负数，
+   * 使 `stampArr[p] === stamp` 去重失效（极长局才可能触发）——接近上界时
+   * 整体填充清零并复位，代价仅在回绕瞬间发生一次。
+   */
+  private nextStamp(): number {
+    if (this.curStamp >= 0x7ffffffe) {
+      this.stamp.fill(0);
+      this.curStamp = 0;
+    }
+    return ++this.curStamp;
+  }
+
   /** 查询临时缓冲（复用，避免分配） */
   private readonly qbuf = new Int32Array(2048);
   /** 实体下标 → 排序后槽位（build 时反向填充，供 queryNearest 取坐标） */
@@ -108,7 +121,7 @@ export class SpatialHash {
     const minCy = Math.floor((y - r) / c);
     const maxCy = Math.floor((y + r) / c);
 
-    const stamp = ++this.curStamp;
+    const stamp = this.nextStamp();
     const starts = this.starts;
     const stampArr = this.stamp;
     const sItem = this.sortedItem;

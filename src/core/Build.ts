@@ -1,9 +1,18 @@
 import type { CharacterDef } from '../data/characters';
 import { PASSIVES, type PassiveDef, type Stats } from '../data/passives';
 import { POOL_WEAPONS, WEAPON_BY_ID, type WeaponDef } from '../data/weapons';
+import { i18nDesc, i18nName, isEn, t } from '../i18n';
+
+/** 被动当前等级的文案（语言相关，英文未提供时回退中文函数） */
+function passiveText(def: PassiveDef, lv: number): string {
+  return isEn() && def.enLvlText ? def.enLvlText(lv) : def.lvlText(lv);
+}
 
 export const MAX_WEAPON_SLOTS = 6;
 export const MAX_PASSIVE_SLOTS = 6;
+
+/** sub 中「前缀 + 细节」的分隔：中文用全角空格（视觉等宽），英文用间隔点 */
+const SUB_SEP = isEn() ? ' · ' : '　';
 
 export interface OwnedWeapon {
   def: WeaponDef;
@@ -176,9 +185,9 @@ export class Build {
         kind: 'evolve',
         id: pick.from,
         evolveTo: pick.to,
-        title: to.name,
-        desc: to.desc,
-        sub: '武器进化',
+        title: i18nName(to),
+        desc: i18nDesc(to),
+        sub: t('build.evolution'),
         icon: to.icon,
       });
     }
@@ -197,9 +206,9 @@ export class Build {
         weaponPool.push({
           kind: 'weapon',
           id: def.id,
-          title: def.name,
-          desc: def.desc,
-          sub: sl > 1 ? `新武器　起始 Lv${sl}` : '新武器',
+          title: i18nName(def),
+          desc: i18nDesc(def),
+          sub: sl > 1 ? t('build.newWeaponAt', { lv: sl }) : t('build.newWeapon'),
           icon: def.icon,
         });
       } else if (owned.level < owned.def.maxLevel) {
@@ -207,9 +216,14 @@ export class Build {
         weaponPool.push({
           kind: 'weapon',
           id: def.id,
-          title: def.name,
-          desc: def.desc,
-          sub: `Lv ${owned.level} → ${owned.level + 1}　伤害 ${owned.def.dmg[i]} → ${owned.def.dmg[i + 1]}`,
+          title: i18nName(def),
+          desc: i18nDesc(def),
+          sub: t('build.wepUp', {
+            from: owned.level,
+            to: owned.level + 1,
+            dmgFrom: owned.def.dmg[i],
+            dmgTo: owned.def.dmg[i + 1],
+          }),
           icon: def.icon,
         });
       }
@@ -226,18 +240,18 @@ export class Build {
         passivePool.push({
           kind: 'passive',
           id: def.id,
-          title: def.name,
-          desc: def.desc,
-          sub: `新装备　${def.lvlText(sl)}`,
+          title: i18nName(def),
+          desc: i18nDesc(def),
+          sub: t('build.newGear') + SUB_SEP + passiveText(def, sl),
           icon: def.icon,
         });
       } else if (owned.level < def.maxLevel) {
         passivePool.push({
           kind: 'passive',
           id: def.id,
-          title: def.name,
-          desc: def.desc,
-          sub: `Lv ${owned.level} → ${owned.level + 1}　${def.lvlText(owned.level + 1)}`,
+          title: i18nName(def),
+          desc: i18nDesc(def),
+          sub: t('build.pasUp', { from: owned.level, to: owned.level + 1 }) + SUB_SEP + passiveText(def, owned.level + 1),
           icon: def.icon,
         });
       }
@@ -261,9 +275,9 @@ export class Build {
       opts.push({
         kind: 'passive',
         id: '__heal',
-        title: '治疗药剂',
-        desc: '立即恢复 30 点生命。',
-        sub: '兜底奖励',
+        title: t('build.healTitle'),
+        desc: t('build.healDesc'),
+        sub: t('build.fallback'),
         icon: 38,
       });
     }

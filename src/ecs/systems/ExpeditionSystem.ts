@@ -5,6 +5,7 @@ import { stagePlan, type StagePlan } from '../../data/expedition';
 import { spawnEnemyById } from '../Spawn';
 import { damageEnemy, explode } from '../Damage';
 import { ENEMY_BY_INDEX } from '../../data/enemies';
+import { i18nName } from '../../i18n';
 import type { Vfx } from '../../render/Vfx';
 
 /** 爪击伤害来源 id（避开武器 0..31 与宠物 3000+），与技能免疫键分离 */
@@ -39,7 +40,7 @@ const SKILL_COLOR: Record<string, number> = {
   dash: 0xa855f7,
 };
 
-const DEFAULT_SKILL: PetSkill = { id: '', name: '新星', kind: 'nova', cd: 5, dmgMul: 4, radius: 140 };
+const DEFAULT_SKILL: PetSkill = { id: '', name: '新星', en: 'Nova', kind: 'nova', cd: 5, dmgMul: 4, radius: 140 };
 
 export interface ExpeditionState {
   stage: number;
@@ -121,7 +122,12 @@ export class ExpeditionSystem {
       p.slot = 0;
       this.hero = p;
     } else {
+      // 防御：英雄宠 spawn 失败（宠物池满，理论上几乎不可达）。
+      // 若仍让本关推进，敌宠无法被击杀 → 关卡永久挂起；改为直接判负返回营地。
       this.hero = null;
+      this.failed = true;
+      this.cleared = false;
+      return;
     }
 
     // 相机锚点（玩家实体仅用于居中，不参与战斗）
@@ -307,7 +313,7 @@ export class ExpeditionSystem {
       for (let i = 0; i < world.enemies.count; i++) {
         const e = list[i];
         if (!e.dead) {
-          bossName = ENEMY_BY_INDEX[e.defIdx].name;
+          bossName = i18nName(ENEMY_BY_INDEX[e.defIdx]);
           bossHp = e.hp;
           bossMaxHp = e.maxHp;
           break;
@@ -321,7 +327,7 @@ export class ExpeditionSystem {
       remaining: this.queue.length + live,
       heroHp: hero ? hero.hp : 0,
       heroMaxHp: hero ? hero.maxHp : 1,
-      skillName: this.skill.name,
+      skillName: i18nName(this.skill),
       skillCd: this.skillCd,
       skillCdMax: this.skill.cd,
       bossName,

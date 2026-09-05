@@ -1,10 +1,10 @@
 import {
   PETS,
   PET_BY_ID,
-  RARITY_LABEL,
   dmgFor,
   hpFor,
   skillEffectText,
+  skillEffectTextEn,
   skillFor,
   skillLevel,
   skillUpgradeCost,
@@ -17,6 +17,7 @@ import { STAR_PER_SHARD } from '../data/expedition';
 import { Storage, type SaveData } from '../save/Storage';
 import { Tex } from '../render/TexKeys';
 import { atlas } from '../render/Textures';
+import { i18nName, isEn, rarityLabel, t } from '../i18n';
 
 export interface ExpeditionHubHandlers {
   onClose: () => void;
@@ -57,9 +58,9 @@ export class ExpeditionHub {
       tip.className = 'overlay exp-hub';
       tip.innerHTML = `
         <div class="panel exp-panel">
-          <h2 class="exp-title">宠物远征</h2>
-          <p class="exp-note">需要先拥有一只宠物才能出战。去「饲养园」抽一只或免费领取基础宠物吧。</p>
-          <div class="exp-actions"><button class="btn btn--primary" data-act="back">返回标题</button></div>
+          <h2 class="exp-title">${t('exp.title')}</h2>
+          <p class="exp-note">${t('exp.noPetNote')}</p>
+          <div class="exp-actions"><button class="btn btn--primary" data-act="back">${t('exp.toTitle')}</button></div>
         </div>`;
       tip.querySelector('[data-act="back"]')?.addEventListener('click', () => h.onClose());
       root.appendChild(tip);
@@ -77,15 +78,15 @@ export class ExpeditionHub {
     el.innerHTML = `
       <div class="panel exp-panel">
         <div class="exp-head">
-          <h2 class="exp-title">宠物远征</h2>
-          <span class="exp-star">★ 星币 <b class="exp-bal-star">0</b></span>
+          <h2 class="exp-title">${t('exp.title')}</h2>
+          <span class="exp-star">${t('exp.starLabel')} <b class="exp-bal-star">0</b></span>
         </div>
-        <p class="exp-note">单宠驻守、自动平A；点技能按钮手动放大招。通关得星币，星币可升技能 / 兑碎片。</p>
+        <p class="exp-note">${t('exp.introNote')}</p>
         <div class="exp-pets"></div>
         <div class="exp-detail"></div>
         <div class="exp-actions">
-          <button class="btn btn--primary exp-start" data-act="start">开始挑战（第 1 关）</button>
-          <button class="btn btn--ghost" data-act="back">返回标题</button>
+          <button class="btn btn--primary exp-start" data-act="start">${t('exp.startAt', { n: 1 })}</button>
+          <button class="btn btn--ghost" data-act="back">${t('exp.toTitle')}</button>
         </div>
       </div>`;
     root.appendChild(el);
@@ -164,7 +165,7 @@ export class ExpeditionHub {
     const startBtn = this.el.querySelector('.exp-start');
     if (startBtn) {
       const n = this.save.expBossStage > 0 ? this.save.expBossStage + 1 : 1;
-      startBtn.textContent = `开始挑战（第 ${n} 关）`;
+      startBtn.textContent = t('exp.startAt', { n });
     }
 
     const petsEl = this.el.querySelector('.exp-pets') as HTMLElement | null;
@@ -183,7 +184,7 @@ export class ExpeditionHub {
         const lv = this.save.petLevels[id] ?? 1;
         const info = document.createElement('span');
         info.className = 'exp-pet-info';
-        info.innerHTML = `<b>${def.name}</b><span class="pet-lv">Lv ${lv}</span>`;
+        info.innerHTML = `<b>${i18nName(def)}</b><span class="pet-lv">${t('pet.lv', { lv })}</span>`;
         card.append(ico, info);
         petsEl.appendChild(card);
       }
@@ -205,33 +206,33 @@ export class ExpeditionHub {
         <div class="exp-detail-head ${rarityClass(def.rarity)}">
           <span class="exp-detail-ico"></span>
           <div class="exp-detail-title">
-            <b>${def.name}</b>
-            <span class="pet-tag">${RARITY_LABEL[def.rarity]}</span>
-            <span class="pet-lv">Lv ${lv}</span>
+            <b>${i18nName(def)}</b>
+            <span class="pet-tag">${rarityLabel(def.rarity)}</span>
+            <span class="pet-lv">${t('pet.lv', { lv })}</span>
           </div>
         </div>
         <div class="pet-stat-grid">
-          <div class="pet-stat"><b>${hpFor(def, lv)}</b><span>血量</span></div>
-          <div class="pet-stat"><b>${dmgFor(def, lv)}</b><span>伤害</span></div>
-          <div class="pet-stat"><b>${Math.round(visualScale(def, lv) * 100)}%</b><span>体型比例</span></div>
+          <div class="pet-stat"><b>${hpFor(def, lv)}</b><span>${t('pet.statHp')}</span></div>
+          <div class="pet-stat"><b>${dmgFor(def, lv)}</b><span>${t('pet.statDmg')}</span></div>
+          <div class="pet-stat"><b>${Math.round(visualScale(def, lv) * 100)}%</b><span>${t('pet.statSize')}</span></div>
         </div>
         <div class="exp-skill">
-          <div class="exp-skill-line">招牌技能：<b>${sk.name}</b> · 等级 <b class="exp-skill-lv">${skLv}</b></div>
-          <div class="exp-skill-desc">${skillEffectText(sk)}</div>
-          <button class="btn exp-up ${canUp ? '' : 'is-disabled'}" data-up="${def.id}">升级技能（${cost} 星币）</button>
+          <div class="exp-skill-line">${t('exp.skillLine', { name: i18nName(sk), lv: skLv })}</div>
+          <div class="exp-skill-desc">${isEn() ? skillEffectTextEn(sk) : skillEffectText(sk)}</div>
+          <button class="btn exp-up ${canUp ? '' : 'is-disabled'}" data-up="${def.id}">${t('exp.upgradeSkill', { cost })}</button>
           <div class="exp-exch">
             <div class="exp-exch-head">
-              <span class="exp-exch-label">星币兑碎片</span>
-              <span class="exp-exch-rate">${STAR_PER_SHARD} 星币 = 1 碎片</span>
+              <span class="exp-exch-label">${t('exp.exLabel')}</span>
+              <span class="exp-exch-rate">${t('exp.exRate', { n: STAR_PER_SHARD })}</span>
             </div>
             <div class="exp-exch-ctl">
               <button class="btn exp-exch-btn ${want > 0 ? '' : 'is-disabled'}" data-ex="minus">−</button>
-              <span class="exp-exch-want">${want} 碎片</span>
+              <span class="exp-exch-want">${t('exp.exWant', { n: want })}</span>
               <button class="btn exp-exch-btn ${want < maxShards ? '' : 'is-disabled'}" data-ex="plus">＋</button>
-              <button class="btn exp-exch-btn" data-ex="all">全部</button>
-              <button class="btn exp-exch-go ${want > 0 ? '' : 'is-disabled'}" data-ex="go">兑换 ${want * STAR_PER_SHARD} 星币</button>
+              <button class="btn exp-exch-btn" data-ex="all">${t('exp.exAll')}</button>
+              <button class="btn exp-exch-go ${want > 0 ? '' : 'is-disabled'}" data-ex="go">${t('exp.exGo', { n: want * STAR_PER_SHARD })}</button>
             </div>
-            ${maxShards <= 0 ? '<div class="exp-exch-note">星币不足：先闯关赚星币，或把星币留给升技能</div>' : ''}
+            ${maxShards <= 0 ? `<div class="exp-exch-note">${t('exp.exNoStar')}</div>` : ''}
           </div>
         </div>`;
       (detail.querySelector('.exp-detail-ico') as HTMLElement).appendChild(atlas.icon(iconOf(this.selected), 64));

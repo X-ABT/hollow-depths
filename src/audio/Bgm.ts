@@ -56,6 +56,26 @@ export class Bgm {
     return this._muted;
   }
 
+  /** 是否已持有上下文（首次 start 后才为 true） */
+  get hasContext(): boolean {
+    return this.ctx !== null;
+  }
+
+  /**
+   * 恢复音频上下文（iOS 中断 / 自动播放策略导致 suspended/interrupted 时使用）。
+   * 必须在用户手势（pointerdown / touchend / keydown）中调用。
+   * 调用无副作用，可安全挂在全局手势监听上。
+   */
+  async resume(): Promise<void> {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state === 'running') return;
+    try {
+      await ctx.resume();
+    } catch {
+      /* 恢复失败静默：下次手势再试 */
+    }
+  }
+
   /** 创建并启动。须在用户手势内调用；重复调用无害。 */
   start(): void {
     if (!this.ctx) {

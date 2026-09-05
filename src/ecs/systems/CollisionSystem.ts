@@ -91,9 +91,10 @@ export class CollisionSystem {
             this.vfx?.hit(pr.x, pr.y, dealt, lastCrit);
             this.vfx?.burst(pr.x, pr.y, lastCrit ? 8 : 4, lastCrit ? 0xf5c451 : 0x43e0ff);
 
-            // 溅射（猎杀连锁进化）
+            // 溅射（猎杀连锁进化）：explode 内部会再做哈希查询，
+            // 必须用独立缓冲 qbuf2，避免覆盖外层正在消费的 qbuf 命中结果
             if (pr.splash > 0) {
-              explode(world, pr.x, pr.y, pr.splash, pr.damage * 0.6, pr.srcId + 8, slot, 0, 1);
+              explode(world, pr.x, pr.y, pr.splash, pr.damage * 0.6, pr.srcId + 8, slot, 0, 1, 0, 0, world.qbuf2);
             }
 
             if (pr.behavior !== Behavior.Orbit) {

@@ -14,7 +14,6 @@ import {
   PET_BY_ID,
   PET_SHOP_COST,
   RARITY_CHANCE,
-  RARITY_LABEL,
   RARITY_RANK,
   sortOwnedPets,
   VOL_GROWTH,
@@ -31,6 +30,8 @@ import {
 import { Storage, type SaveData } from '../save/Storage';
 import { Tex } from '../render/TexKeys';
 import { atlas } from '../render/Textures';
+import { ads } from '../ads/index';
+import { i18nName, rarityLabel, t } from '../i18n';
 
 type Tab = 'gacha' | 'farm' | 'shop';
 
@@ -59,6 +60,8 @@ export class PetScreen {
   private onClose: (() => void) | null = null;
   private tab: Tab = 'gacha';
   private selected: string | null = null;
+  /** 「免费十连」广告播放中：防止连点/并发 */
+  private adBusy = false;
 
   get visible(): boolean {
     return this.el !== null;
@@ -76,18 +79,18 @@ export class PetScreen {
     el.innerHTML = `
       <div class="panel pet-panel">
         <div class="pet-head">
-          <h2 class="pet-title">饲养园</h2>
-          <button class="btn pet-close" aria-label="关闭宠物中心">✕</button>
+          <h2 class="pet-title">${t('pet.center')}</h2>
+          <button class="btn pet-close" aria-label="${t('pet.close')}">✕</button>
         </div>
         <div class="pet-balance">
-          <span class="pet-res pet-res--soul">灵魂 <b class="pet-bal-soul"></b></span>
-          <span class="pet-res pet-res--food">粮袋 <b class="pet-bal-food"></b></span>
-          <span class="pet-res pet-res--shard">碎片 <b class="pet-bal-shard"></b></span>
+          <span class="pet-res pet-res--soul">${t('title.soul')} <b class="pet-bal-soul"></b></span>
+          <span class="pet-res pet-res--food">${t('pet.resFood')} <b class="pet-bal-food"></b></span>
+          <span class="pet-res pet-res--shard">${t('pet.resShards')} <b class="pet-bal-shard"></b></span>
         </div>
         <div class="pet-tabs">
-          <button class="pet-tab" data-tab="gacha">抽奖</button>
-          <button class="pet-tab" data-tab="farm">饲养</button>
-          <button class="pet-tab" data-tab="shop">碎片商店</button>
+          <button class="pet-tab" data-tab="gacha">${t('pet.tabGacha')}</button>
+          <button class="pet-tab" data-tab="farm">${t('pet.tabFarm')}</button>
+          <button class="pet-tab" data-tab="shop">${t('pet.tabShop')}</button>
         </div>
         <div class="pet-body"></div>
       </div>
@@ -139,11 +142,18 @@ export class PetScreen {
     const pct = (n: number): string => `${(n * 100).toFixed(2).replace(/\.?0+$/, '')}`;
     d.innerHTML = `
       <div class="pet-gacha-actions">
-        <button class="btn pet-gacha-btn" data-pull="1">单抽<br><span class="pet-cost">${GACHA_SINGLE_COST} 灵魂</span></button>
-        <button class="btn pet-gacha-btn pet-gacha-btn--ten" data-pull="10">十连<br><span class="pet-cost">${GACHA_TEN_COST} 灵魂（9折）</span></button>
-        <button class="btn pet-gacha-btn pet-gacha-btn--hundred" data-pull="100">百连<br><span class="pet-cost">${GACHA_HUNDRED_COST} 灵魂（8折）</span></button>
+        <button class="btn pet-gacha-btn" data-pull="1">${t('pet.draw1')}<br><span class="pet-cost">${t('pet.souls', { n: GACHA_SINGLE_COST })}</span></button>
+        <button class="btn pet-gacha-btn pet-gacha-btn--ten" data-pull="10">${t('pet.draw10')}<br><span class="pet-cost">${t('pet.souls10', { n: GACHA_TEN_COST })}</span></button>
+        <button class="btn pet-gacha-btn pet-gacha-btn--hundred" data-pull="100">${t('pet.draw100')}<br><span class="pet-cost">${t('pet.souls100', { n: GACHA_HUNDRED_COST })}</span></button>
+        <button class="btn pet-gacha-btn pet-gacha-btn--ad" data-adpull="10">${t('pet.free10')}<br><span class="pet-cost">${t('pet.free10Hint')}</span></button>
       </div>
-      <p class="pet-gacha-note">出宠物 ${pct(1 - GACHA_FOOD_CHANCE)}%（普通 ${pct(RARITY_CHANCE.common)}% · 稀有 ${pct(RARITY_CHANCE.rare)}% · 传说 ${pct(RARITY_CHANCE.legend)}%）；其余 ${pct(GACHA_FOOD_CHANCE)}% 为粮袋，单袋数量 1/5/10/20/50/100 按概率。重复宠物自动分解为碎片</p>
+      <p class="pet-gacha-note">${t('pet.gachaNote', {
+        pet: pct(1 - GACHA_FOOD_CHANCE),
+        c: pct(RARITY_CHANCE.common),
+        r: pct(RARITY_CHANCE.rare),
+        l: pct(RARITY_CHANCE.legend),
+        food: pct(GACHA_FOOD_CHANCE),
+      })}</p>
       <div class="pet-result"></div>
     `;
     body.appendChild(d);
@@ -154,6 +164,33 @@ export class PetScreen {
         this.doGacha(pulls, cost);
       });
     }
+    // 广告免费十连：独立入口，绝不走付费扣款路径
+    for (const b of d.querySelectorAll<HTMLElement>('[data-adpull]')) {
+      b.addEventListener('click', () => {
+        if (!this.adBusy) void this.freeTen(b);
+      });
+    }
+  }
+
+  /** 看广告免费十连：完整观看（rewarded）才发放且不扣灵魂；取消/失败还原按钮 */
+  private async freeTen(btn: HTMLElement): Promise<void> {
+    if (!this.save || !this.el || this.adBusy) return;
+    this.adBusy = true;
+    btn.classList.add('is-busy');
+    btn.setAttribute('aria-disabled', 'true');
+    const orig = btn.innerHTML;
+    btn.innerHTML = t('pet.adBusy');
+    const out = await ads.showRewardedAd('pet_free_ten');
+    this.adBusy = false;
+    if (out === 'rewarded') {
+      // doGacha 内部整屏刷新，会重建按钮，无需还原
+      this.doGacha(10, 0);
+      return;
+    }
+    // 取消 / 播放失败：还原按钮可再点
+    btn.classList.remove('is-busy');
+    btn.removeAttribute('aria-disabled');
+    btn.innerHTML = orig;
   }
 
   /** 批量抽：扣款后逐抽结算并聚合展示（粮食合计一行，每种宠物一行） */
@@ -193,11 +230,11 @@ export class PetScreen {
 
     // 聚合结果行
     const log: { text: string; pet?: PetDef; isNew?: boolean; food: number }[] = [];
-    if (foodGot > 0) log.push({ text: `宠物粮 ×${foodGot}`, food: foodGot });
+    if (foodGot > 0) log.push({ text: t('pet.drawResultFood', { n: foodGot }), food: foodGot });
     for (const rec of petAgg.values()) {
       const text = rec.isNew
-        ? `${rec.def.name}（新获得！）`
-        : `${rec.def.name} ×${rec.times}（重复 → +${rec.shards} 碎片）`;
+        ? t('pet.drawResultNew', { name: i18nName(rec.def) })
+        : t('pet.drawResultDup', { name: i18nName(rec.def), n: rec.times, s: rec.shards });
       log.push({ text, pet: rec.def, isNew: rec.isNew, food: 0 });
     }
     // 新宠自动切到饲养页方便查看
@@ -252,11 +289,11 @@ export class PetScreen {
       ico.appendChild(atlas.icon(iconOf(FREE_PET.id), 40));
       const txt = document.createElement('span');
       txt.className = 'pet-free-text';
-      txt.innerHTML = `<b>${FREE_PET.name}</b> 基础宠物（普通宠一半属性）`;
+      txt.innerHTML = `<b>${i18nName(FREE_PET)}</b> ${t('pet.freeBanner')}`;
       const act = document.createElement('button');
       act.className = 'btn btn--primary';
       act.dataset.free = '1';
-      act.textContent = '免费领取';
+      act.textContent = t('pet.claimFree');
       fb.append(ico, txt, act);
       d.appendChild(fb);
     }
@@ -265,7 +302,7 @@ export class PetScreen {
     if (owned.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'pet-empty';
-      empty.textContent = '还没有宠物——先去「抽奖」带一只回来吧。';
+      empty.textContent = t('pet.noOwned');
       list.appendChild(empty);
     } else {
       for (const p of owned) {
@@ -281,12 +318,12 @@ export class PetScreen {
         row.appendChild(ico);
         const info = document.createElement('span');
         info.className = 'pet-farm-info';
-        info.innerHTML = `<b>${p.name}</b><span class="pet-lv">Lv ${lv}</span><span class="pet-tag">${RARITY_LABEL[p.rarity]}</span>`;
+        info.innerHTML = `<b>${i18nName(p)}</b><span class="pet-lv">${t('pet.lv', { lv })}</span><span class="pet-tag">${rarityLabel(p.rarity)}</span>`;
         row.appendChild(info);
         const act = document.createElement('button');
         act.className = 'btn pet-mini' + (on ? ' pet-mini--off' : '');
         act.dataset.toggle = p.id;
-        act.textContent = on ? '下阵' : '上阵';
+        act.textContent = on ? t('pet.offBattle') : t('pet.onBattle');
         row.appendChild(act);
         list.appendChild(row);
       }
@@ -305,17 +342,17 @@ export class PetScreen {
         chip.className += ` ${rarityClass(def.rarity)}`;
         chip.appendChild(atlas.icon(iconOf(def.id), 30));
         const n = document.createElement('span');
-        n.textContent = def.name;
+        n.textContent = i18nName(def);
         chip.appendChild(n);
       } else {
         chip.classList.add('pet-slot--empty');
-        chip.textContent = '空槽位';
+        chip.textContent = t('pet.emptySlot');
       }
       slotsEl.appendChild(chip);
     }
     const slotTip = document.createElement('p');
     slotTip.className = 'pet-slot-tip';
-    slotTip.textContent = `可上阵 ${loadout.length}/${slots} 只 · 拥有 5 只开第 2 槽 · 拥有 10 只开第 3 槽`;
+    slotTip.textContent = t('pet.slotTip', { a: loadout.length, b: slots });
     d.appendChild(slotsEl);
     d.appendChild(slotTip);
 
@@ -331,29 +368,29 @@ export class PetScreen {
         <div class="pet-detail-head ${rarityClass(ownedSel.rarity)}">
           <span class="pet-detail-ico"></span>
           <div class="pet-detail-title">
-            <b>${ownedSel.name}</b>
-            <span class="pet-tag">${RARITY_LABEL[ownedSel.rarity]}</span>
-            <span class="pet-lv">Lv ${lv}</span>
+            <b>${i18nName(ownedSel)}</b>
+            <span class="pet-tag">${rarityLabel(ownedSel.rarity)}</span>
+            <span class="pet-lv">${t('pet.lv', { lv })}</span>
           </div>
         </div>
         <div class="pet-stat-grid">
-          <div class="pet-stat"><b>${volFor(ownedSel, lv).toFixed(1)}</b><span>体积</span></div>
-          <div class="pet-stat"><b>${hpFor(ownedSel, lv)}</b><span>血量</span></div>
-          <div class="pet-stat"><b>${dmgFor(ownedSel, lv)}</b><span>伤害</span></div>
-          <div class="pet-stat"><b>${Math.round(visualScale(ownedSel, lv) * 100)}%</b><span>体型比例</span></div>
+          <div class="pet-stat"><b>${volFor(ownedSel, lv).toFixed(1)}</b><span>${t('pet.statVol')}</span></div>
+          <div class="pet-stat"><b>${hpFor(ownedSel, lv)}</b><span>${t('pet.statHp')}</span></div>
+          <div class="pet-stat"><b>${dmgFor(ownedSel, lv)}</b><span>${t('pet.statDmg')}</span></div>
+          <div class="pet-stat"><b>${Math.round(visualScale(ownedSel, lv) * 100)}%</b><span>${t('pet.statSize')}</span></div>
         </div>
-        <p class="pet-rule">每升 1 级：体积 +${VOL_GROWTH[ownedSel.rarity]} · 血量 +1 · 伤害 +1</p>
-        <button class="btn btn--primary pet-feed" data-feed="${ownedSel.id}">投喂 1 级（需 ${need} 袋粮）</button>
+        <p class="pet-rule">${t('pet.growRule', { v: VOL_GROWTH[ownedSel.rarity] })}</p>
+        <button class="btn btn--primary pet-feed" data-feed="${ownedSel.id}">${t('pet.feedNeed', { n: need })}</button>
       `;
       (detail.querySelector('.pet-detail-ico') as HTMLElement).appendChild(atlas.icon(iconOf(ownedSel.id), 72));
       // 上阵/下阵选中宠物
       const isOn = loadout.includes(ownedSel.id);
       const tgl = document.createElement('button');
       tgl.className = 'btn pet-mini pet-toggle' + (isOn ? ' pet-mini--off' : '');
-      tgl.textContent = isOn ? '移出上阵' : '上阵出战';
+      tgl.textContent = isOn ? t('pet.moveOut') : t('pet.fightNow');
       detail.appendChild(tgl);
     } else {
-      detail.innerHTML = `<div class="pet-empty">还没有宠物可看详情。</div>`;
+      detail.innerHTML = `<div class="pet-empty">${t('pet.noDetail')}</div>`;
     }
     d.appendChild(detail);
     body.appendChild(d);
@@ -373,7 +410,7 @@ export class PetScreen {
       return el;
     };
 
-    d.appendChild(secTitle('兑换宠物'));
+    d.appendChild(secTitle(t('pet.exchangePets')));
     const petList = document.createElement('div');
     petList.className = 'shop-list pet-shop-list';
     // 仅可兑换抽奖池宠物（免费赠送宠不可兑换），传说/稀有在前，同档未拥有的排前面
@@ -390,21 +427,21 @@ export class PetScreen {
       ico.appendChild(atlas.icon(iconOf(p.id), 36));
       const info = document.createElement('div');
       info.className = 'shop-item-info';
-      info.innerHTML = `<div class="shop-item-name">${p.name}<span class="shop-item-tag pet-tag">${RARITY_LABEL[p.rarity]}</span></div>
-        <div class="shop-item-desc">基础 体积${p.baseVol} · 血量${p.baseHp} · 伤害${p.baseDmg}</div>`;
+      info.innerHTML = `<div class="shop-item-name">${i18nName(p)}<span class="shop-item-tag pet-tag">${rarityLabel(p.rarity)}</span></div>
+        <div class="shop-item-desc">${t('pet.baseStats', { v: p.baseVol, hp: p.baseHp, d: p.baseDmg })}</div>`;
       const action = document.createElement('div');
       action.className = 'shop-item-action';
       if (owned) {
         const span = document.createElement('span');
         span.className = 'shop-owned';
-        span.textContent = '已拥有';
+        span.textContent = t('pet.owned');
         action.appendChild(span);
       } else {
         const cost = PET_SHOP_COST[p.rarity];
         const btn = document.createElement('button');
         btn.className = 'btn pet-buy';
         btn.dataset.pet = p.id;
-        btn.textContent = `${cost} 碎片`;
+        btn.textContent = t('pet.shardCost', { n: cost });
         if (this.save.petShards < cost) btn.classList.add('is-disabled');
         action.appendChild(btn);
       }
@@ -413,7 +450,7 @@ export class PetScreen {
     }
     d.appendChild(petList);
 
-    d.appendChild(secTitle('兑换粮袋'));
+    d.appendChild(secTitle(t('pet.exchangeFood')));
     const food = document.createElement('div');
     food.className = 'pet-food-shop';
     for (const n of [1, 5, 10]) {
@@ -421,7 +458,7 @@ export class PetScreen {
       const btn = document.createElement('button');
       btn.className = 'btn pet-food-buy';
       btn.dataset.food = `${n}`;
-      btn.innerHTML = `${n} 袋粮<br><span class="pet-cost">${cost} 碎片</span>`;
+      btn.innerHTML = `${t('pet.bags', { n })}<br><span class="pet-cost">${t('pet.shardCost', { n: cost })}</span>`;
       if (this.save.petShards < cost) btn.classList.add('is-disabled');
       food.appendChild(btn);
     }
@@ -430,7 +467,7 @@ export class PetScreen {
     const bulk = document.createElement('button');
     bulk.className = 'btn pet-food-buy pet-food-buy--bulk';
     bulk.dataset.bulkfood = '1';
-    bulk.innerHTML = `${FOOD_BULK_COUNT} 袋粮（特惠）<br><span class="pet-cost">${FOOD_BULK_COUNT} 袋 · ${bulkCost} 碎片</span>`;
+    bulk.innerHTML = `${t('pet.bulkTag', { n: FOOD_BULK_COUNT })}<br><span class="pet-cost">${t('pet.bulkSub', { count: FOOD_BULK_COUNT, cost: bulkCost })}</span>`;
     if (this.save.petShards < bulkCost) bulk.classList.add('is-disabled');
     food.appendChild(bulk);
     d.appendChild(food);

@@ -1,13 +1,36 @@
 import './style.css';
 import { Application } from 'pixi.js';
 import { Game } from './core/Game';
+import { currentLang, t } from './i18n';
+import { ensureCrazySdk, isCrazygamesHost } from './ads/crazygames';
+
+/** 首屏 boot 文案在模块加载即按已选语言渲染（在 app.init 完成前用户可能看到） */
+function localizeBoot(): void {
+  document.documentElement.lang = currentLang();
+  const sub = document.querySelector('.boot-sub');
+  if (sub) sub.textContent = t('boot.sub');
+  const hint = document.querySelector('.boot-hint');
+  if (hint) hint.textContent = t('boot.hint');
+}
+
+localizeBoot();
+
+/** 预热 CrazyGames SDK：仅在平台 iframe 上加载（加载失败静默，广告层会回退 Mock） */
+function warmupCrazySdk(): void {
+  if (!isCrazygamesHost()) return;
+  void ensureCrazySdk().catch(() => {
+    /* 忽略：广告层已做降级 */
+  });
+}
+
+warmupCrazySdk();
 
 function showFatal(message: string): void {
   const boot = document.getElementById('boot');
   if (!boot) return;
   boot.innerHTML = `
     <div class="boot-mark">
-      <div class="boot-title">无法启动</div>
+      <div class="boot-title">${t('fatal.title')}</div>
       <div class="boot-sub" style="letter-spacing:0.1em;margin-top:14px">${message}</div>
     </div>
   `;
@@ -17,7 +40,7 @@ async function boot(): Promise<void> {
   const mount = document.getElementById('stage');
   const uiRoot = document.getElementById('ui-root');
   if (!mount || !uiRoot) {
-    showFatal('页面结构异常，请刷新重试。');
+    showFatal(t('fatal.page'));
     return;
   }
 
@@ -35,7 +58,7 @@ async function boot(): Promise<void> {
       powerPreference: 'high-performance',
     });
   } catch {
-    showFatal('当前浏览器不支持 WebGL，建议使用最新版 Chrome / Edge / Safari。');
+    showFatal(t('fatal.webgl'));
     return;
   }
 

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -10,11 +10,48 @@
     <meta name="color-scheme" content="dark" />
     <meta
       name="description"
-      content="Hollow Depths 幽墟幸存者 —— 纯前端、零后端的浏览器幸存者类 Roguelite。打开即玩，无需下载与注册。"
+      content="Hollow Depths — a zero-backend browser survivor roguelite. Open and play, no downloads, no sign-up."
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>Hollow Depths · 幽墟幸存者</title>
+    <title>Hollow Depths — Survivor Roguelite</title>
+    <script>
+      // 极轻量语言初始化：默认英文（面向国际），仅当玩家手动切过中文才显示中文。
+      // 在模块加载前先设置 <html lang> 与静态 meta/title/boot 文案，避免首屏闪烁。
+      // 逻辑与 src/i18n/lang.ts 保持一致（无偏好一律 en，不跟随浏览器语言）。
+      (function () {
+        try {
+          var saved = localStorage.getItem('hollow-depths.lang.v1');
+        } catch (e) {
+          saved = null;
+        }
+        var lang = saved === 'zh' || saved === 'en' ? saved : 'en';
+        document.documentElement.lang = lang;
+        var setStatic = function (lang) {
+          var d = document.querySelector('meta[name="description"]');
+          if (lang === 'en') {
+            document.title = 'Hollow Depths — Survivor Roguelite';
+            if (d) d.setAttribute('content', 'Hollow Depths — a zero-backend browser survivor roguelite. Open and play, no downloads, no sign-up.');
+          } else {
+            document.title = 'Hollow Depths · 幽墟幸存者';
+            if (d) d.setAttribute('content', 'Hollow Depths 幽墟幸存者 —— 纯前端、零后端的浏览器幸存者类 Roguelite。打开即玩，无需下载与注册。');
+          }
+        };
+        setStatic(lang);
+        // boot 文案（<body> 尚未解析，须等 DOMContentLoaded；ES module 随后会按 currentLang 再同步一遍）
+        document.addEventListener('DOMContentLoaded', function () {
+          var sub = document.querySelector('.boot-sub');
+          var hint = document.querySelector('.boot-hint');
+          if (lang === 'en') {
+            if (sub) sub.textContent = 'Survive the Hollow Depths';
+            if (hint) hint.textContent = 'Igniting the depths…';
+          } else {
+            if (sub) sub.textContent = '幽墟幸存者';
+            if (hint) hint.textContent = '正在点亮幽墟……';
+          }
+        });
+      })();
+    </script>
   </head>
   <body>
     <!-- 游戏世界（PixiJS Canvas 挂载点） -->
@@ -23,19 +60,19 @@
     <!-- UI 覆盖层：标题页 / HUD / 升级三选一 / 结算页 -->
     <div id="ui-root"></div>
 
-    <!-- 首帧加载遮罩：Assets 与 Application 初始化完成前显示 -->
+    <!-- 首帧加载遮罩：Assets 与 Application 初始化完成前显示（默认英文，内联脚本按已存语言同步） -->
     <div id="boot">
       <div class="boot-mark">
         <div class="boot-rune"></div>
         <div class="boot-title">HOLLOW DEPTHS</div>
-        <div class="boot-sub">幽墟幸存者</div>
+        <div class="boot-sub">Survive the Hollow Depths</div>
         <div class="boot-bar"><i></i></div>
-        <div class="boot-hint">正在点亮幽墟……</div>
+        <div class="boot-hint">Igniting the depths…</div>
       </div>
     </div>
 
     <noscript>
-      <div class="noscript">本游戏需要启用 JavaScript 才能运行。</div>
+      <div class="noscript">This game requires JavaScript to run. / 本游戏需要启用 JavaScript 才能运行。</div>
     </noscript>
 
     <script type="module" src="/src/main.ts"></script>

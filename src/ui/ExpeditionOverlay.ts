@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 export interface ExpeditionFailHandlers {
   onBack: () => void;
 }
@@ -13,9 +15,9 @@ export class ExpeditionOverlay {
     el.className = 'overlay exp-result';
     el.innerHTML = `
       <div class="panel exp-panel exp-panel--fail">
-        <h2 class="exp-title exp-fail-title">挑战失败</h2>
-        <p class="exp-note">你的宠物在第 ${info.stage} 关倒下了。再战将从第 ${info.resume} 关开始。</p>
-        <div class="exp-actions"><button class="btn btn--primary" data-act="back">返回营地</button></div>
+        <h2 class="exp-title exp-fail-title">${t('exp.failTitle')}</h2>
+        <p class="exp-note">${t('exp.failNote', { stage: info.stage, resume: info.resume })}</p>
+        <div class="exp-actions"><button class="btn btn--primary" data-act="back">${t('exp.backToCamp')}</button></div>
       </div>`;
     root.appendChild(el);
     this.el = el;

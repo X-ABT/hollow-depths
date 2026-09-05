@@ -28,6 +28,8 @@ export interface WeaponDef {
   name: string;
   en: string;
   desc: string;
+  /** 英文描述（缺省回退中文 desc） */
+  enDesc?: string;
   icon: number;
   maxLevel: number;
   /** 常驻型武器（如环绕光环）：开火仅用于生成/重建，不走冷却 */
@@ -317,6 +319,7 @@ export const WEAPONS: readonly WeaponDef[] = [
     name: '裂地印记',
     en: 'Rift Mark',
     desc: '撕裂最近敌人脚下的大地，短暂延迟后爆发；每处 12 点基础伤害，可标记多名敌人。',
+    enDesc: 'Tears the earth under nearby enemies, erupting after a short delay for 12 base damage per mark. Can mark several foes at once.',
     icon: Tex.IconRift,
     maxLevel: LV8,
     cd: [2.4, 2.2, 2.0, 1.85, 1.7, 1.55, 1.4, 1.25],
@@ -334,6 +337,7 @@ export const WEAPONS: readonly WeaponDef[] = [
     name: '圣环',
     en: 'Halo Ward',
     desc: '光球环绕身边旋转，灼烧并轻微击退靠近的敌人；每次接触造成 8 点伤害。',
+    enDesc: 'Orbs orbit around you, searing and lightly knocking back approaching foes; each contact deals 8 damage.',
     icon: Tex.IconHalo,
     maxLevel: LV8,
     persistent: true,
@@ -352,6 +356,7 @@ export const WEAPONS: readonly WeaponDef[] = [
     name: '追猎印记',
     en: 'Seeker Sigil',
     desc: '自动锁定最近的敌人，射出追踪符文追击；每发造成 10 点基础伤害。',
+    enDesc: 'Auto-locks the nearest enemy and fires homing runes in pursuit; each bolt deals 10 base damage.',
     icon: Tex.IconSeeker,
     maxLevel: LV8,
     cd: [1.6, 1.5, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9],
@@ -369,6 +374,7 @@ export const WEAPONS: readonly WeaponDef[] = [
     name: '震击波',
     en: 'Shockwave',
     desc: '以自身为中心炸开冲击波并强力击退敌人；每次命中造成 18 点伤害。',
+    enDesc: 'Blasts a shockwave from your position with strong knockback; each hit deals 18 damage.',
     icon: Tex.IconShock,
     maxLevel: LV8,
     cd: [3.2, 3.0, 2.8, 2.6, 2.4, 2.2, 2.0, 1.8],
@@ -386,6 +392,7 @@ export const WEAPONS: readonly WeaponDef[] = [
     name: '碎星弹',
     en: 'Shard Volley',
     desc: '向四周散射星屑弹幕，专治成群的敌人；每颗造成 10 点基础伤害。',
+    enDesc: 'Scatters star-shard projectiles in all directions, shredding crowds; each shard deals 10 base damage.',
     icon: Tex.IconShard,
     maxLevel: LV8,
     cd: [0.55, 0.5, 0.46, 0.42, 0.38, 0.34, 0.3, 0.26],
@@ -404,6 +411,7 @@ export const WEAPONS: readonly WeaponDef[] = [
     name: '贯穿光束',
     en: 'Piercing Beam',
     desc: '朝最近的敌人射出一道贯穿光柱，扫过沿途所有敌人；每道 16 点基础伤害。',
+    enDesc: 'Fires a piercing beam toward the nearest enemy, cutting through everything along its path; each beam deals 16 base damage.',
     icon: Tex.IconBeam,
     maxLevel: LV8,
     cd: [2.6, 2.4, 2.2, 2.0, 1.85, 1.7, 1.55, 1.4],
@@ -421,6 +429,7 @@ export const WEAPONS: readonly WeaponDef[] = [
     name: '霜噬领域',
     en: 'Frost Field',
     desc: '在原地凝出寒霜领域，减速闯入的敌人并持续侵蚀，每秒约 6 点伤害。',
+    enDesc: 'Conjures a frost field that slows and continuously erodes enemies within, about 6 damage per second.',
     icon: Tex.IconFrost,
     maxLevel: LV8,
     cd: [4.5, 4.2, 4.0, 3.7, 3.4, 3.1, 2.8, 2.5],
@@ -469,6 +478,7 @@ export const EVOLVED: readonly WeaponDef[] = [
       name: '深渊裂隙',
       en: 'Abyssal Rift',
       desc: '进化·裂地：印记更大更频繁且必定暴击；单次基础约 45 点伤害。',
+      enDesc: 'Evolved Rift: marks are larger, more frequent, and always critical; about 45 base damage per mark.',
       icon: Tex.IconRift,
     },
     // 机制「必定暴击」≈ 稳定 ×1.5~2.75 伤害，故单发伤害适当下调补偿
@@ -481,6 +491,7 @@ export const EVOLVED: readonly WeaponDef[] = [
       name: '双生圣环',
       en: 'Twin Halo',
       desc: '进化·圣环：内外两圈光球反向环绕，范围与伤害大增；每次接触约 44 点伤害。',
+      enDesc: 'Evolved Halo: inner and outer rings of orbs spin in opposite directions, with far greater reach and damage; about 44 damage per contact.',
       icon: Tex.IconHalo,
     },
     // 机制「双圈反向」不改变光球数量，伤害与环绕半径小幅提升即可
@@ -493,6 +504,7 @@ export const EVOLVED: readonly WeaponDef[] = [
       name: '猎杀连锁',
       en: 'Hunting Chain',
       desc: '进化·追猎：符文命中后引爆，对周围敌人造成溅射；本体每发约 43 点伤害。',
+      enDesc: 'Evolved Seeker: runes explode on impact, splashing nearby enemies; about 43 base damage per bolt.',
       icon: Tex.IconSeeker,
     },
     // 机制「每发命中都溅射 82」补群伤，单体伤害略微下调补偿
@@ -505,6 +517,7 @@ export const EVOLVED: readonly WeaponDef[] = [
       name: '瞬息震荡',
       en: 'Instant Quake',
       desc: '进化·震击：冷却大幅缩短，范围与击退更强；每发约 61 点伤害。',
+      enDesc: 'Evolved Shockwave: cooldown greatly reduced with stronger range and knockback; about 61 damage per blast.',
       icon: Tex.IconShock,
     },
     // 机制「高频震波」靠 CD ×0.7 实现，单发伤害略降保持总 DPS 略高于满级
@@ -517,6 +530,7 @@ export const EVOLVED: readonly WeaponDef[] = [
       name: '星陨暴雨',
       en: 'Starfall Rain',
       desc: '进化·碎星：单轮散射弹数与射速大增，清潮更猛；每颗约 20 点伤害。',
+      enDesc: 'Evolved Shards: far more shards per volley and faster fire rate, shredding hordes; about 20 damage per shard.',
       icon: Tex.IconShard,
     },
     // 弹幕数量 ×1.5 + 射速提升，单发略降补偿，清潮总量更高
@@ -529,6 +543,7 @@ export const EVOLVED: readonly WeaponDef[] = [
       name: '苍穹裂光',
       en: 'Fissure of the Sky',
       desc: '进化·光束：同时射出双向贯穿光柱，更长更透；每道约 60 点伤害。',
+      enDesc: 'Evolved Beam: fires twin piercing beams in both directions, longer and more penetrative; about 60 damage per beam.',
       icon: Tex.IconBeam,
     },
     // 机制「双向光柱」= 覆盖翻倍，单条光束伤害略降补偿
@@ -541,6 +556,7 @@ export const EVOLVED: readonly WeaponDef[] = [
       name: '寒霜随行',
       en: 'Following Frost',
       desc: '进化·霜噬：领域跟随自身移动，持续减速侵蚀沿途敌人；每秒约 37 点伤害。',
+      enDesc: 'Evolved Frost: the field follows you, slowing and eroding enemies along your path; about 37 damage per second.',
       icon: Tex.IconFrost,
     },
     // 跟随机制让领域持续覆盖移动路径，范围/时长/伤害小幅提升

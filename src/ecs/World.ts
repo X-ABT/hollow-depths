@@ -127,6 +127,11 @@ export class World {
 
   /** 查询缓冲：全局复用，避免热路径分配 */
   readonly qbuf = new Int32Array(1024);
+  /**
+   * 第二查询缓冲：供「在 qbuf 消费循环体内再发起的查询」使用（如溅射 explode），
+   * 避免内层查询覆盖外层尚未消费完的 qbuf 结果（别名污染）。
+   */
+  readonly qbuf2 = new Int32Array(1024);
 
   reset(seed?: number): void {
     this.enemies.clear();
@@ -139,6 +144,12 @@ export class World {
     this.kills = 0;
     this.soulCents = 0;
     this.dmgByWeapon.fill(0);
+    // 竞技场/模式状态必须随局清零：否则上一局（如标准局终焉收缩圈）会残留，
+    // 经 Game.ts 的 arena clamp 把下一局玩家吸到旧圆心、相机瞬移。
+    this.arenaR = 0;
+    this.arenaX = 0;
+    this.arenaY = 0;
+    this.endless = false;
     if (seed !== undefined) this.rng.reseed(seed);
   }
 

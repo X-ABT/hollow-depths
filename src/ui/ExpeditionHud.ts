@@ -1,4 +1,5 @@
 import type { ExpeditionState } from '../ecs/systems/ExpeditionSystem';
+import { t } from '../i18n';
 
 export interface ExpeditionHudHandlers {
   onSkill: () => void;
@@ -32,7 +33,7 @@ export class ExpeditionHud {
           <div class="exp-hero-hp"><div class="exp-hero-hp-fill"></div><span class="exp-hero-hp-text"></span></div>
         </div>
         <div class="exp-stage"></div>
-        <button class="btn btn--ghost exp-quit">撤退</button>
+        <button class="btn btn--ghost exp-quit">${t('exp.quit')}</button>
       </div>
       <div class="exp-boss" hidden>
         <span class="exp-boss-name"></span>
@@ -46,8 +47,8 @@ export class ExpeditionHud {
         </button>
       </div>
       <div class="exp-zoom">
-        <button class="exp-zoom-btn" data-zoom="in" title="放大">＋</button>
-        <button class="exp-zoom-btn" data-zoom="out" title="缩小">－</button>
+        <button class="exp-zoom-btn" data-zoom="in" title="${t('hud.zoomIn')}">＋</button>
+        <button class="exp-zoom-btn" data-zoom="out" title="${t('hud.zoomOut')}">－</button>
       </div>`;
     root.appendChild(el);
     this.el = el;
@@ -75,8 +76,8 @@ export class ExpeditionHud {
     if (this.hpFill) this.hpFill.style.width = `${(ratio * 100).toFixed(1)}%`;
     if (this.hpText) this.hpText.textContent = `${Math.ceil(Math.max(0, st.heroHp))} / ${st.heroMaxHp}`;
     if (this.stageEl) {
-      const boss = st.isBoss ? ' · BOSS' : '';
-      this.stageEl.innerHTML = `第 <b>${st.stage}</b> 关${boss}<span class="exp-remain">剩余 ${st.remaining}</span>`;
+      const boss = st.isBoss ? t('exp.bossTag') : '';
+      this.stageEl.innerHTML = t('exp.stage', { stage: st.stage, boss, n: st.remaining });
     }
     // Boss 顶部实时血条（普通关隐藏）
     if (this.bossEl) {

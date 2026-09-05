@@ -4,6 +4,8 @@ import { Tex } from '../render/TexKeys';
 export interface EnemyDef {
   id: string;
   name: string;
+  /** 英文名（缺省回退中文） */
+  en?: string;
   sprite: number;
   hp: number;
   /** 像素/秒 */
@@ -26,6 +28,7 @@ export const ENEMIES: readonly EnemyDef[] = [
   {
     id: 'swarmling',
     name: '蚁群',
+    en: 'Swarmling',
     sprite: Tex.Swarmling,
     hp: 4,
     speed: 62,
@@ -42,6 +45,7 @@ export const ENEMIES: readonly EnemyDef[] = [
   {
     id: 'wraith',
     name: '亡魂',
+    en: 'Wraith',
     sprite: Tex.Wraith,
     hp: 9,
     speed: 82,
@@ -59,6 +63,7 @@ export const ENEMIES: readonly EnemyDef[] = [
   {
     id: 'slime',
     name: '史莱姆',
+    en: 'Slime',
     sprite: Tex.Slime,
     hp: 60, // 软障碍型：缓慢贴近但不主动追击，血偏厚
     speed: 44,
@@ -76,6 +81,7 @@ export const ENEMIES: readonly EnemyDef[] = [
   {
     id: 'phantom',
     name: '幻影',
+    en: 'Phantom',
     sprite: Tex.Phantom,
     hp: 12,
     speed: 104,
@@ -93,6 +99,7 @@ export const ENEMIES: readonly EnemyDef[] = [
   {
     id: 'grub',
     name: '漩涡虫',
+    en: 'Whirlgrub',
     sprite: Tex.Grub,
     hp: 18,
     speed: 96,
@@ -114,6 +121,7 @@ export const ELITES: readonly EnemyDef[] = [
   {
     id: 'splinter',
     name: '分裂魔',
+    en: 'Splitter',
     sprite: Tex.Splinter,
     hp: 130,
     speed: 70,
@@ -131,6 +139,7 @@ export const ELITES: readonly EnemyDef[] = [
   {
     id: 'carapace',
     name: '甲壳兽',
+    en: 'Carapace Beast',
     sprite: Tex.Carapace,
     hp: 210,
     speed: 50,
@@ -148,6 +157,7 @@ export const ELITES: readonly EnemyDef[] = [
   {
     id: 'trickster',
     name: '欺诈者',
+    en: 'Trickster',
     sprite: Tex.Trickster,
     hp: 95,
     speed: 124,
@@ -165,6 +175,7 @@ export const ELITES: readonly EnemyDef[] = [
   {
     id: 'gunner',
     name: '深渊炮手',
+    en: 'Abyssal Gunner',
     sprite: Tex.Gunner,
     hp: 60,
     speed: 46,
@@ -186,6 +197,7 @@ export const BOSSES: readonly EnemyDef[] = [
   {
     id: 'herald',
     name: '古神',
+    en: 'Ancient Herald',
     sprite: Tex.BossHerald,
     hp: 1500,
     speed: 66,
@@ -203,6 +215,7 @@ export const BOSSES: readonly EnemyDef[] = [
   {
     id: 'calamity',
     name: '灾厄',
+    en: 'Calamity',
     sprite: Tex.BossCalamity,
     hp: 3000,
     speed: 58,
@@ -220,6 +233,7 @@ export const BOSSES: readonly EnemyDef[] = [
   {
     id: 'endless',
     name: '终焉',
+    en: 'The Endless',
     sprite: Tex.BossEndless,
     hp: 6000,
     speed: 46,
@@ -237,6 +251,7 @@ export const BOSSES: readonly EnemyDef[] = [
   {
     id: 'lament',
     name: '泣灵',
+    en: 'Lament',
     sprite: Tex.BossLament,
     hp: 9000,
     speed: 50,
@@ -254,6 +269,7 @@ export const BOSSES: readonly EnemyDef[] = [
   {
     id: 'maw',
     name: '渊喉',
+    en: 'The Maw',
     sprite: Tex.BossMaw,
     hp: 13000,
     speed: 44,

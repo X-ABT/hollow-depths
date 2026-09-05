@@ -1,5 +1,6 @@
 import { formatNum, formatTime, formatSouls } from '../core/MathUtil';
-import type { SaveData } from '../save/Storage';
+import { isTampered, type SaveData } from '../save/Storage';
+import { isEn, setLang, t } from '../i18n';
 
 export interface TitleHandlers {
   /** 开局模式：标准一局 / 无尽幽墟 */
@@ -32,42 +33,48 @@ export class TitleScreen {
     el.innerHTML = `
       <div class="title-emblem"></div>
       <h1 class="title-main">HOLLOW DEPTHS</h1>
-      <div class="title-sub">幽墟幸存者</div>
-      <div class="title-soul">灵魂　<b>${formatSouls(save.soulCents)}</b></div>
+      <div class="title-sub">${t('title.sub')}</div>
+      ${isTampered()
+        ? `<div class="tamper-badge" role="alert"><span class="tamper-badge-dot" aria-hidden="true"></span>
+            <span><b>${t('title.tamperBadge')}</b><small>${t('title.tamperHint')}</small></span>
+          </div>`
+        : ''}
+      <div class="title-soul">${t('title.soul')}　<b>${formatSouls(save.soulCents)}</b></div>
+      <div class="title-lang" role="group" aria-label="${t('title.langLabel')}">
+        <button type="button" class="lang-btn ${!isEn() ? 'is-active' : ''}" data-lang="zh">中文</button>
+        <button type="button" class="lang-btn ${isEn() ? 'is-active' : ''}" data-lang="en">English</button>
+      </div>
       <div class="title-actions">
-        <button class="btn btn--primary" data-act="start">进入幽墟</button>
-        <button class="btn" data-act="shop">商店</button>
-        <button class="btn" data-act="pet">饲养园</button>
-        <button class="btn" data-act="expedition">宠物远征</button>
-        <button class="btn" data-act="park">宠物园</button>
-        <button class="btn" data-act="help">玩法说明</button>
-        <button class="btn btn--ghost" data-act="clear">清除数据</button>
+        <button class="btn btn--primary" data-act="start">${t('title.start')}</button>
+        <button class="btn" data-act="shop">${t('title.shop')}</button>
+        <button class="btn" data-act="pet">${t('title.pet')}</button>
+        <button class="btn" data-act="expedition">${t('title.expedition')}</button>
+        <button class="btn" data-act="park">${t('title.park')}</button>
+        <button class="btn" data-act="help">${t('title.help')}</button>
+        <button class="btn btn--ghost" data-act="clear">${t('title.clear')}</button>
       </div>
       <div class="title-best"></div>
-      <div class="title-help" hidden>
-        <div>用 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或方向键移动，武器自动开火（移动端左半屏按住拖动）</div>
-        <div>击杀敌人积攒经验升级三选一构筑流派；每杀 100 只怪凝结 1.00 灵魂</div>
-        <div>灵魂跨局永久累积，在主界面「商店」解锁新武器与装备，解锁后才会进入升级卡池</div>
-        <div>胜利条件：击败最终 Boss「终焉」即获胜；若超时未击败则失败</div>
-        <div>5:00 古神现身，每击败一个 Boss，4 分钟后迎来下一场 Boss 战</div>
-        <div>Boss 被击杀越快，挑战越强：2分钟内×2 / 1分30秒内×3 / 1分钟内×4 / 30秒内×5 / 15秒内×10</div>
-        <div>下一只 Boss 血量按上表提高；普通小怪刷新永久提速（每次快杀累乘，不会回落）</div>
-        <div>「饲养园」用灵魂抽宠物/粮食，投喂升级属性随等级成长，出战宠物跟随你自动战斗</div>
-        <div><kbd>Esc</kbd> 或 <kbd>P</kbd> 暂停</div>
-      </div>
+      <div class="title-help" hidden>${t('title.helpLines')}</div>
     `;
     root.appendChild(el);
     this.el = el;
     this.root = root;
     this.soulsEl = el.querySelector('.title-soul b') as HTMLElement;
 
+    // 语言切换（整页重载以一致应用）
+    el.querySelectorAll<HTMLButtonElement>('.lang-btn').forEach((b) => {
+      b.addEventListener('click', () => setLang(b.dataset.lang === 'en' ? 'en' : 'zh'));
+    });
+
     const best = el.querySelector('.title-best') as HTMLElement;
     if (save.runs > 0) {
-      best.innerHTML = `最佳记录　存活 <b>${formatTime(save.bestTime)}</b>　击杀 <b>${formatNum(
-        save.bestKills,
-      )}</b>　等级 <b>${save.bestLevel}</b>`;
+      best.innerHTML = t('title.best', {
+        time: formatTime(save.bestTime),
+        kills: formatNum(save.bestKills),
+        level: save.bestLevel,
+      });
     } else {
-      best.textContent = '欢迎进入幽墟，祝你游玩愉快';
+      best.textContent = t('title.welcome');
     }
 
     el.querySelector('[data-act="start"]')?.addEventListener('click', () => this.openStartChoice(h));
@@ -91,11 +98,11 @@ export class TitleScreen {
     overlay.className = 'clear-confirm';
     overlay.innerHTML = `
       <div class="clear-card">
-        <h2 class="clear-title">是否清除数据？</h2>
-        <p class="clear-warn">将清空全部进度（灵魂 / 宠物 / 解锁 / 设置），不可恢复。</p>
+        <h2 class="clear-title">${t('title.clearTitle')}</h2>
+        <p class="clear-warn">${t('title.clearWarn')}</p>
         <div class="clear-actions">
-          <button class="btn btn--ghost" data-act="cancel">取消</button>
-          <button class="btn clear-danger" data-act="ok">确定清除</button>
+          <button class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
+          <button class="btn clear-danger" data-act="ok">${t('title.clearOk')}</button>
         </div>
       </div>
     `;
@@ -125,16 +132,16 @@ export class TitleScreen {
     overlay.className = 'start-select';
     overlay.innerHTML = `
       <div class="start-card">
-        <h2 class="start-title">选择幽墟模式</h2>
+        <h2 class="start-title">${t('title.modeTitle')}</h2>
         <button class="btn btn--primary start-opt" data-mode="standard">
-          <b>标准一局</b>
-          <span>击败最终 Boss「终焉」逃出幽墟</span>
+          <b>${t('title.modeStandard')}</b>
+          <span>${t('title.modeStandardDesc')}</span>
         </button>
         <button class="btn start-opt start-opt--endless" data-mode="endless">
-          <b>无尽幽墟</b>
-          <span>Boss 定时刷新 · 无终点 · 战至倒下</span>
+          <b>${t('title.modeEndless')}</b>
+          <span>${t('title.modeEndlessDesc')}</span>
         </button>
-        <button class="btn btn--ghost start-cancel" data-act="cancel">返回</button>
+        <button class="btn btn--ghost start-cancel" data-act="cancel">${t('title.back')}</button>
       </div>
     `;
     overlay.addEventListener('click', (e) => {

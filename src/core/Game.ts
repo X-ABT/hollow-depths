@@ -6,6 +6,7 @@ import { World } from '../ecs/World';
 import type { Enemy } from '../ecs/Components';
 import { SpawnSystem } from '../ecs/systems/SpawnSystem';
 import { EnemyAISystem, findBoss } from '../ecs/systems/EnemyAISystem';
+import { i18nName, isEn, t } from '../i18n';
 import { WeaponSystem } from '../ecs/systems/WeaponSystem';
 import { ProjectileSystem } from '../ecs/systems/ProjectileSystem';
 import { CollisionSystem } from '../ecs/systems/CollisionSystem';
@@ -43,6 +44,8 @@ import { ENEMY_BY_INDEX } from '../data/enemies';
 import { RUN_SECONDS } from '../data/waves';
 import { PETS, PET_BY_ID, skillLevel } from '../data/pets';
 import { spawnPet } from '../ecs/Spawn';
+import { ads } from '../ads/index';
+import { gameplayStart, gameplayStop, happyTime } from '../ads/crazygames';
 
 export type GameState = 'title' | 'playing' | 'levelup' | 'gameover' | 'expedition';
 
@@ -119,6 +122,13 @@ export class Game {
   private lowT = 0;
   private highT = 0;
 
+  /** CrazyGames gameplay 事件是否处于「游玩中」（防重复 start/stop 打点） */
+  private cgPlaying = false;
+  /** 本局结算「看广告双倍灵魂」是否已领（每局重置一次，防重复入账） */
+  private soulDoubled = false;
+  /** iOS 手势恢复：已挂全局监听（防重复绑定） */
+  private audioResumeBound = false;
+
   /** 该设备的默认视野倍率：手机 0.5，桌面 1.0（重置视野也回到它） */
   private get defaultZoom(): number {
     return this.mobile ? 0.5 : 1;
@@ -177,6 +187,8 @@ export class Game {
     });
     this.cleanup.onBossKilled = (name) => {
       this.camera.addShake(22);
+      // 高光时刻：任何 Boss 被击杀（含无尽模式）
+      happyTime();
       // 无尽幽墟：Boss 由定时调度接管，无胜利目标，也不启用古神后剧情开关
       if (this.endless) return;
       // 击败古神：开启深渊炮手的周期刷新（Boss 存活期间暂停）
@@ -201,6 +213,7 @@ export class Game {
     });
 
     this.buildPauseButton();
+    this.bindAudioResume();
     this.hud.setVisible(false);
 
     // 隐藏只读调试钩子：仅用于开发验证，不影响玩法
@@ -270,20 +283,20 @@ export class Game {
     const btn = document.createElement('button');
     btn.className = 'btn btn--ghost btn-pause touch-only';
     btn.textContent = '‖';
-    btn.setAttribute('aria-label', '暂停');
+    btn.setAttribute('aria-label', t('pause.btnAria'));
     btn.addEventListener('click', () => this.openPauseDialog());
     this.uiRoot.appendChild(btn);
 
     const tip = document.createElement('div');
     tip.className = 'hud-pause-tip';
-    tip.textContent = 'Esc / P 暂停';
+    tip.textContent = t('pause.tipIdle');
     this.uiRoot.appendChild(tip);
     this.pauseTip = tip;
 
     // —— 背景音乐开关（常驻右上角，标题页与对局中都可切换）——
     const music = document.createElement('button');
     music.className = 'music-toggle';
-    music.setAttribute('aria-label', '音乐开关');
+    music.setAttribute('aria-label', t('hud.musicToggle'));
     music.textContent = '♪';
     music.addEventListener('click', () => {
       this.bgm.setMuted(!this.bgm.muted);
@@ -293,10 +306,10 @@ export class Game {
     this.musicBtn = music;
     this.refreshMusicBtn();
 
-    // —— 隐蔽测试码按钮（内部调试用：外观极小、低存在感，输入 541888 发放灵魂）——
+    // —— 隐蔽兑换码按钮（外观极小、低存在感）：惊喜码「10000」由运营口头告知，每人每档限兑一次 ——
     const cheat = document.createElement('button');
     cheat.className = 'cheat-btn';
-    cheat.setAttribute('aria-label', '调试');
+    cheat.setAttribute('aria-label', t('code.redeemAria'));
     cheat.textContent = '·';
     const cheatInput = document.createElement('input');
     cheatInput.className = 'cheat-input';
@@ -304,23 +317,15 @@ export class Game {
     cheatInput.inputMode = 'numeric';
     cheatInput.autocomplete = 'off';
     cheatInput.maxLength = 12;
-    cheatInput.placeholder = 'CODE';
+    cheatInput.placeholder = t('code.placeholder');
     cheatInput.style.display = 'none';
     this.uiRoot.appendChild(cheat);
     this.uiRoot.appendChild(cheatInput);
-    // —— 一次性调试码表：每个代码每档存档只生效一次（「清除数据」重置后才可再用）——
+    // —— 一次性兑换码表：每个码每档存档只生效一次（「清除数据」重置后才可再用）——
     const applyCode: Record<string, () => void> = {
-      '541888': () => {
-        this.save.soulCents += 99999999 * 100;
-      },
+      // 惊喜码：发放 10000 灵魂（1 灵魂 = 100 分）
       '10000': () => {
-        // 调试：加 10000 灵魂（1 灵魂 = 100 分）
         this.save.soulCents += 10000 * 100;
-      },
-      '541999': () => {
-        // 调试：发宠物粮袋与碎片（便于验证喂养/碎片商店）
-        this.save.petFood += 5000;
-        this.save.petShards += 5000;
       },
     };
     cheat.addEventListener('click', () => {
@@ -356,6 +361,29 @@ export class Game {
     this.musicBtn.textContent = this.bgm.muted ? '♪̶' : '♪';
   }
 
+  /**
+   * CrazyGames gameplay 打点（仅状态转移时调用一次）：
+   * 玩家真正游玩（playing/远征开战）→ start；暂停/选卡/结算/回标题 → stop。
+   */
+  private setGameplayActive(active: boolean): void {
+    if (this.cgPlaying === active) return;
+    this.cgPlaying = active;
+    if (active) gameplayStart();
+    else gameplayStop();
+  }
+
+  /** iOS 音频手势恢复：全局 pointerdown/keydown/touchend 里 resume 一次（带防重） */
+  private bindAudioResume(): void {
+    if (this.audioResumeBound) return;
+    this.audioResumeBound = true;
+    const resume = (): void => {
+      void this.bgm.resume();
+    };
+    window.addEventListener('pointerdown', resume);
+    window.addEventListener('keydown', resume);
+    window.addEventListener('touchend', resume);
+  }
+
   // ——————————————————— 生命周期 ———————————————————
 
   start(): void {
@@ -365,6 +393,7 @@ export class Game {
 
   private showTitle(): void {
     this.state = 'title';
+    this.setGameplayActive(false);
     // 远征/宠物园可能把世界与特效层隐藏过，回到标题统一恢复（否则开新局会看不见世界）
     this.renderer.root.visible = true;
     this.vfx.container.visible = true;
@@ -375,7 +404,7 @@ export class Game {
     this.gameOver.hide();
     this.levelUp.hide();
     if (this.pauseDialog) this.pauseDialog.style.display = 'none';
-    if (this.pauseTip) this.pauseTip.textContent = 'Esc / P 暂停';
+    if (this.pauseTip) this.pauseTip.textContent = t('pause.tipIdle');
     this.hud.setVisible(false);
     // 标题页/结算页不播战斗 BGM
     this.bgm.stop();
@@ -476,6 +505,7 @@ export class Game {
     this.input.reset();
     this.manualPause = false;
     this.state = 'playing';
+    this.soulDoubled = false;
     // 同步紧凑模式（暂停弹窗可随时切）
     this.renderer.petCompact = this.save.petCompact;
     // 按上阵配置生成出战宠物（生命/伤害随宠物等级换算）
@@ -483,6 +513,7 @@ export class Game {
     // 进入对局才开放移动摇杆
     this.input.setEnabled(true);
     this.loop.setPaused(false);
+    this.setGameplayActive(true);
   }
 
   /** 读取存档上阵列表生成宠物，最多 3 只 */
@@ -512,7 +543,9 @@ export class Game {
     }
     this.manualPause = !this.manualPause;
     this.loop.setPaused(this.manualPause);
-    if (this.pauseTip) this.pauseTip.textContent = this.manualPause ? '已暂停 · Esc / P 继续' : 'Esc / P 暂停';
+    this.setGameplayActive(!this.manualPause);
+    if (this.pauseTip)
+      this.pauseTip.textContent = this.manualPause ? t('pause.tipPaused') : t('pause.tipIdle');
   }
 
   private buildPauseDialog(): void {
@@ -520,12 +553,12 @@ export class Game {
     dlg.className = 'overlay pause-dialog';
     dlg.innerHTML = `
       <div class="panel pause-panel">
-        <h2 class="pause-title">已暂停</h2>
-        <p class="pause-sub">本局凝聚的灵魂 <b class="pause-soul"></b> 退出时仍会入账</p>
-        <button class="btn btn--ghost pet-compact-toggle">宠物紧凑显示：关</button>
+        <h2 class="pause-title">${t('pause.title')}</h2>
+        <p class="pause-sub">${t('pause.subPre')}<b class="pause-soul"></b>${t('pause.subPost')}</p>
+        <button class="btn btn--ghost pet-compact-toggle">${t('pause.compactOn')}</button>
         <div class="pause-actions">
-          <button class="btn btn--primary pause-resume">继续战斗</button>
-          <button class="btn btn--ghost pause-quit">退出到主界面</button>
+          <button class="btn btn--primary pause-resume">${t('pause.resume')}</button>
+          <button class="btn btn--ghost pause-quit">${t('pause.quit')}</button>
         </div>
       </div>
     `;
@@ -537,7 +570,7 @@ export class Game {
     });
     const syncCompact = (): void => {
       const c = dlg.querySelector('.pet-compact-toggle') as HTMLElement | null;
-      if (c) c.textContent = `宠物紧凑显示：${this.save.petCompact ? '开' : '关'}`;
+      if (c) c.textContent = this.save.petCompact ? t('pause.compactOn') : t('pause.compactOff');
     };
     syncCompact();
     dlg.querySelector('.pet-compact-toggle')?.addEventListener('click', () => {
@@ -564,9 +597,10 @@ export class Game {
     this.pauseDialog.style.display = '';
     this.manualPause = true;
     this.loop.setPaused(true);
+    this.setGameplayActive(false);
     // 暂停时关掉摇杆，避免底下的触摸被摇杆层吞掉
     this.input.setEnabled(false);
-    if (this.pauseTip) this.pauseTip.textContent = '已暂停';
+    if (this.pauseTip) this.pauseTip.textContent = t('pause.tipActive');
   }
 
   /** 继续：关闭对话框并恢复对局 */
@@ -576,7 +610,8 @@ export class Game {
     this.manualPause = false;
     this.loop.setPaused(false);
     this.input.setEnabled(true);
-    if (this.pauseTip) this.pauseTip.textContent = 'Esc / P 暂停';
+    this.setGameplayActive(true);
+    if (this.pauseTip) this.pauseTip.textContent = t('pause.tipIdle');
   }
 
   /** 退出：本局凝聚的灵魂入永久账户，直接回主界面（不弹结算页） */
@@ -629,25 +664,43 @@ export class Game {
     this.state = 'levelup';
     this.input.setEnabled(false);
     this.loop.setPaused(true);
-    this.levelUp.show(this.uiRoot, options, this.build, p.level, (opt) => {
-      this.applyUpgrade(opt);
-      this.levelUp.hide();
-      p.pendingLevels--;
-      this.state = 'playing';
-      if (p.pendingLevels > 0) {
-        // 连续升级：下一帧继续弹
-        this.showLevelUp();
-      } else {
-        // 选卡结束回到对局，重新开放移动摇杆
-        this.input.setEnabled(true);
-        this.loop.setPaused(false);
-      }
-    });
+    this.levelUp.show(
+      this.uiRoot,
+      options,
+      this.build,
+      p.level,
+      (opt) => {
+        this.applyUpgrade(opt);
+        this.levelUp.hide();
+        p.pendingLevels--;
+        this.state = 'playing';
+        if (p.pendingLevels > 0) {
+          // 连续升级：下一帧继续弹
+          this.showLevelUp();
+        } else {
+          // 选卡结束回到对局，重新开放移动摇杆
+          this.input.setEnabled(true);
+          this.loop.setPaused(false);
+        }
+      },
+      // 「看广告重摇」：只有完整看完（rewarded）才重摇；取消/失败保持原三选一
+      async () => {
+        if ((await ads.showRewardedAd('levelup_reroll')) !== 'rewarded') return null;
+        const rerolled = this.build.rollOptions(this.world.rng, 3, {
+          weapons: new Set(this.save.unlockedWeapons),
+          passives: new Set(this.save.unlockedPassives),
+        });
+        // 卡池已耗尽（只剩兜底治疗药剂）时重摇无意义：保留当前选项
+        if (rerolled.length > 0 && rerolled.every((o) => o.id === '__heal')) return null;
+        return rerolled;
+      },
+    );
   }
 
   private endRun(win: boolean): void {
     if (this.state === 'gameover') return;
     this.state = 'gameover';
+    this.setGameplayActive(false);
     // 结算页关闭摇杆，让下方按钮可点
     this.input.setEnabled(false);
     this.loop.setPaused(true);
@@ -667,7 +720,9 @@ export class Game {
       }
     }
     const topWeaponName =
-      topSlot >= 0 ? `${this.build.weapons[topSlot].def.name}（${Math.round(topVal)}）` : '—';
+      topSlot >= 0
+        ? i18nName(this.build.weapons[topSlot].def) + t('gameover.dmgParen', { n: Math.round(topVal) })
+        : '—';
 
     const newBest = this.world.time > this.save.bestTime;
     const soulEarnedCents = this.world.soulCents;
@@ -692,22 +747,39 @@ export class Game {
     if (win) this.save.wins++;
     Storage.save(this.save);
 
+    // 「看广告双倍灵魂」：完整看完才再次入账等额灵魂；每局限一次
+    const onDouble = async (): Promise<boolean> => {
+      if (this.soulDoubled) return false;
+      if ((await ads.showRewardedAd('gameover_double_soul')) !== 'rewarded') return false;
+      this.soulDoubled = true;
+      this.save.soulCents += soulEarnedCents;
+      Storage.save(this.save);
+      return true;
+    };
+
     this.gameOver.show(
       this.uiRoot,
       result,
       () => this.startRun(this.endless),
       () => this.showTitle(),
       () => this.copyResult(result),
+      onDouble,
     );
   }
 
   private copyResult(r: RunResult): void {
+    const sep = isEn() ? ' · ' : '、';
     const text =
-      `【Hollow Depths 幽墟幸存者】\n` +
-      `${r.win ? '逃出幽墟' : '葬身幽墟'}　存活 ${Math.floor(r.time)}s　击杀 ${r.kills}　等级 ${r.level}\n` +
-      `本局凝聚灵魂 +${(r.soulEarnedCents / 100).toFixed(2)}\n` +
-      `构筑：${r.build.weapons.map((w) => `${w.def.name} Lv${w.level}`).join('、')}\n` +
-      `装备：${r.build.passives.map((p) => `${p.def.name} Lv${p.level}`).join('、')}`;
+      t('gameover.copyHeader') + '\n' +
+      t('gameover.copyLine', {
+        result: r.win ? t('gameover.win') : t('gameover.lose'),
+        time: Math.floor(r.time),
+        kills: r.kills,
+        level: r.level,
+      }) + '\n' +
+      t('gameover.copySoul', { soul: (r.soulEarnedCents / 100).toFixed(2) }) + '\n' +
+      t('gameover.copyWeapons') + r.build.weapons.map((w) => `${i18nName(w.def)} Lv${w.level}`).join(sep) + '\n' +
+      t('gameover.copyGear') + r.build.passives.map((p) => `${i18nName(p.def)} Lv${p.level}`).join(sep);
     navigator.clipboard?.writeText(text).catch(() => {
       /* 剪贴板不可用时忽略 */
     });
@@ -725,6 +797,7 @@ export class Game {
 
   /** 打开远征营地：选宠 / 星币升技能 / 星币兑碎片 / 开始挑战 */
   private openExpedition(): void {
+    this.setGameplayActive(false);
     this.expHud.hide();
     this.expOverlay.hide();
     this.renderer.showPlayer = true;
@@ -780,6 +853,7 @@ export class Game {
     this.renderer.setZoom(this.expZoom);
     this.camera.reset(this.expCamX(this.app.screen.width), 0);
     this.state = 'expedition';
+    this.setGameplayActive(true);
     this.expHud.show(this.uiRoot, {
       onSkill: () => this.expedition.castSkill(this.world),
       onQuit: () => this.openExpedition(),
@@ -827,7 +901,7 @@ export class Game {
       Storage.save(this.save);
       // 所有关卡统一：横幅提示后自动进入下一关（无需点击）
       this.expHud.showBanner(
-        `第 ${this.expStage} 关通过 · 获得 ★${reward} · 自动进入第 ${this.expStage + 1} 关`,
+        t('exp.stageClear', { stage: this.expStage, reward, next: this.expStage + 1 }),
       );
       this.expNextStage = this.expStage + 1;
       this.expNextTimer = 1.6;
@@ -879,6 +953,17 @@ export class Game {
         p.x = world.arenaX + (dx / d) * limit;
         p.y = world.arenaY + (dy / d) * limit;
       }
+    }
+
+    // 玩家坐标兜底：一旦被污染为 NaN/∞，复位到出生点并清速度——
+    // 玩家是敌人 AI 的共享参照点，玩家 NaN 会经所有方向向量传染全场敌人。
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+      p.x = 0;
+      p.y = 0;
+      p.px = 0;
+      p.py = 0;
+      p.vx = 0;
+      p.vy = 0;
     }
 
     if (p.iframe > 0) p.iframe -= dt;
@@ -991,13 +1076,14 @@ export class Game {
 
       const boss: Enemy | null = findBoss(this.world);
       if (boss) {
-        this.hud.setBoss(ENEMY_BY_INDEX[boss.defIdx].name, boss.hp, boss.maxHp);
+        this.hud.setBoss(i18nName(ENEMY_BY_INDEX[boss.defIdx]), boss.hp, boss.maxHp);
       } else {
         this.hud.setBoss(null, 0, 0);
       }
       // 无 Boss 在场时显示下一个 Boss 出现的倒计时（快杀后倍率 >1 时附带标注）
       const next = this.spawn.nextBossInfo(this.world);
-      this.hud.setBossCountdown(next ? next.name : null, next ? next.remain : 0, next ? next.mul : 1);
+      const nextName = next ? i18nName(ENEMY_BY_INDEX[next.defIdx]) : null;
+      this.hud.setBossCountdown(nextName, next ? next.remain : 0, next ? next.mul : 1);
     } else if (this.state === 'expedition') {
       this.expHud.update(this.expedition.getState());
     }

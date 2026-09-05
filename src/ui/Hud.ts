@@ -2,6 +2,7 @@ import type { Build } from '../core/Build';
 import { formatNum, formatTime } from '../core/MathUtil';
 import type { UpgradeOption } from '../core/Build';
 import { atlas } from '../render/Textures';
+import { i18nName, t } from '../i18n';
 
 /** 战斗界面 HUD：血条 / 经验 / 计时 / 击杀 / Boss 血条 / 武器被动槽 */
 export class Hud {
@@ -62,9 +63,9 @@ export class Hud {
         <div class="slot-row" data-row="p"></div>
       </div>
       <div class="hud-zoom">
-        <button data-zoom="in" aria-label="放大视野">＋</button>
-        <button data-zoom="reset" class="zoom-reset" aria-label="重置视野"></button>
-        <button data-zoom="out" aria-label="缩小视野">－</button>
+        <button data-zoom="in" aria-label="${t('hud.zoomIn')}">＋</button>
+        <button data-zoom="reset" class="zoom-reset" aria-label="${t('hud.zoomReset')}"></button>
+        <button data-zoom="out" aria-label="${t('hud.zoomOut')}">－</button>
       </div>
     `;
     root.appendChild(el);
@@ -117,7 +118,7 @@ export class Hud {
   setMode(endless: boolean): void {
     if (!this.modeEl) return;
     this.modeEl.hidden = !endless;
-    if (endless) this.modeEl.textContent = '无尽幽墟';
+    if (endless) this.modeEl.textContent = t('hud.endless');
   }
 
   update(hp: number, maxHp: number, xp: number, xpNext: number, level: number, time: number, kills: number): void {
@@ -145,7 +146,7 @@ export class Hud {
       this.clockText.textContent = clock;
       this.lastClock = clock;
     }
-    const ks = `${formatNum(kills)} 击杀`;
+    const ks = t('hud.kills', { n: formatNum(kills) });
     if (ks !== this.lastKills) {
       this.killsText.textContent = ks;
       this.lastKills = ks;
@@ -200,7 +201,7 @@ export class Hud {
     for (const w of build.weapons) {
       const slot = document.createElement('div');
       slot.className = 'slot' + (w.def.isEvolved ? ' slot--evolved' : '');
-      slot.title = `${w.def.name} Lv${w.level}`;
+      slot.title = `${i18nName(w.def)} Lv${w.level}`;
       slot.appendChild(atlas.icon(w.def.icon, 28));
       const lv = document.createElement('span');
       lv.className = 'slot-lv';
@@ -213,7 +214,7 @@ export class Hud {
     for (const p of build.passives) {
       const slot = document.createElement('div');
       slot.className = 'slot';
-      slot.title = `${p.def.name} Lv${p.level}`;
+      slot.title = `${i18nName(p.def)} Lv${p.level}`;
       slot.appendChild(atlas.icon(p.def.icon, 28));
       const lv = document.createElement('span');
       lv.className = 'slot-lv';
@@ -231,14 +232,14 @@ export class Hud {
       const chip = document.createElement('div');
       chip.className = 'build-chip' + (w.def.isEvolved ? ' build-chip--evolved' : '');
       chip.appendChild(atlas.icon(w.def.icon, 18));
-      chip.title = `${w.def.name} Lv${w.level}`;
+      chip.title = `${i18nName(w.def)} Lv${w.level}`;
       strip.appendChild(chip);
     }
     for (const p of build.passives) {
       const chip = document.createElement('div');
       chip.className = 'build-chip';
       chip.appendChild(atlas.icon(p.def.icon, 18));
-      chip.title = `${p.def.name} Lv${p.level}`;
+      chip.title = `${i18nName(p.def)} Lv${p.level}`;
       strip.appendChild(chip);
     }
     void options;
