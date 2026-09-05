@@ -4,6 +4,7 @@ import {
   RARITY_LABEL,
   dmgFor,
   hpFor,
+  skillEffectText,
   skillFor,
   skillLevel,
   skillUpgradeCost,
@@ -216,6 +217,7 @@ export class ExpeditionHub {
         </div>
         <div class="exp-skill">
           <div class="exp-skill-line">招牌技能：<b>${sk.name}</b> · 等级 <b class="exp-skill-lv">${skLv}</b></div>
+          <div class="exp-skill-desc">${skillEffectText(sk)}</div>
           <button class="btn exp-up ${canUp ? '' : 'is-disabled'}" data-up="${def.id}">升级技能（${cost} 星币）</button>
           <div class="exp-exch">
             <div class="exp-exch-head">

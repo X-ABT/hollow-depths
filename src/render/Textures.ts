@@ -107,6 +107,18 @@ function drawDrake(g: G, def: PetDef): void {
   g.circle(32, 18, 2.6).fill({ color: C.amber, alpha: 0.95 });
   g.circle(32, 18, 0.95).fill({ color: 0xffffff, alpha: 0.85 });
 
+  // 翼膜肋纹（层次）
+  g.moveTo(20, 31).lineTo(15, 15).stroke({ width: 0.9, color: glint, alpha: 0.35 });
+  g.moveTo(20, 31).lineTo(25, 14).stroke({ width: 0.9, color: glint, alpha: 0.3 });
+  g.moveTo(44, 31).lineTo(49, 15).stroke({ width: 0.9, color: glint, alpha: 0.35 });
+  g.moveTo(44, 31).lineTo(39, 14).stroke({ width: 0.9, color: glint, alpha: 0.3 });
+  // 胸腹鳞列
+  g.moveTo(24, 45).quadraticCurveTo(32, 49, 40, 45).stroke({ width: 1, color: dark, alpha: 0.35 });
+  g.moveTo(26, 51).quadraticCurveTo(32, 54, 38, 51).stroke({ width: 1, color: dark, alpha: 0.3 });
+  // 尾环
+  g.moveTo(52, 44).lineTo(56, 40).stroke({ width: 1.6, color: dark, alpha: 0.4 });
+  g.moveTo(55, 36).lineTo(59, 33).stroke({ width: 1.6, color: dark, alpha: 0.35 });
+
   // 龙鳞高光
   g.circle(27, 38, 1.3).fill({ color: glint, alpha: 0.8 });
   g.circle(37, 36, 1).fill({ color: glint, alpha: 0.7 });
@@ -121,6 +133,10 @@ function drawStareye(g: G, def: PetDef): void {
   // 传说金环辉光
   g.circle(32, 32, 31).fill({ color: 0xf5c451, alpha: 0.1 });
   g.circle(32, 32, 31).stroke({ width: 1.8, color: C.amber, alpha: 0.75 });
+
+  // 外层星云晕（层次）
+  g.circle(32, 32, 30).fill({ color: voidC, alpha: 0.35 });
+  g.circle(32, 32, 29).stroke({ width: 1.2, color: 0x5b46b8, alpha: 0.5 });
 
   // 眼窝外圈（深紫晕）
   g.circle(32, 32, 27).fill({ color: neb, alpha: 1 });
@@ -161,8 +177,236 @@ function drawStareye(g: G, def: PetDef): void {
     const y2 = 32 + Math.sin(a) * 35;
     g.moveTo(x1, y1).lineTo(x2, y2).stroke({ width: 1.1, color: 0x7c5cff, alpha: 0.9 });
   }
+  // 虹膜细环 + 镜头光斑（精修层次）
+  g.circle(32, 32, 18).stroke({ width: 0.9, color: 0xb9a6ff, alpha: 0.35 });
+  g.circle(38, 26, 1.6).fill({ color: 0xffffff, alpha: 0.5 });
   void def;
-  void voidC;
+}
+
+/** 六边形晶体板顶点路径（晶甲龟壳面拼接用） */
+function hexPath(cx: number, cy: number, r: number): number[] {
+  const pts: number[] = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+    pts.push(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+  }
+  return pts;
+}
+
+/** 深渊猎犬：矫健犬形 + 背脊骨刺 + 深渊气息 + 发光獠牙与红紫凶瞳 */
+function drawAbysshound(g: G, def: PetDef): void {
+  const main = hsl(def.hue, 40, 32);
+  const deep = hsl(def.hue, 58, 14);
+  const belly = hsl(def.hue, 38, 52);
+  const spike = hsl(def.hue, 58, 62);
+  const aura = 0x7c5cff;
+
+  // 身周深渊气息
+  g.circle(32, 36, 27).fill({ color: aura, alpha: 0.14 });
+  g.circle(32, 36, 20).fill({ color: aura, alpha: 0.1 });
+
+  // 上扬长尾
+  g.moveTo(46, 42).quadraticCurveTo(58, 38, 55, 23).stroke({ width: 5, color: main, alpha: 0.98 });
+  g.moveTo(46, 42).quadraticCurveTo(58, 38, 55, 23).stroke({ width: 1.8, color: deep, alpha: 0.7 });
+
+  // 四足（后腿压在身下）
+  for (const x of [21, 27, 37, 43]) {
+    g.roundRect(x - 2.3, 50, 4.6, 10, 2).fill({ color: deep, alpha: 0.95 });
+    g.roundRect(x - 2.3, 57, 4.6, 2.6, 1.2).fill({ color: 0x9fe8ff, alpha: 0.32 });
+  }
+
+  // 躯干
+  g.ellipse(32, 43, 17, 10.5).fill({ color: main, alpha: 0.98 });
+  g.ellipse(32, 43, 17, 10.5).stroke({ width: 1.8, color: deep, alpha: 0.9 });
+  g.ellipse(32, 47, 10, 5).fill({ color: belly, alpha: 0.55 });
+
+  // 背脊骨刺
+  g.poly([23, 34, 21, 24, 29, 32]).fill({ color: spike, alpha: 0.95 });
+  g.poly([32, 33, 33, 22, 38, 32]).fill({ color: spike, alpha: 0.95 });
+  g.poly([40, 34, 44, 25, 45, 35]).fill({ color: spike, alpha: 0.9 });
+
+  // 头 + 前倾吻部
+  g.ellipse(27, 29, 11.5, 10).fill({ color: main, alpha: 1 });
+  g.ellipse(27, 29, 11.5, 10).stroke({ width: 1.7, color: deep, alpha: 0.9 });
+  g.poly([18, 32, 7, 36, 18, 40]).fill({ color: hsl(def.hue, 36, 26), alpha: 1 });
+  g.circle(11, 36, 1.3).fill({ color: 0x05030c, alpha: 0.9 });
+  // 发光獠牙
+  g.poly([15, 38, 16.5, 43, 18.5, 38]).fill({ color: 0xe8dcff, alpha: 0.95 });
+  g.poly([21, 38, 22.5, 42, 24, 38]).fill({ color: 0xe8dcff, alpha: 0.88 });
+  // 竖耳
+  g.poly([18, 23, 13, 10, 27, 19]).fill({ color: deep, alpha: 0.95 });
+  g.poly([35, 22, 41, 9, 42, 22]).fill({ color: deep, alpha: 0.9 });
+
+  // 红紫凶瞳
+  glow(g, 23, 30, 3.4, 0xff5470, 0.95);
+  glow(g, 33, 29, 3.2, 0xff5470, 0.85);
+  g.circle(23, 30, 1).fill({ color: 0xffe9ef, alpha: 0.95 });
+  g.circle(33, 29, 0.9).fill({ color: 0xffe9ef, alpha: 0.9 });
+
+  // 口前深渊吐息余烬
+  g.circle(6, 38, 2.4).fill({ color: aura, alpha: 0.5 });
+  g.circle(3, 40, 1.4).fill({ color: aura, alpha: 0.35 });
+}
+
+/** 晶甲龟：六边形晶体龟壳 + 甲缝冰蓝高光 + 短肢与壳下幼体 */
+function drawCrystalcoot(g: G, def: PetDef): void {
+  const shell = hsl(def.hue, 44, 60);
+  const shellLo = hsl(def.hue, 50, 34);
+  const shellHi = hsl(def.hue, 58, 86);
+  const seam = 0x9fe8ff;
+  const body = hsl(def.hue, 32, 40);
+
+  // 下层暗壳
+  g.ellipse(32, 36, 21, 15).fill({ color: shellLo, alpha: 0.98 });
+  g.ellipse(32, 36, 21, 15).stroke({ width: 1.8, color: hsl(def.hue, 55, 22), alpha: 0.9 });
+
+  // 四短肢 + 尾
+  for (const x of [16, 26, 36, 45]) {
+    g.roundRect(x, 47, 6, 8, 2.4).fill({ color: body, alpha: 0.98 });
+  }
+  g.poly([52, 36, 60, 33, 53, 41]).fill({ color: body, alpha: 0.95 });
+
+  // 壳下探出的幼体头（左侧）
+  g.ellipse(15, 40, 8, 7).fill({ color: body, alpha: 1 });
+  g.ellipse(15, 40, 8, 7).stroke({ width: 1.4, color: shellLo, alpha: 0.9 });
+  g.circle(12, 39, 1.7).fill({ color: 0x0a0713, alpha: 0.9 });
+  g.circle(16, 39, 1.7).fill({ color: 0x0a0713, alpha: 0.9 });
+  g.circle(12.6, 38.4, 0.6).fill({ color: 0xffffff, alpha: 0.85 });
+  g.circle(16.6, 38.4, 0.6).fill({ color: 0xffffff, alpha: 0.85 });
+
+  // 壳面晶体板拼接
+  g.poly(hexPath(32, 36, 7)).fill({ color: shell, alpha: 0.98 });
+  g.poly(hexPath(32, 36, 7)).stroke({ width: 1.2, color: seam, alpha: 0.8 });
+  const plates: readonly [number, number, number][] = [
+    [20, 32, 5.5],
+    [44, 32, 5.5],
+    [26, 45, 5],
+    [38, 45, 5],
+    [32, 24, 5],
+    [46, 41, 4.4],
+    [18, 41, 4.4],
+  ];
+  for (const [hx, hy, hr] of plates) {
+    g.poly(hexPath(hx, hy, hr)).fill({ color: shell, alpha: 0.92 });
+    g.poly(hexPath(hx, hy, hr)).stroke({ width: 1, color: seam, alpha: 0.55 });
+  }
+
+  // 甲缝高光弧 + 顶部晶体尖（剪影辨识）
+  g.moveTo(14, 34).quadraticCurveTo(32, 20, 50, 34).stroke({ width: 1.6, color: shellHi, alpha: 0.75 });
+  g.moveTo(18, 44).quadraticCurveTo(32, 50, 46, 44).stroke({ width: 1.2, color: shellHi, alpha: 0.45 });
+  g.poly([32, 22, 28, 13, 36, 13]).fill({ color: shellHi, alpha: 0.9 });
+  g.circle(29, 30, 1.6).fill({ color: 0xffffff, alpha: 0.5 });
+}
+
+/** 噬光蝶：羽状触角 + 眼斑宽翅 + 鳞粉微光 + 吸光暗紫渐变 */
+function drawGlowmoth(g: G, def: PetDef): void {
+  const wing = hsl(def.hue, 46, 44);
+  const wingLo = hsl(def.hue, 60, 20);
+  const wingHi = hsl(def.hue, 52, 74);
+  const body = hsl(def.hue, 30, 26);
+  const fur = hsl(def.hue, 34, 58);
+  const dust = 0xd9c8ff;
+
+  // 吸光感：外圈暗紫渐隐
+  g.circle(32, 34, 27).fill({ color: wingLo, alpha: 0.22 });
+
+  // 双翅（上宽下窄的蛾翅）
+  g.poly([30, 36, 10, 12, 3, 34, 12, 48, 27, 43]).fill({ color: wing, alpha: 0.96 });
+  g.poly([30, 36, 10, 12, 3, 34, 12, 48, 27, 43]).stroke({ width: 1.4, color: wingLo, alpha: 0.9 });
+  g.poly([34, 36, 54, 12, 61, 34, 52, 48, 37, 43]).fill({ color: wing, alpha: 0.96 });
+  g.poly([34, 36, 54, 12, 61, 34, 52, 48, 37, 43]).stroke({ width: 1.4, color: wingLo, alpha: 0.9 });
+
+  // 翅脉
+  for (const t of [0.35, 0.6, 0.85]) {
+    g.moveTo(30, 36).lineTo(30 - 22 * t, 12 + 26 * t).stroke({ width: 0.9, color: wingHi, alpha: 0.45 });
+    g.moveTo(34, 36).lineTo(34 + 22 * t, 12 + 26 * t).stroke({ width: 0.9, color: wingHi, alpha: 0.45 });
+  }
+
+  // 眼斑
+  g.circle(15, 30, 5).fill({ color: wingHi, alpha: 0.9 });
+  g.circle(15, 30, 2.4).fill({ color: 0x1a0f2e, alpha: 0.95 });
+  g.circle(49, 30, 5).fill({ color: wingHi, alpha: 0.9 });
+  g.circle(49, 30, 2.4).fill({ color: 0x1a0f2e, alpha: 0.95 });
+
+  // 鳞粉微光
+  const motes: readonly [number, number, number][] = [[9, 40, 1.3], [19, 45, 1], [43, 45, 1.1], [53, 40, 1.3], [32, 15, 1]];
+  for (const [dx, dy, r] of motes) {
+    g.circle(dx, dy, r).fill({ color: dust, alpha: 0.55 });
+  }
+
+  // 毛茸茸胸腹
+  g.ellipse(32, 38, 6.5, 13).fill({ color: body, alpha: 0.98 });
+  g.ellipse(32, 38, 6.5, 13).stroke({ width: 1.2, color: fur, alpha: 0.5 });
+  for (let i = 0; i < 4; i++) {
+    g.moveTo(28, 33 + i * 4).lineTo(36, 33 + i * 4).stroke({ width: 0.8, color: fur, alpha: 0.35 });
+  }
+
+  // 头 + 羽状触角
+  g.circle(32, 26, 5.5).fill({ color: body, alpha: 1 });
+  g.moveTo(30, 22).quadraticCurveTo(24, 12, 20, 8).stroke({ width: 1.8, color: fur, alpha: 0.9 });
+  g.moveTo(34, 22).quadraticCurveTo(40, 12, 44, 8).stroke({ width: 1.8, color: fur, alpha: 0.9 });
+  for (let i = 0; i < 4; i++) {
+    const t = i / 4;
+    g.moveTo(30 - 4 * t, 22 - 6 * t).lineTo(30 - 7 * t, 20 - 7 * t).stroke({ width: 0.7, color: fur, alpha: 0.6 });
+    g.moveTo(34 + 4 * t, 22 - 6 * t).lineTo(34 + 7 * t, 20 - 7 * t).stroke({ width: 0.7, color: fur, alpha: 0.6 });
+  }
+  g.circle(30, 26, 1.5).fill({ color: 0x9fe8ff, alpha: 0.95 });
+  g.circle(34, 26, 1.5).fill({ color: 0x9fe8ff, alpha: 0.95 });
+}
+
+/** 霜魇猫：猫耳长尾 + 脊背霜刺 + 冰蓝渐变 + 寒光竖瞳 */
+function drawFrostcat(g: G, def: PetDef): void {
+  const main = hsl(def.hue, 40, 66);
+  const deep = hsl(def.hue, 50, 30);
+  const belly = hsl(def.hue, 45, 88);
+  const frost = 0xd9f4ff;
+  const ice = 0x9fe8ff;
+
+  // 寒气
+  g.circle(32, 36, 26).fill({ color: ice, alpha: 0.13 });
+
+  // 上卷长尾 + 尾尖霜簇
+  g.moveTo(44, 46).quadraticCurveTo(60, 46, 57, 28).stroke({ width: 5.5, color: main, alpha: 0.98 });
+  g.moveTo(44, 46).quadraticCurveTo(60, 46, 57, 28).stroke({ width: 1.8, color: deep, alpha: 0.6 });
+  g.poly([52, 30, 60, 22, 60, 32]).fill({ color: frost, alpha: 0.95 });
+
+  // 四足
+  for (const x of [22, 28, 37, 43]) {
+    g.roundRect(x - 2.3, 51, 4.6, 9.5, 2).fill({ color: deep, alpha: 0.95 });
+  }
+
+  // 躯干
+  g.ellipse(32, 43, 16.5, 10.5).fill({ color: main, alpha: 0.98 });
+  g.ellipse(32, 43, 16.5, 10.5).stroke({ width: 1.8, color: deep, alpha: 0.9 });
+  g.ellipse(32, 47, 9, 4.6).fill({ color: belly, alpha: 0.7 });
+
+  // 脊背霜刺
+  g.poly([24, 34, 22, 25, 29, 32]).fill({ color: frost, alpha: 0.95 });
+  g.poly([32, 33, 33, 23, 38, 32]).fill({ color: frost, alpha: 0.95 });
+  g.poly([40, 35, 44, 27, 45, 36]).fill({ color: frost, alpha: 0.9 });
+
+  // 头 + 猫耳
+  g.ellipse(28, 29, 11, 9.5).fill({ color: main, alpha: 1 });
+  g.ellipse(28, 29, 11, 9.5).stroke({ width: 1.7, color: deep, alpha: 0.9 });
+  g.poly([19, 23, 15, 10, 27, 19]).fill({ color: main, alpha: 1 });
+  g.poly([19, 23, 15, 10, 27, 19]).stroke({ width: 1.3, color: deep, alpha: 0.85 });
+  g.poly([36, 22, 41, 9, 43, 22]).fill({ color: main, alpha: 1 });
+  g.poly([36, 22, 41, 9, 43, 22]).stroke({ width: 1.3, color: deep, alpha: 0.85 });
+  g.poly([20, 21, 18, 14, 24, 19]).fill({ color: 0xffc9e0, alpha: 0.55 });
+  g.poly([37, 20, 40, 14, 41, 21]).fill({ color: 0xffc9e0, alpha: 0.5 });
+
+  // 寒光竖瞳
+  g.ellipse(24, 30, 2.6, 3.2).fill({ color: ice, alpha: 0.95 });
+  g.ellipse(34, 30, 2.6, 3.2).fill({ color: ice, alpha: 0.95 });
+  g.roundRect(23.3, 27.6, 1.4, 5, 0.7).fill({ color: 0x0a2b3a, alpha: 0.95 });
+  g.roundRect(33.3, 27.6, 1.4, 5, 0.7).fill({ color: 0x0a2b3a, alpha: 0.95 });
+
+  // 口鼻 + 胡须
+  g.poly([25, 34, 28, 37, 31, 34]).fill({ color: 0xffc9e0, alpha: 0.7 });
+  g.moveTo(21, 34).lineTo(12, 32).stroke({ width: 0.8, color: frost, alpha: 0.7 });
+  g.moveTo(21, 36).lineTo(12, 37).stroke({ width: 0.8, color: frost, alpha: 0.6 });
+  g.moveTo(35, 34).lineTo(44, 32).stroke({ width: 0.8, color: frost, alpha: 0.7 });
+  g.moveTo(35, 36).lineTo(44, 37).stroke({ width: 0.8, color: frost, alpha: 0.6 });
 }
 
 /** 宠物身体：按体型族程序化绘制；传说加金环辉光（图鉴大头贴与局内共用同一张贴图） */
@@ -174,6 +418,23 @@ function drawPet(g: G, def: PetDef): void {
   }
   if (def.id === 'stareye') {
     drawStareye(g, def);
+    return;
+  }
+  // 稀有专属形象（避免同体型只换色的单调）
+  if (def.id === 'abysshound') {
+    drawAbysshound(g, def);
+    return;
+  }
+  if (def.id === 'crystalcoot') {
+    drawCrystalcoot(g, def);
+    return;
+  }
+  if (def.id === 'glowmoth') {
+    drawGlowmoth(g, def);
+    return;
+  }
+  if (def.id === 'frostcat') {
+    drawFrostcat(g, def);
     return;
   }
   const main = hsl(def.hue, 44, 60);

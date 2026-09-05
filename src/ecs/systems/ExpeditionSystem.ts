@@ -175,7 +175,8 @@ export class ExpeditionSystem {
         break;
       }
       case 'heal': {
-        const heal = hero.maxHp * (sk.heal ?? 0.5);
+        // 治疗量与伤害技能一致：按技能等级成长（每级 +25%），保证「每级 +25%」描述真实
+        const heal = hero.maxHp * (sk.heal ?? 0.5) * mul;
         hero.hp = Math.min(hero.maxHp, hero.hp + heal);
         this.vfx?.burst(hero.x, hero.y, 20, color);
         break;

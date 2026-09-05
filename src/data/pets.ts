@@ -233,6 +233,20 @@ export function skillFor(def: PetDef): PetSkill {
   );
 }
 
+/** 招牌技能的效果说明文案（营地面板展示用，只读技能静态配置；不列倍率数字） */
+export function skillEffectText(sk: PetSkill): string {
+  switch (sk.kind) {
+    case 'nova':
+      return `范围爆发：对半径 ${sk.radius} 内敌人造成伤害 · CD ${sk.cd} 秒 · 每级 +25% 伤害`;
+    case 'beam':
+      return `水平光束：贯穿前方 ${sk.radius} 射程内敌人 · CD ${sk.cd} 秒 · 每级 +25% 伤害`;
+    case 'dash':
+      return `向前冲击：对半径 ${sk.radius} 内敌人造成伤害并击退 · CD ${sk.cd} 秒 · 每级 +25% 伤害`;
+    case 'heal':
+      return `治疗：立即回复最大生命的 ${Math.round((sk.heal ?? 0) * 100)}% · CD ${sk.cd} 秒 · 每级 +25% 回复`;
+  }
+}
+
 /** 读取某宠物当前的远征技能等级（缺省 0） */
 export function skillLevel(save: SaveData, petId: string): number {
   return save.petSkillLevels[petId] ?? 0;

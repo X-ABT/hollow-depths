@@ -768,7 +768,7 @@ export class Game {
 
   /** 远征每个逻辑步：推进战斗 + 相机 + 结算（过关发星币 / 自动续关 / 失败回营地） */
   private fixedExpedition(dt: number): void {
-    // 第 2 关起清关后免点自动续关：先走完倒计时横幅再开下一关
+    // 清关后免点自动续关：先走完倒计时横幅再开下一关
     if (this.expNextStage > 0) {
       this.expNextTimer -= dt;
       this.camera.update(this.expCamX(this.app.screen.width), 0, dt);
@@ -795,26 +795,12 @@ export class Game {
         this.save.expBossStage = Math.max(this.save.expBossStage, this.expStage);
       }
       Storage.save(this.save);
-      if (this.expStage === 1) {
-        // 第 1 关通关（仅无存档点时可达）：手动选择 进入第 2 关 / 留本关刷星币 / 返回营地
-        this.expHud.hide();
-        this.expOverlay.showClear(
-          this.uiRoot,
-          { stage: this.expStage, reward, starCoins: this.save.starCoins },
-          {
-            onNext: () => this.startExpedition(this.expPetId, this.expStage + 1),
-            onStay: () => this.startExpedition(this.expPetId, 1),
-            onBack: () => this.openExpedition(),
-          },
-        );
-      } else {
-        // 第 2 关起：横幅提示后自动进入下一关
-        this.expHud.showBanner(
-          `第 ${this.expStage} 关通过 · 获得 ★${reward} · 自动进入第 ${this.expStage + 1} 关`,
-        );
-        this.expNextStage = this.expStage + 1;
-        this.expNextTimer = 1.6;
-      }
+      // 所有关卡统一：横幅提示后自动进入下一关（无需点击）
+      this.expHud.showBanner(
+        `第 ${this.expStage} 关通过 · 获得 ★${reward} · 自动进入第 ${this.expStage + 1} 关`,
+      );
+      this.expNextStage = this.expStage + 1;
+      this.expNextTimer = 1.6;
     } else {
       this.expHud.hide();
       const resume = this.save.expBossStage > 0 ? this.save.expBossStage + 1 : 1;

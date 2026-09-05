@@ -172,6 +172,10 @@ export class PetPark {
       it.sprite.y = it.y - bob;
       it.sprite.rotation =
         Math.sin(this.animT * 1.7 + it.phase * 1.7) * 0.05 * Math.min(1, 22 / Math.max(8, it.r));
+      // 传说专属：叠加极轻微呼吸缩放
+      const breathe = it.def.rarity === 'legend' ? 1 + 0.03 * Math.sin(this.animT * 2.6 + it.phase) : 1;
+      it.sprite.width = it.r * 2 * breathe;
+      it.sprite.height = it.r * 2 * breathe;
     }
   }
 

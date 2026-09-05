@@ -2563,6 +2563,13 @@ body.park-open #ui-root > .park-ui {
 .exp-skill-line b {
   color: var(--t-bright);
 }
+.exp-skill-desc {
+  width: 100%;
+  margin: -4px 0 2px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--t-mid);
+}
 .exp-up {
   border-color: rgba(67, 224, 255, 0.5);
   color: #d8fbff;

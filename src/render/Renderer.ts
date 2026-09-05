@@ -9,6 +9,7 @@ import {
 import { MAX_ENEMIES, MAX_PETS, MAX_PICKUPS, MAX_PROJ, type World } from '../ecs/World';
 import { Behavior, PickupKind } from '../ecs/Components';
 import { Camera } from './Camera';
+import { PETS } from '../data/pets';
 import { atlas } from './Textures';
 import { Tex } from './TexKeys';
 import { Rng } from '../core/Rng';
@@ -266,8 +267,10 @@ export class WorldRenderer {
       s.texture = atlas.get(Tex.Pet + pe.petIdx);
       s.x = x;
       s.y = y;
-      s.width = w;
-      s.height = w;
+      // 传说专属：极轻微呼吸缩放（仅渲染层，碰撞半径仍由 ECS 的 pe.radius 决定）
+      const breathe = PETS[pe.petIdx]?.rarity === 'legend' ? 1 + 0.025 * Math.sin(world.time * 3 + i * 1.3) : 1;
+      s.width = w * breathe;
+      s.height = w * breathe;
       if (pe.state === 1) {
         s.alpha = 0.5;
         s.tint = 0x88aaff;
