@@ -1,5 +1,6 @@
 import { DICT } from './dict';
 import { currentLang, isEn, setLang } from './lang';
+import { PET_BUFF_DICT_KEY, petBuffDisplayValue, petBuffFor } from '../data/pets';
 import type { Lang } from './lang';
 
 export type { Lang };
@@ -52,4 +53,14 @@ export function fmtN(n: number): string {
 /** 宠物稀有度标签（common/rare/legend → 当前语言） */
 export function rarityLabel(rarity: 'common' | 'rare' | 'legend'): string {
   return t(`rarity.${rarity}`);
+}
+
+/**
+ * 宠物「上阵增益」每级文案（如「伤害 +0.5%/级」）。
+ * 供饲养园/图鉴/远征营地共用的展示入口。
+ */
+export function petBuffText(def: { id: string }): string | null {
+  const b = petBuffFor(def as Parameters<typeof petBuffFor>[0]);
+  if (!b) return null;
+  return t(PET_BUFF_DICT_KEY[b.kind], { p: petBuffDisplayValue(b) });
 }

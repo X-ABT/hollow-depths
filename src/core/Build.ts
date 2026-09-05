@@ -69,6 +69,8 @@ export class Build {
   stats: Stats;
   /** 属性版本号：武器系统据此判断是否需要刷新常驻投射物的数值 */
   version = 0;
+  /** 宠物上阵增益回调（在基础+被动之后、每次 recompute 末尾叠加；本局内不变，升级重算不丢失） */
+  petBonus: ((s: Stats) => void) | null = null;
   /** 跨局永久升级后的起始等级表（id → 起始等级，缺省 1） */
   private startWeapons: Record<string, number>;
   private startPassives: Record<string, number>;
@@ -99,6 +101,8 @@ export class Build {
       const p = this.passives[i];
       p.def.apply(s, p.level);
     }
+    // 宠物上阵增益叠加在基础+被动之后（独立成层，避免升级重算被清空）
+    this.petBonus?.(s);
     this.stats = s;
     this.version++;
   }
@@ -149,14 +153,15 @@ export class Build {
     return 'added';
   }
 
-  /** 当前可进化的武器（武器满级 + 持有指定被动） */
+  /** 当前可进化的武器（武器满级 + 对应被动满级） */
   pendingEvolutions(): { from: string; to: string }[] {
     const out: { from: string; to: string }[] = [];
     for (const w of this.weapons) {
       if (w.def.isEvolved) continue;
       if (!w.def.evolveWith || !w.def.evolved) continue;
       if (w.level < w.def.maxLevel) continue;
-      if (!this.passiveById(w.def.evolveWith)) continue;
+      const pw = this.passiveById(w.def.evolveWith);
+      if (!pw || pw.level < pw.def.maxLevel) continue;
       if (this.hasWeapon(w.def.evolved)) continue;
       out.push({ from: w.def.id, to: w.def.evolved });
     }

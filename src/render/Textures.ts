@@ -1,6 +1,7 @@
 import { Container, Graphics, Rectangle, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
 import { TEX_SIZE, Tex } from './TexKeys';
 import { PETS, type PetDef } from '../data/pets';
+import { hslToRgb } from '../core/ColorUtil';
 
 /**
  * 程序化图集：用 Graphics 画出全部精灵，一次性烘焙成单张 RenderTexture 并按需切分。
@@ -36,26 +37,15 @@ function eyes(g: G, x: number, y: number, d: number, r: number, color: number = 
   g.circle(x + d, y, r).fill(color);
 }
 
-/** HSL → 0xRRGGBB（s / l 用 0-100 的百分数传入） */
-function hsl(h: number, s: number, l: number): number {
-  const S = s / 100;
-  const L = l / 100;
-  const f = (n: number): number => {
-    const k = (n + h / 30) % 12;
-    const a = S * Math.min(L, 1 - L);
-    const c = L - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
-    return Math.max(0, Math.min(255, Math.round(c * 255)));
-  };
-  return ((f(0) & 0xff) << 16) | ((f(8) & 0xff) << 8) | (f(4) & 0xff);
-}
+
 
 /** 幽域龙裔：蓝紫幼龙立绘（双翼张开 + 卷尾 + 龙角），专属绘制 */
 function drawDrake(g: G, def: PetDef): void {
-  const main = hsl(def.hue, 70, 56); // 亮蓝紫龙身
-  const dark = hsl(def.hue, 76, 28); // 深紫描边/暗鳞
-  const wing = hsl(def.hue, 62, 46); // 翼膜蓝紫
-  const belly = hsl(def.hue, 50, 82); // 胸腹亮鳞
-  const glint = hsl(def.hue, 55, 88);
+  const main = hslToRgb(def.hue, 70, 56); // 亮蓝紫龙身
+  const dark = hslToRgb(def.hue, 76, 28); // 深紫描边/暗鳞
+  const wing = hslToRgb(def.hue, 62, 46); // 翼膜蓝紫
+  const belly = hslToRgb(def.hue, 50, 82); // 胸腹亮鳞
+  const glint = hslToRgb(def.hue, 55, 88);
   // 传说金环辉光
   g.circle(32, 32, 31).fill({ color: 0xf5c451, alpha: 0.09 });
   g.circle(32, 32, 31).stroke({ width: 1.8, color: C.amber, alpha: 0.7 });
@@ -128,8 +118,8 @@ function drawDrake(g: G, def: PetDef): void {
 /** 星噬之眼：浮空深渊之眼（星环 + 深邃球体 + 琥珀竖瞳） */
 function drawStareye(g: G, def: PetDef): void {
   const voidC = 0x0b0622;
-  const neb = hsl(262, 60, 16);
-  const nebHi = hsl(262, 48, 30);
+  const neb = hslToRgb(262, 60, 16);
+  const nebHi = hslToRgb(262, 48, 30);
   // 传说金环辉光
   g.circle(32, 32, 31).fill({ color: 0xf5c451, alpha: 0.1 });
   g.circle(32, 32, 31).stroke({ width: 1.8, color: C.amber, alpha: 0.75 });
@@ -143,7 +133,7 @@ function drawStareye(g: G, def: PetDef): void {
   g.circle(32, 32, 27).stroke({ width: 2.2, color: 0x7c5cff, alpha: 0.85 });
 
   // 虹膜内环
-  g.circle(32, 32, 21).fill({ color: hsl(264, 62, 12), alpha: 1 });
+  g.circle(32, 32, 21).fill({ color: hslToRgb(264, 62, 12), alpha: 1 });
   g.circle(32, 32, 15).stroke({ width: 1.6, color: 0x9b7dff, alpha: 0.5 });
 
   // 垂直琥珀竖瞳 + 外层光晕
@@ -195,10 +185,10 @@ function hexPath(cx: number, cy: number, r: number): number[] {
 
 /** 深渊猎犬：矫健犬形 + 背脊骨刺 + 深渊气息 + 发光獠牙与红紫凶瞳 */
 function drawAbysshound(g: G, def: PetDef): void {
-  const main = hsl(def.hue, 40, 32);
-  const deep = hsl(def.hue, 58, 14);
-  const belly = hsl(def.hue, 38, 52);
-  const spike = hsl(def.hue, 58, 62);
+  const main = hslToRgb(def.hue, 40, 32);
+  const deep = hslToRgb(def.hue, 58, 14);
+  const belly = hslToRgb(def.hue, 38, 52);
+  const spike = hslToRgb(def.hue, 58, 62);
   const aura = 0x7c5cff;
 
   // 身周深渊气息
@@ -228,7 +218,7 @@ function drawAbysshound(g: G, def: PetDef): void {
   // 头 + 前倾吻部
   g.ellipse(27, 29, 11.5, 10).fill({ color: main, alpha: 1 });
   g.ellipse(27, 29, 11.5, 10).stroke({ width: 1.7, color: deep, alpha: 0.9 });
-  g.poly([18, 32, 7, 36, 18, 40]).fill({ color: hsl(def.hue, 36, 26), alpha: 1 });
+  g.poly([18, 32, 7, 36, 18, 40]).fill({ color: hslToRgb(def.hue, 36, 26), alpha: 1 });
   g.circle(11, 36, 1.3).fill({ color: 0x05030c, alpha: 0.9 });
   // 发光獠牙
   g.poly([15, 38, 16.5, 43, 18.5, 38]).fill({ color: 0xe8dcff, alpha: 0.95 });
@@ -250,15 +240,15 @@ function drawAbysshound(g: G, def: PetDef): void {
 
 /** 晶甲龟：六边形晶体龟壳 + 甲缝冰蓝高光 + 短肢与壳下幼体 */
 function drawCrystalcoot(g: G, def: PetDef): void {
-  const shell = hsl(def.hue, 44, 60);
-  const shellLo = hsl(def.hue, 50, 34);
-  const shellHi = hsl(def.hue, 58, 86);
+  const shell = hslToRgb(def.hue, 44, 60);
+  const shellLo = hslToRgb(def.hue, 50, 34);
+  const shellHi = hslToRgb(def.hue, 58, 86);
   const seam = 0x9fe8ff;
-  const body = hsl(def.hue, 32, 40);
+  const body = hslToRgb(def.hue, 32, 40);
 
   // 下层暗壳
   g.ellipse(32, 36, 21, 15).fill({ color: shellLo, alpha: 0.98 });
-  g.ellipse(32, 36, 21, 15).stroke({ width: 1.8, color: hsl(def.hue, 55, 22), alpha: 0.9 });
+  g.ellipse(32, 36, 21, 15).stroke({ width: 1.8, color: hslToRgb(def.hue, 55, 22), alpha: 0.9 });
 
   // 四短肢 + 尾
   for (const x of [16, 26, 36, 45]) {
@@ -300,11 +290,11 @@ function drawCrystalcoot(g: G, def: PetDef): void {
 
 /** 噬光蝶：羽状触角 + 眼斑宽翅 + 鳞粉微光 + 吸光暗紫渐变 */
 function drawGlowmoth(g: G, def: PetDef): void {
-  const wing = hsl(def.hue, 46, 44);
-  const wingLo = hsl(def.hue, 60, 20);
-  const wingHi = hsl(def.hue, 52, 74);
-  const body = hsl(def.hue, 30, 26);
-  const fur = hsl(def.hue, 34, 58);
+  const wing = hslToRgb(def.hue, 46, 44);
+  const wingLo = hslToRgb(def.hue, 60, 20);
+  const wingHi = hslToRgb(def.hue, 52, 74);
+  const body = hslToRgb(def.hue, 30, 26);
+  const fur = hslToRgb(def.hue, 34, 58);
   const dust = 0xd9c8ff;
 
   // 吸光感：外圈暗紫渐隐
@@ -356,9 +346,9 @@ function drawGlowmoth(g: G, def: PetDef): void {
 
 /** 霜魇猫：猫耳长尾 + 脊背霜刺 + 冰蓝渐变 + 寒光竖瞳 */
 function drawFrostcat(g: G, def: PetDef): void {
-  const main = hsl(def.hue, 40, 66);
-  const deep = hsl(def.hue, 50, 30);
-  const belly = hsl(def.hue, 45, 88);
+  const main = hslToRgb(def.hue, 40, 66);
+  const deep = hslToRgb(def.hue, 50, 30);
+  const belly = hslToRgb(def.hue, 45, 88);
   const frost = 0xd9f4ff;
   const ice = 0x9fe8ff;
 
@@ -437,9 +427,9 @@ function drawPet(g: G, def: PetDef): void {
     drawFrostcat(g, def);
     return;
   }
-  const main = hsl(def.hue, 44, 60);
-  const deep = hsl(def.hue, 50, 34);
-  const soft = hsl(def.hue, 38, 78);
+  const main = hslToRgb(def.hue, 44, 60);
+  const deep = hslToRgb(def.hue, 50, 34);
+  const soft = hslToRgb(def.hue, 38, 78);
   const eye = def.rarity === 'legend' ? C.amber : def.rarity === 'rare' ? 0x9fe8ff : C.void;
   if (def.rarity === 'legend') {
     g.circle(32, 32, 31).fill({ color: 0xf5c451, alpha: 0.08 });
@@ -452,7 +442,7 @@ function drawPet(g: G, def: PetDef): void {
       g.ellipse(32, 40, 19, 15).stroke({ width: 2, color: deep, alpha: 0.9 });
       g.circle(21, 27, 5.5).fill({ color: soft, alpha: 0.95 });
       g.circle(43, 27, 5.5).fill({ color: soft, alpha: 0.95 });
-      g.circle(32, 27, 10).fill({ color: hsl(def.hue, 58, 76), alpha: 1 });
+      g.circle(32, 27, 10).fill({ color: hslToRgb(def.hue, 58, 76), alpha: 1 });
       g.ellipse(32, 46, 10, 5).fill({ color: soft, alpha: 0.55 });
       eyes(g, 32, 28, 3.6, 2.2, eye);
       break;
@@ -477,7 +467,7 @@ function drawPet(g: G, def: PetDef): void {
       g.poly([42, 38, 59, 20, 57, 45]).fill({ color: deep, alpha: 0.95 });
       g.ellipse(32, 40, 13, 11).fill({ color: main, alpha: 0.98 });
       g.ellipse(32, 40, 13, 11).stroke({ width: 1.8, color: soft, alpha: 0.9 });
-      g.circle(32, 40, 6).fill({ color: hsl(def.hue, 62, 76), alpha: 1 });
+      g.circle(32, 40, 6).fill({ color: hslToRgb(def.hue, 62, 76), alpha: 1 });
       eyes(g, 32, 40, 3, 1.9, eye);
       g.moveTo(27, 49).quadraticCurveTo(32, 58, 37, 49).stroke({ width: 2, color: deep, alpha: 0.7 });
       break;
@@ -667,8 +657,8 @@ export function drawTex(g: G, key: number): void {
       // 泣灵：幽蓝漩涡母体（螺旋旋臂 + 冰冷内核）
       glow(g, 32, 32, 30, 0x43e0ff, 0.5);
       g.circle(32, 32, 27).fill({ color: 0x0a2333, alpha: 0.92 });
-      g.circle(32, 32, 27).stroke({ width: 2, color: hsl(198, 85, 60), alpha: 0.85 });
-      g.circle(32, 32, 20).stroke({ width: 1.6, color: hsl(198, 80, 42), alpha: 0.6 });
+      g.circle(32, 32, 27).stroke({ width: 2, color: hslToRgb(198, 85, 60), alpha: 0.85 });
+      g.circle(32, 32, 20).stroke({ width: 1.6, color: hslToRgb(198, 80, 42), alpha: 0.6 });
       for (let i = 0; i < 6; i++) {
         const a = (i / 6) * Math.PI * 2;
         g.moveTo(32 + Math.cos(a) * 9, 32 + Math.sin(a) * 9)
@@ -678,7 +668,7 @@ export function drawTex(g: G, key: number): void {
             32 + Math.cos(a + 1.8) * 28,
             32 + Math.sin(a + 1.8) * 28,
           )
-          .stroke({ width: 3, color: hsl(198, 75, 68), alpha: 0.75 });
+          .stroke({ width: 3, color: hslToRgb(198, 75, 68), alpha: 0.75 });
       }
       // 冰冷内核对眼（邪气）
       glow(g, 32, 32, 9, 0xbdf1ff, 0.9);
@@ -817,6 +807,36 @@ export function drawTex(g: G, key: number): void {
     case Tex.Ring: {
       g.circle(32, 32, 28).stroke({ width: 4, color: C.bad, alpha: 0.9 });
       g.circle(32, 32, 28).fill({ color: C.bad, alpha: 0.1 });
+      break;
+    }
+    // 纯白主体 + 运行期 tint 上色（保持单 BaseTexture 合批）：星芒 / 冲击环 / 横扫弧
+    case Tex.SparkStar: {
+      // 四向发光星芒（十字尖角），纯白主体，运行期 tint
+      glow(g, 32, 32, 22, 0xffffff, 0.6);
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2;
+        g.moveTo(32, 32)
+          .lineTo(32 + Math.cos(a) * 30, 32 + Math.sin(a) * 30)
+          .stroke({ width: 7, color: 0xffffff, alpha: 0.9 });
+      }
+      g.circle(32, 32, 10).fill({ color: 0xffffff, alpha: 0.95 });
+      break;
+    }
+    case Tex.HitRing: {
+      // 中空扩散环 + 内外柔光，tint 后做命中/死亡冲击环
+      g.circle(32, 32, 30).fill({ color: 0xffffff, alpha: 0.1 });
+      g.circle(32, 32, 24).stroke({ width: 7, color: 0xffffff, alpha: 0.8 });
+      g.circle(32, 32, 15).stroke({ width: 3, color: 0xffffff, alpha: 0.4 });
+      break;
+    }
+    case Tex.PetSlash: {
+      // 横向月牙弧（默认朝右，Vfx.slash 用 rotation 转向攻击方向）
+      g.moveTo(6, 32)
+        .quadraticCurveTo(32, 6, 58, 32)
+        .stroke({ width: 12, color: 0xffffff, alpha: 0.9 });
+      g.moveTo(6, 32)
+        .quadraticCurveTo(32, 12, 58, 32)
+        .stroke({ width: 4, color: 0xffffff, alpha: 0.45 });
       break;
     }
 

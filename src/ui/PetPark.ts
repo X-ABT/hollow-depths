@@ -13,7 +13,7 @@ import {
 import { Tex } from '../render/TexKeys';
 import { atlas } from '../render/Textures';
 import { Storage, type SaveData } from '../save/Storage';
-import { i18nName, rarityLabel, t } from '../i18n';
+import { i18nName, petBuffText, rarityLabel, t } from '../i18n';
 
 /** 宠物在展示园的基准宽（体积比例 =1 时） */
 const PARK_BASE_W = 72;
@@ -532,6 +532,13 @@ export class PetPark {
       <div class="pet-stat"><b>${Math.round(visualScale(def, lv) * 100)}%</b><span>${t('pet.statSize')}</span></div>
     `;
     el.appendChild(stats);
+    const buffLine = petBuffText(def);
+    if (buffLine) {
+      const b = document.createElement('p');
+      b.className = 'pet-buff';
+      b.textContent = `${t('pet.buffTitle')} · ${buffLine}`;
+      el.appendChild(b);
+    }
     const feed = document.createElement('button');
     feed.className = 'btn btn--primary park-feed' + (can ? '' : ' is-disabled');
     feed.dataset.feed = id;

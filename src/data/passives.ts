@@ -36,19 +36,32 @@ export interface PassiveDef {
   apply: (s: Stats, lv: number) => void;
 }
 
+const LV7 = 7;
+
+/** 各被动 Lv1→Lv7 的累计数值表（满级总效果 = 原 5 级满级；护心甲每级 +1 属小幅加强） */
+const HASTE = [8, 16, 25, 33, 42, 51, 60]; // 攻速 %，满级 +60
+const BOOTS = [6, 12, 18, 24, 30, 35, 40]; // 移速 %，满级 +40
+const MIRROR = [0, 1, 1, 2, 2, 3, 5]; // 投射物，满级 +5（Lv2/4/6 各 +1，Lv7 直接 +2）
+const RAGE = [7, 14, 21, 28, 35, 43, 50]; // 伤害 %，满级 +50
+const LIFE_HP = [14, 28, 42, 57, 71, 86, 100]; // 生命上限，满级 +100
+const LIFE_REG = [0.3, 0.6, 0.9, 1.2, 1.5, 1.8, 2.1]; // 每秒回复，满级 2.1
+const WISDOM = [6, 12, 18, 24, 30, 35, 40]; // 经验 %，满级 +40
+const CRIT_RATE = [4, 8, 12, 15, 19, 22, 25]; // 暴击率 %，满级 +25
+const CRIT_MULT = [18, 36, 54, 71, 89, 107, 125]; // 暴击伤害 %，满级 +125
+
 export const PASSIVES: readonly PassiveDef[] = [
   {
     id: 'haste',
     name: '疾风符',
     en: 'Rune of Haste',
     icon: Tex.IconHaste,
-    maxLevel: 5,
+    maxLevel: LV7,
     desc: '缩短所有武器的冷却。',
     enDesc: 'Shortens the cooldown of all weapons.',
-    lvlText: (lv) => `攻击速度 +${lv * 12}%`,
-    enLvlText: (lv) => `Attack Speed +${lv * 12}%`,
+    lvlText: (lv) => `攻击速度 +${HASTE[lv - 1]}%`,
+    enLvlText: (lv) => `Attack Speed +${HASTE[lv - 1]}%`,
     apply: (s, lv) => {
-      s.fireRateMul += 0.12 * lv;
+      s.fireRateMul += HASTE[lv - 1] / 100;
     },
   },
   {
@@ -56,13 +69,13 @@ export const PASSIVES: readonly PassiveDef[] = [
     name: '轻履靴',
     en: 'Feather Boots',
     icon: Tex.IconBoots,
-    maxLevel: 5,
+    maxLevel: LV7,
     desc: '提升移动速度，走位更从容。',
     enDesc: 'Increases movement speed for easier dodging.',
-    lvlText: (lv) => `移动速度 +${lv * 8}%`,
-    enLvlText: (lv) => `Move Speed +${lv * 8}%`,
+    lvlText: (lv) => `移动速度 +${BOOTS[lv - 1]}%`,
+    enLvlText: (lv) => `Move Speed +${BOOTS[lv - 1]}%`,
     apply: (s, lv) => {
-      s.speed *= 1 + 0.08 * lv;
+      s.speed *= 1 + BOOTS[lv - 1] / 100;
     },
   },
   {
@@ -70,13 +83,19 @@ export const PASSIVES: readonly PassiveDef[] = [
     name: '双面镜',
     en: 'Twin Mirror',
     icon: Tex.IconMirror,
-    maxLevel: 5,
+    maxLevel: LV7,
     desc: '强化每次攻击：额外多射一枚投射物，光束则贯穿更深。',
     enDesc: 'Empowers each attack: fire one extra projectile, and beams pierce deeper.',
-    lvlText: (lv) => `投射物数量 +${lv}`,
-    enLvlText: (lv) => `Projectiles +${lv}`,
+    lvlText: (lv) => {
+      const n = MIRROR[lv - 1];
+      return n > 0 ? `投射物数量 +${n}` : '双面镜尚未生效（Lv2/4/6 各 +1，Lv7 直接 +2）';
+    },
+    enLvlText: (lv) => {
+      const n = MIRROR[lv - 1];
+      return n > 0 ? `Projectiles +${n}` : 'No effect yet (Lv2/4/6 +1 each, Lv7 +2)';
+    },
     apply: (s, lv) => {
-      s.projBonus += lv; // 每级 +1 投射物数量
+      s.projBonus += MIRROR[lv - 1];
     },
   },
   {
@@ -84,13 +103,13 @@ export const PASSIVES: readonly PassiveDef[] = [
     name: '狂怒石',
     en: 'Rage Stone',
     icon: Tex.IconRage,
-    maxLevel: 5,
+    maxLevel: LV7,
     desc: '提升全部伤害。',
     enDesc: 'Increases all damage dealt.',
-    lvlText: (lv) => `伤害 +${lv * 10}%`,
-    enLvlText: (lv) => `Damage +${lv * 10}%`,
+    lvlText: (lv) => `伤害 +${RAGE[lv - 1]}%`,
+    enLvlText: (lv) => `Damage +${RAGE[lv - 1]}%`,
     apply: (s, lv) => {
-      s.damageMul += 0.1 * lv;
+      s.damageMul += RAGE[lv - 1] / 100;
     },
   },
   {
@@ -98,14 +117,14 @@ export const PASSIVES: readonly PassiveDef[] = [
     name: '生命符',
     en: 'Sigil of Life',
     icon: Tex.IconLife,
-    maxLevel: 5,
+    maxLevel: LV7,
     desc: '提高生命上限并持续回复。',
     enDesc: 'Raises max HP and regenerates over time.',
-    lvlText: (lv) => `生命上限 +${lv * 20}，每秒回复 ${(lv * 0.3).toFixed(1)}`,
-    enLvlText: (lv) => `Max HP +${lv * 20}, Regen ${(lv * 0.3).toFixed(1)}/s`,
+    lvlText: (lv) => `生命上限 +${LIFE_HP[lv - 1]}，每秒回复 ${LIFE_REG[lv - 1].toFixed(1)}`,
+    enLvlText: (lv) => `Max HP +${LIFE_HP[lv - 1]}, Regen ${LIFE_REG[lv - 1].toFixed(1)}/s`,
     apply: (s, lv) => {
-      s.maxHp += 20 * lv;
-      s.regen += 0.3 * lv;
+      s.maxHp += LIFE_HP[lv - 1];
+      s.regen += LIFE_REG[lv - 1];
     },
   },
   {
@@ -113,7 +132,7 @@ export const PASSIVES: readonly PassiveDef[] = [
     name: '护心甲',
     en: 'Heartguard',
     icon: Tex.IconArmor,
-    maxLevel: 5,
+    maxLevel: LV7,
     desc: '每次受击固定减伤。',
     enDesc: 'Blocks a flat amount of damage from each hit.',
     lvlText: (lv) => `护甲 +${lv}（每次受击固定减伤）`,
@@ -127,13 +146,13 @@ export const PASSIVES: readonly PassiveDef[] = [
     name: '智慧卷轴',
     en: 'Scroll of Wisdom',
     icon: Tex.IconWisdom,
-    maxLevel: 5,
+    maxLevel: LV7,
     desc: '提升获得的经验。',
     enDesc: 'Increases experience gained.',
-    lvlText: (lv) => `经验获取 +${lv * 8}%`,
-    enLvlText: (lv) => `XP Gain +${lv * 8}%`,
+    lvlText: (lv) => `经验获取 +${WISDOM[lv - 1]}%`,
+    enLvlText: (lv) => `XP Gain +${WISDOM[lv - 1]}%`,
     apply: (s, lv) => {
-      s.xpMul += 0.08 * lv;
+      s.xpMul += WISDOM[lv - 1] / 100;
     },
   },
   {
@@ -141,14 +160,14 @@ export const PASSIVES: readonly PassiveDef[] = [
     name: '锐锋石',
     en: 'Keen Edge',
     icon: Tex.IconCrit,
-    maxLevel: 5,
+    maxLevel: LV7,
     desc: '提升暴击率与暴击伤害。',
     enDesc: 'Increases critical chance and critical damage.',
-    lvlText: (lv) => `暴击率 +${lv * 5}%，暴击伤害 +${lv * 25}%`,
-    enLvlText: (lv) => `Crit Rate +${lv * 5}%, Crit Damage +${lv * 25}%`,
+    lvlText: (lv) => `暴击率 +${CRIT_RATE[lv - 1]}%，暴击伤害 +${CRIT_MULT[lv - 1]}%`,
+    enLvlText: (lv) => `Crit Rate +${CRIT_RATE[lv - 1]}%, Crit Damage +${CRIT_MULT[lv - 1]}%`,
     apply: (s, lv) => {
-      s.critChance += 0.05 * lv;
-      s.critMult += 0.25 * lv;
+      s.critChance += CRIT_RATE[lv - 1] / 100;
+      s.critMult += CRIT_MULT[lv - 1] / 100;
     },
   },
 ];

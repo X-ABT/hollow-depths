@@ -42,7 +42,7 @@ import { Bgm } from '../audio/Bgm';
 import { DEFAULT_CHARACTER } from '../data/characters';
 import { ENEMY_BY_INDEX } from '../data/enemies';
 import { RUN_SECONDS } from '../data/waves';
-import { PETS, PET_BY_ID, skillLevel } from '../data/pets';
+import { PETS, PET_BY_ID, applyLoadoutPetBonus, skillLevel } from '../data/pets';
 import { spawnPet } from '../ecs/Spawn';
 import { ads } from '../ads/index';
 import { gameplayStart, gameplayStop, happyTime } from '../ads/crazygames';
@@ -476,6 +476,10 @@ export class Game {
       weapons: this.save.weaponLevels,
       passives: this.save.passiveLevels,
     });
+    // 宠物上阵增益 + 收藏里程碑：每局开打前注入 Build（升级重算时由 Build.petBonus 自动保留）
+    this.build.petBonus = (s) => {
+      applyLoadoutPetBonus(s, this.save.petsOwned.length, this.save.petLoadout, this.save.petLevels);
+    };
     this.build.addWeapon(DEFAULT_CHARACTER.startWeapon);
     this.weapon.reset();
     this.spawn.reset(this.world);

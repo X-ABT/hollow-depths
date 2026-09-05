@@ -20,7 +20,7 @@ function makeEnemy(): Enemy {
     hp: 1, maxHp: 1, damage: 1, armor: 0, speed: 60, xp: 1,
     defIdx: 0, ai: Ai.Chase, isElite: false, isBoss: false, bossIdx: -1,
     timer: 0, state: 0, phase: 0, growT: 0, angle: 0,
-    cast: 0, sub: 0, tx: 0, ty: 0,
+    cast: 0, castMul: 1, sub: 0, tx: 0, ty: 0,
     flash: 0, slowT: 0, slowF: 1, knockX: 0, knockY: 0,
     srcId: -1, srcImmune: 0, hitCd: 0, aggro: 0, dead: false,
     spriteKey: 0, rot: 0,

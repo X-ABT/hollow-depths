@@ -1,6 +1,10 @@
 /** 宠物系统：纯数据 + 纯函数。改数值只需动这张表，UI 与局内战斗共用。 */
+import { hslToRgb } from '../core/ColorUtil';
 
 export type PetRarity = 'common' | 'rare' | 'legend';
+
+/** 主局攻击风格：bite=单体爪击 / sweep=扇形横扫 / smash=小范围拍击 */
+export type PetAtkKind = 'bite' | 'sweep' | 'smash';
 
 export const RARITY_LABEL: Record<PetRarity, string> = {
   common: '普通',
@@ -40,6 +44,25 @@ export interface PetDef {
   baseDmg: number;
   /** true = 基础赠送宠物（只可领取一次，不进入抽奖池/兑换池） */
   free?: boolean;
+  /** 主局攻击风格（缺省按 bodyKind 映射；传说可显式覆盖） */
+  atk?: PetAtkKind;
+}
+
+/** bodyKind → 默认攻击风格：团身系=撞击拍击 / 兽系=单体撕咬 / 飞翼系=弧形横扫 */
+const BODY_ATK: Record<number, PetAtkKind> = { 0: 'smash', 1: 'bite', 2: 'sweep' };
+/** 传说专属攻击风格覆盖（drake 横扫、stareye 拍击） */
+const LEGEND_ATK: Record<string, PetAtkKind> = { drake: 'sweep', stareye: 'smash' };
+
+/** 取宠物主局攻击风格（显式 atk 覆盖 > 传说覆盖 > bodyKind 默认） */
+export function petAtkFor(def: PetDef): PetAtkKind {
+  if (def.atk) return def.atk;
+  if (def.rarity === 'legend' && LEGEND_ATK[def.id]) return LEGEND_ATK[def.id];
+  return BODY_ATK[def.bodyKind] ?? 'bite';
+}
+
+/** 宠物攻击特效主色：非传说取 hue 亮色；传说用金色（与稀有度面板观感一致） */
+export function petFxColor(def: PetDef): number {
+  return def.rarity === 'legend' ? 0xf5c451 : hslToRgb(def.hue, 62, 72);
 }
 
 /** 每级体积成长幅度：稀有度越高长得越快（普通/稀有/传说 = 1 / 1.5 / 2） */
@@ -173,6 +196,156 @@ export function foodToNext(level: number): number {
 /** 可上阵槽位数：默认 1，拥有 5 / 10 只时解锁第 2 / 3 槽 */
 export function petSlotCount(ownedCount: number): number {
   return ownedCount >= 10 ? 3 : ownedCount >= 5 ? 2 : 1;
+}
+
+// ——————————————————— 宠物增益（上阵 Meta buff） ———————————————————
+/**
+ * 宠物给角色提供的常驻增益方向：
+ * - damage / fireRate / xp / speed：乘区百分比类（speed 为乘法，其余为加法小数值）；
+ * - regen / maxHp：固定量类（regen 为每秒固定回血，maxHp 为固定点数）。
+ * perLevel 语义：每宠物等级提供的量（等级从 1 起，随喂养成长线性叠加）。
+ */
+export type PetBuffKind = 'damage' | 'fireRate' | 'xp' | 'speed' | 'regen' | 'maxHp';
+
+export interface PetBuffDef {
+  kind: PetBuffKind;
+  /** 每级增益：百分比类为小数（0.005 = 0.5%），regen 为每秒值，maxHp 为点数 */
+  perLevel: number;
+}
+
+/** 增益方向 → dict key（UI 展示用） */
+export const PET_BUFF_DICT_KEY: Record<PetBuffKind, string> = {
+  damage: 'pet.buffDamage',
+  fireRate: 'pet.buffFireRate',
+  xp: 'pet.buffXp',
+  speed: 'pet.buffSpeed',
+  regen: 'pet.buffRegen',
+  maxHp: 'pet.buffMaxHp',
+};
+
+/** 该方向是否按百分比展示（damage/fireRate/xp/speed 为乘区百分比；regen/maxHp 为固定量） */
+export function petBuffIsPercent(kind: PetBuffKind): boolean {
+  return kind === 'damage' || kind === 'fireRate' || kind === 'xp' || kind === 'speed';
+}
+
+/** 每级增益的展示数值：百分比类 ×100 后去尾零，固定量保留原值 */
+export function petBuffDisplayValue(def: PetBuffDef): number {
+  const v = petBuffIsPercent(def.kind) ? def.perLevel * 100 : def.perLevel;
+  return Math.round(v * 1000) / 1000;
+}
+
+/** 每只宠物固定一种增益（配队即选方向）。传说 +3%/级；普通/稀有低档或固定量。 */
+const PET_BUFFS: Record<string, PetBuffDef> = {
+  // 普通
+  soulbat:     { kind: 'xp',       perLevel: 0.005 }, // 经验 +0.5%/级
+  bonehound:   { kind: 'damage',   perLevel: 0.005 }, // 伤害 +0.5%/级
+  mistfrog:    { kind: 'regen',    perLevel: 0.04 },  // 回血 +0.04/秒·级
+  paperlamp:   { kind: 'fireRate', perLevel: 0.005 }, // 攻速 +0.5%/级
+  rustbug:     { kind: 'maxHp',    perLevel: 2 },     // 生命上限 +2/级
+  sproutling:  { kind: 'speed',    perLevel: 0.005 }, // 移动速度 +0.5%/级
+  // 稀有
+  abysshound:  { kind: 'damage',   perLevel: 0.005 }, // 伤害 +0.5%/级
+  crystalcoot: { kind: 'maxHp',    perLevel: 3 },     // 生命上限 +3/级
+  glowmoth:    { kind: 'xp',       perLevel: 0.005 }, // 经验 +0.5%/级
+  frostcat:    { kind: 'fireRate', perLevel: 0.005 }, // 攻速 +0.5%/级
+  // 传说（每级 +3%）
+  drake:       { kind: 'damage',   perLevel: 0.03 },  // 伤害 +3%/级
+  stareye:     { kind: 'fireRate', perLevel: 0.03 },  // 攻速 +3%/级
+  // 免费基础宠
+  budling:     { kind: 'regen',    perLevel: 0.02 },  // 回血 +0.02/秒·级
+};
+
+/** 取宠物增益（全部已配置；未命中返回 null 供容错） */
+export function petBuffFor(def: PetDef): PetBuffDef | null {
+  return PET_BUFFS[def.id] ?? null;
+}
+
+/** 指定宠物等级下的当前增益总量（level 从 1 起） */
+export function petBuffAt(def: PetDef, level: number): PetBuffDef & { value: number } | null {
+  const b = petBuffFor(def);
+  if (!b) return null;
+  return { ...b, value: b.perLevel * level };
+}
+
+/** 远征模式下有效的增益子集（经验/移速在横版闯关无意义） */
+export const EXPEDITION_BUFF_KINDS: ReadonlySet<PetBuffKind> = new Set([
+  'damage',
+  'fireRate',
+  'regen',
+  'maxHp',
+]);
+
+// ——————————————————— 收藏里程碑（永久，全模式） ———————————————————
+/** 拥有宠物达到该档位时解锁一档「经验 +1%」永久加成（档位可叠加） */
+export const PET_MILESTONES: readonly number[] = [3, 6, 9, 12];
+/** 每档经验加成 */
+export const PET_MILESTONE_XP_PER_TIER = 0.01;
+
+/** 根据拥有宠物数量返回已解锁的档数（0..PET_MILESTONES.length） */
+export function petMilestoneTiers(ownedCount: number): number {
+  let tiers = 0;
+  for (const need of PET_MILESTONES) {
+    if (ownedCount >= need) tiers++;
+    else break;
+  }
+  return tiers;
+}
+
+/** 把「收藏里程碑」经验加成叠加进玩家属性（主局每档 +1%） */
+export function applyPetMilestone(s: { xpMul?: number }, ownedCount: number): void {
+  if (s.xpMul !== undefined) s.xpMul += petMilestoneTiers(ownedCount) * PET_MILESTONE_XP_PER_TIER;
+}
+
+/**
+ * 把一只宠物在指定等级下的增益叠加进玩家属性（主局通用；远征用 EXPEDITION_BUFF_KINDS 过滤后调用）。
+ * 比例字段需以 Stats 乘法/加法语义对齐：speed 走乘法，其余乘区字段走加法。
+ */
+export function applyPetBuff(
+  s: { speed?: number; damageMul?: number; fireRateMul?: number; xpMul?: number; regen?: number; maxHp?: number },
+  def: PetDef,
+  level: number,
+): void {
+  const buff = petBuffFor(def);
+  if (!buff) return;
+  const v = buff.perLevel * level;
+  switch (buff.kind) {
+    case 'damage':
+      if (s.damageMul !== undefined) s.damageMul += v;
+      break;
+    case 'fireRate':
+      if (s.fireRateMul !== undefined) s.fireRateMul += v;
+      break;
+    case 'xp':
+      if (s.xpMul !== undefined) s.xpMul += v;
+      break;
+    case 'speed':
+      if (s.speed !== undefined) s.speed *= 1 + v;
+      break;
+    case 'regen':
+      if (s.regen !== undefined) s.regen += v;
+      break;
+    case 'maxHp':
+      if (s.maxHp !== undefined) s.maxHp += v;
+      break;
+  }
+}
+
+/** 主局聚合：收藏里程碑经验 + 全部上阵宠物（≤3）增益叠加进玩家 Stats */
+export function applyLoadoutPetBonus(
+  s: { speed?: number; damageMul?: number; fireRateMul?: number; xpMul?: number; regen?: number; maxHp?: number },
+  ownedCount: number,
+  loadout: readonly string[],
+  levels: Record<string, number>,
+): void {
+  applyPetMilestone(s, ownedCount);
+  const seen = new Set<string>();
+  for (const id of loadout) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const def = PET_BY_ID[id];
+    if (!def) continue;
+    applyPetBuff(s, def, levels[id] ?? 1);
+  }
 }
 
 // ——————————————————— 碎片与碎片商店 ———————————————————

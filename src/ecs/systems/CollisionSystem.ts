@@ -2,6 +2,7 @@ import { Behavior, type Enemy, type Proj } from '../Components';
 import { damageEnemy, damagePlayer, explode, immuneFor, lastCrit } from '../Damage';
 import type { World } from '../World';
 import type { Vfx } from '../../render/Vfx';
+import { Tex } from '../../render/TexKeys';
 
 /**
  * 碰撞与伤害结算。
@@ -89,7 +90,13 @@ export class CollisionSystem {
             if (dealt <= 0) continue;
 
             this.vfx?.hit(pr.x, pr.y, dealt, lastCrit);
-            this.vfx?.burst(pr.x, pr.y, lastCrit ? 8 : 4, lastCrit ? 0xf5c451 : 0x43e0ff);
+            if (lastCrit) {
+              // 暴击：金色星芒 + 金色冲击环（增强打击感），普通命中维持蓝色圆点
+              this.vfx?.burst(pr.x, pr.y, 8, 0xf5c451, Tex.SparkStar);
+              this.vfx?.ring(pr.x, pr.y, 0xf5c451, 58);
+            } else {
+              this.vfx?.burst(pr.x, pr.y, 4, 0x43e0ff);
+            }
 
             // 溅射（猎杀连锁进化）：explode 内部会再做哈希查询，
             // 必须用独立缓冲 qbuf2，避免覆盖外层正在消费的 qbuf 命中结果

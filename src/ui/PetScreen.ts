@@ -12,6 +12,7 @@ import {
   GACHA_TEN_COST,
   PETS,
   PET_BY_ID,
+  PET_MILESTONES,
   PET_SHOP_COST,
   RARITY_CHANCE,
   RARITY_RANK,
@@ -20,6 +21,7 @@ import {
   dmgFor,
   foodToNext,
   hpFor,
+  petMilestoneTiers,
   petSlotCount,
   rollGacha,
   visualScale,
@@ -31,7 +33,7 @@ import { Storage, type SaveData } from '../save/Storage';
 import { Tex } from '../render/TexKeys';
 import { atlas } from '../render/Textures';
 import { ads } from '../ads/index';
-import { i18nName, rarityLabel, t } from '../i18n';
+import { i18nName, petBuffText, rarityLabel, t } from '../i18n';
 
 type Tab = 'gacha' | 'farm' | 'shop';
 
@@ -380,6 +382,7 @@ export class PetScreen {
           <div class="pet-stat"><b>${Math.round(visualScale(ownedSel, lv) * 100)}%</b><span>${t('pet.statSize')}</span></div>
         </div>
         <p class="pet-rule">${t('pet.growRule', { v: VOL_GROWTH[ownedSel.rarity] })}</p>
+        ${petBuffText(ownedSel) ? `<p class="pet-buff">${t('pet.buffTitle')} · ${petBuffText(ownedSel)}</p>` : ''}
         <button class="btn btn--primary pet-feed" data-feed="${ownedSel.id}">${t('pet.feedNeed', { n: need })}</button>
       `;
       (detail.querySelector('.pet-detail-ico') as HTMLElement).appendChild(atlas.icon(iconOf(ownedSel.id), 72));
@@ -393,6 +396,25 @@ export class PetScreen {
       detail.innerHTML = `<div class="pet-empty">${t('pet.noDetail')}</div>`;
     }
     d.appendChild(detail);
+
+    // 收藏里程碑：拥有宠物数 → 永久经验加成档位（置于右侧详情下方，不干扰左列表/上阵槽网格）
+    {
+      const have = this.save.petsOwned.length;
+      const tiers = petMilestoneTiers(have);
+      const next = PET_MILESTONES[tiers];
+      const m = document.createElement('div');
+      m.className = 'pet-milestone';
+      const chips = PET_MILESTONES.map((need) => {
+        const on = have >= need;
+        return `<span class="pet-mstone-chip${on ? ' is-on' : ''}">${need}</span>`;
+      }).join('');
+      m.innerHTML = `<div class="pet-mstone-head"><b>${t('pet.milestoneTitle')}</b>
+        <span>${t('pet.milestoneTip', { have, tiers })}</span></div>
+        <div class="pet-mstone-bar">${chips}</div>
+        ${next ? `<div class="pet-mstone-next">${t('pet.milestoneNext', { n: next - have })}</div>` : ''}`;
+      d.appendChild(m);
+    }
+
     body.appendChild(d);
   }
 

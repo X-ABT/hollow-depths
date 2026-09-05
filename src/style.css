@@ -1863,6 +1863,12 @@ body.is-touch .hud-zoom {
   color: var(--t-dim);
   line-height: 1.45;
 }
+.shop-item-evo {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--p-amber);
+  line-height: 1.4;
+}
 .shop-item-action {
   flex: none;
   min-width: 96px;
@@ -2272,6 +2278,64 @@ body.is-touch .hud-zoom {
   line-height: 1.6;
   color: var(--t-dim);
   text-align: center;
+}
+.pet-buff {
+  margin: 0 0 12px;
+  padding: 7px 10px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--pet-accent, #8a81a6) 14%, transparent);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--pet-accent, var(--t-bright));
+  text-align: center;
+}
+/* 收藏里程碑：全宽卡片（置于网格末尾，不打断左列表/右详情的两列布局） */
+.pet-milestone {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--glass-hi), var(--glass));
+}
+.pet-mstone-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  font-size: 12px;
+}
+.pet-mstone-head b {
+  color: var(--t-bright);
+}
+.pet-mstone-head > span {
+  font-size: 11px;
+  color: var(--t-dim);
+}
+.pet-mstone-bar {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.pet-mstone-chip {
+  flex: 1;
+  padding: 3px 0;
+  text-align: center;
+  font-size: 11px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--stroke) 60%, transparent);
+  color: var(--t-dim);
+}
+.pet-mstone-chip.is-on {
+  background: color-mix(in srgb, var(--p-amber, #f5c451) 22%, transparent);
+  color: var(--p-amber, #ffdf9e);
+  font-weight: 700;
+}
+.pet-mstone-next {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--t-dim);
+  text-align: right;
 }
 .pet-feed {
   width: 100%;

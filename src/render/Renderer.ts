@@ -294,8 +294,11 @@ export class WorldRenderer {
       s.y = y;
       // 传说专属：极轻微呼吸缩放（仅渲染层，碰撞半径仍由 ECS 的 pe.radius 决定）
       const breathe = PETS[pe.petIdx]?.rarity === 'legend' ? 1 + 0.025 * Math.sin(world.time * 3 + i * 1.3) : 1;
-      s.width = w * breathe;
-      s.height = w * breathe;
+      // 出手顿挫：攻击/受击瞬间（flash>0）短促放大前突，0.16s 内随 flash 衰减
+      const lunge = pe.flash > 0 ? 1 + 0.05 * Math.min(1, pe.flash / 0.16) : 1;
+      const zo = w * breathe * lunge;
+      s.width = zo;
+      s.height = zo;
       if (pe.state === 1) {
         s.alpha = 0.5;
         s.tint = 0x88aaff;

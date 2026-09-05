@@ -15,6 +15,8 @@ interface Particle {
   maxLife: number;
   size: number;
   color: number;
+  /** 形状贴图（Tex.Spark / Tex.SparkStar 等，默认圆点） */
+  tex: number;
   drag: number;
 }
 
@@ -35,11 +37,37 @@ interface Claw {
   life: number;
   maxLife: number;
   size: number;
+  /** 渲染 tint 色（宠物主色） */
+  color: number;
+}
+
+/** 扩散冲击环：短促放大淡出 */
+interface Ring {
+  x: number;
+  y: number;
+  life: number;
+  maxLife: number;
+  /** 目标尺寸（直径放大到多少） */
+  size: number;
+  color: number;
+}
+
+/** 横扫月牙弧：按攻击方向旋转、短暂放大淡出 */
+interface Slash {
+  x: number;
+  y: number;
+  angle: number;
+  life: number;
+  maxLife: number;
+  size: number;
+  color: number;
 }
 
 const MAX_PARTICLES = 700;
 const MAX_TEXTS = 26;
 const MAX_CLAWS = 18;
+const MAX_RINGS = 28;
+const MAX_SLASHES = 12;
 
 /**
  * 特效层：粒子与伤害飘字。
@@ -54,9 +82,21 @@ export class Vfx {
 
   private readonly parts = new Pool<Particle>(MAX_PARTICLES, () => ({
     x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0,
-    life: 0, maxLife: 1, size: 4, color: 0xffffff, drag: 3,
+    life: 0, maxLife: 1, size: 4, color: 0xffffff, tex: Tex.Spark, drag: 3,
   }));
   private readonly pSprites: Sprite[] = [];
+
+  /** 冲击环独立池（避免挤占 700 粒子预算） */
+  private readonly rings = new Pool<Ring>(MAX_RINGS, () => ({
+    x: 0, y: 0, life: 0, maxLife: 1, size: 60, color: 0xffffff,
+  }));
+  private readonly ringSprites: Sprite[] = [];
+
+  /** 横扫弧独立池 */
+  private readonly slashes = new Pool<Slash>(MAX_SLASHES, () => ({
+    x: 0, y: 0, angle: 0, life: 0, maxLife: 0.24, size: 1, color: 0xffffff,
+  }));
+  private readonly slashSprites: Sprite[] = [];
 
   private readonly texts = new Pool<FloatText>(MAX_TEXTS, () => ({
     x: 0, y: 0, vy: -46, life: 0, maxLife: 0.7, value: 0, crit: false,
@@ -67,7 +107,7 @@ export class Vfx {
   private readonly lastCrit: boolean[] = [];
 
   private readonly claws = new Pool<Claw>(MAX_CLAWS, () => ({
-    x: 0, y: 0, life: 0, maxLife: 0.16, size: 1,
+    x: 0, y: 0, life: 0, maxLife: 0.16, size: 1, color: 0xf2f7ff,
   }));
   private readonly cSprites: Sprite[] = [];
 
@@ -91,6 +131,20 @@ export class Vfx {
       // 注意：不能在构造函数里 atlas.get()——Game 字段初始化早于 atlas.build()，
       // 这里纹理会在 render 时按需补齐
       this.cSprites.push(s);
+      this.pLayer.addChild(s);
+    }
+    for (let i = 0; i < MAX_RINGS; i++) {
+      const s = new Sprite();
+      s.anchor.set(0.5);
+      s.visible = false;
+      this.ringSprites.push(s);
+      this.pLayer.addChild(s);
+    }
+    for (let i = 0; i < MAX_SLASHES; i++) {
+      const s = new Sprite();
+      s.anchor.set(0.5);
+      s.visible = false;
+      this.slashSprites.push(s);
       this.pLayer.addChild(s);
     }
     const critStyle: TextStyleOptions = {
@@ -129,9 +183,13 @@ export class Vfx {
     this.parts.clear();
     this.texts.clear();
     this.claws.clear();
+    this.rings.clear();
+    this.slashes.clear();
     for (const s of this.pSprites) s.visible = false;
     for (const t of this.tObjs) t.visible = false;
     for (const s of this.cSprites) s.visible = false;
+    for (const s of this.ringSprites) s.visible = false;
+    for (const s of this.slashSprites) s.visible = false;
     this.hitCounter = 0;
   }
 
@@ -158,7 +216,7 @@ export class Vfx {
     }
   }
 
-  burst(x: number, y: number, count: number, color: number): void {
+  burst(x: number, y: number, count: number, color: number, tex = Tex.Spark): void {
     for (let i = 0; i < count; i++) {
       const p = this.parts.spawn();
       if (!p) return;
@@ -171,11 +229,12 @@ export class Vfx {
       p.life = p.maxLife = 0.22 + Math.random() * 0.3;
       p.size = 3 + Math.random() * 4;
       p.color = color;
+      p.tex = tex;
       p.drag = 5.5;
     }
   }
 
-  explosion(x: number, y: number, count: number, color: number): void {
+  explosion(x: number, y: number, count: number, color: number, tex = Tex.Spark): void {
     for (let i = 0; i < count; i++) {
       const p = this.parts.spawn();
       if (!p) return;
@@ -188,18 +247,43 @@ export class Vfx {
       p.life = p.maxLife = 0.4 + Math.random() * 0.55;
       p.size = 5 + Math.random() * 7;
       p.color = color;
+      p.tex = tex;
       p.drag = 3.2;
     }
   }
 
-  /** 宠物单体爪击：在命中位置亮出醒目的「三条竖线」 */
-  claw(x: number, y: number): void {
+  /** 冲击环：短促扩散放大淡出（命中/死亡/宠物撞击通用） */
+  ring(x: number, y: number, color: number, size = 64): void {
+    const r = this.rings.spawn();
+    if (!r) return;
+    r.x = x;
+    r.y = y;
+    r.life = r.maxLife = 0.3 + Math.random() * 0.12;
+    r.size = size;
+    r.color = color;
+  }
+
+  /** 横扫月牙弧：绕 x,y 旋转 angle（弧度，0=朝右）短暂放大淡出；size 为体型基准（>1 更大） */
+  slash(x: number, y: number, angle: number, color: number, size = 1): void {
+    const s = this.slashes.spawn();
+    if (!s) return;
+    s.x = x;
+    s.y = y;
+    s.angle = angle;
+    s.life = s.maxLife = 0.22;
+    s.size = size * (0.9 + Math.random() * 0.25);
+    s.color = color;
+  }
+
+  /** 宠物单体爪击：在命中位置亮出醒目的「三条竖线」（可按宠物主色染色） */
+  claw(x: number, y: number, color = 0xf2f7ff): void {
     const c = this.claws.spawn();
     if (!c) return;
     c.x = x + (Math.random() - 0.5) * 14;
     c.y = y + (Math.random() - 0.5) * 10;
     c.life = c.maxLife = 0.42;
     c.size = 1.25 + Math.random() * 0.4;
+    c.color = color;
   }
 
   /** 调试：返回当前活跃爪击的世界坐标（验证特效层投影用） */
@@ -237,6 +321,20 @@ export class Vfx {
       if (c.life <= 0) this.claws.releaseAt(i);
     }
 
+    const rg = this.rings.items;
+    for (let i = this.rings.count - 1; i >= 0; i--) {
+      const r = rg[i];
+      r.life -= dt;
+      if (r.life <= 0) this.rings.releaseAt(i);
+    }
+
+    const sl = this.slashes.items;
+    for (let i = this.slashes.count - 1; i >= 0; i--) {
+      const s = sl[i];
+      s.life -= dt;
+      if (s.life <= 0) this.slashes.releaseAt(i);
+    }
+
     const tl = this.texts.items;
     for (let i = this.texts.count - 1; i >= 0; i--) {
       const f = tl[i];
@@ -257,7 +355,8 @@ export class Vfx {
       const p = list[i];
       const s = this.pSprites[i];
       s.visible = true;
-      s.texture = atlas.get(Tex.Spark);
+      const tex = atlas.get(p.tex);
+      if (s.texture !== tex) s.texture = tex;
       s.tint = p.color;
       s.x = p.px + (p.x - p.px) * alpha;
       s.y = p.py + (p.y - p.py) * alpha;
@@ -269,7 +368,7 @@ export class Vfx {
     }
     for (let i = this.parts.count; i < MAX_PARTICLES; i++) this.pSprites[i].visible = false;
 
-    // 爪击三竖线：命中瞬间放大并快速收窄淡出
+    // 爪击三竖线：命中瞬间放大并快速收窄淡出（按宠物主色染色）
     const cl = this.claws.items;
     for (let i = 0; i < this.claws.count; i++) {
       const c = cl[i];
@@ -279,12 +378,48 @@ export class Vfx {
       if (s.texture !== atlas.get(Tex.PetClaw)) s.texture = atlas.get(Tex.PetClaw);
       s.x = c.x;
       s.y = c.y;
-      s.tint = 0xf2f7ff;
+      s.tint = c.color;
       s.alpha = Math.min(1, t * 3);
       const sc = (1.1 + t * 1.0) * c.size;
       s.scale.set(sc, sc);
     }
     for (let i = this.claws.count; i < MAX_CLAWS; i++) this.cSprites[i].visible = false;
+
+    // 冲击环：快速扩散放大 + 淡出
+    const rg = this.rings.items;
+    for (let i = 0; i < this.rings.count; i++) {
+      const r = rg[i];
+      const s = this.ringSprites[i];
+      const t = r.life / r.maxLife;
+      s.visible = true;
+      if (s.texture !== atlas.get(Tex.HitRing)) s.texture = atlas.get(Tex.HitRing);
+      s.x = r.x;
+      s.y = r.y;
+      s.tint = r.color;
+      s.alpha = Math.min(1, t * 2.2);
+      const sz = r.size * (0.4 + (1 - t) * 0.75);
+      s.width = sz;
+      s.height = sz;
+    }
+    for (let i = this.rings.count; i < MAX_RINGS; i++) this.ringSprites[i].visible = false;
+
+    // 横扫弧：按攻击方向旋转、短暂放大淡出
+    const sl = this.slashes.items;
+    for (let i = 0; i < this.slashes.count; i++) {
+      const sk = sl[i];
+      const s = this.slashSprites[i];
+      const t = sk.life / sk.maxLife;
+      s.visible = true;
+      if (s.texture !== atlas.get(Tex.PetSlash)) s.texture = atlas.get(Tex.PetSlash);
+      s.x = sk.x;
+      s.y = sk.y;
+      s.rotation = sk.angle;
+      s.tint = sk.color;
+      s.alpha = Math.min(1, t * 2.5);
+      const sc = (0.9 + (1 - t) * 0.7) * sk.size;
+      s.scale.set(sc, sc);
+    }
+    for (let i = this.slashes.count; i < MAX_SLASHES; i++) this.slashSprites[i].visible = false;
 
     const tl = this.texts.items;
     for (let i = 0; i < this.texts.count; i++) {

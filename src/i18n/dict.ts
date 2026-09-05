@@ -190,6 +190,7 @@ export const DICT: Record<string, DictEntry> = {
   'shop.ownedMax': { zh: '已解锁 · 满级起始 Lv{lv}', en: 'Owned · Max starting Lv {lv}' },
   'shop.upgradeBtn': { zh: '升起始 Lv{from}→{to}', en: 'Raise start Lv {from}→{to}' },
   'shop.soulUnit': { zh: '{n} 灵魂', en: '{n} Souls' },
+  'shop.evoWith': { zh: '可进化「{weapon}」· 需武器与装备均满级', en: 'Evolves {weapon} · requires both weapon & gear maxed' },
 
   // —————————————————— 宠物通用（标签/稀有度/属性）——————————————————
   'rarity.common': { zh: '普通', en: 'Common' },
@@ -243,6 +244,19 @@ export const DICT: Record<string, DictEntry> = {
     zh: '每升 1 级：体积 +{v} · 血量 +1 · 伤害 +1',
     en: 'Per level: Size +{v} · HP +1 · DMG +1',
   },
+  'pet.buffTitle': { zh: '上阵增益', en: 'Deployed Bonus' },
+  'pet.buffDamage': { zh: '伤害 +{p}%/级', en: '+{p}% DMG / lvl' },
+  'pet.buffFireRate': { zh: '攻速 +{p}%/级', en: '+{p}% Atk Speed / lvl' },
+  'pet.buffXp': { zh: '经验 +{p}%/级', en: '+{p}% XP / lvl' },
+  'pet.buffSpeed': { zh: '移速 +{p}%/级', en: '+{p}% Move Speed / lvl' },
+  'pet.buffRegen': { zh: '每秒回血 +{p}/级', en: '+{p} HP/s / lvl' },
+  'pet.buffMaxHp': { zh: '生命上限 +{p}/级', en: '+{p} Max HP / lvl' },
+  'pet.milestoneTitle': { zh: '收藏里程碑', en: 'Collection Milestones' },
+  'pet.milestoneTip': {
+    zh: '拥有 {have} 只 · 每解锁一档：经验永久 +1%（档位可叠加，当前 {tiers} 档）',
+    en: '{have} owned · each tier: +1% XP forever (stacking; {tiers} tier(s) active)',
+  },
+  'pet.milestoneNext': { zh: '距离下一档还差 {n} 只', en: '{n} more to next tier' },
   'pet.statVol': { zh: '体积', en: 'Size' },
   'pet.drawResultFood': { zh: '宠物粮 ×{n}', en: 'Pet Food ×{n}' },
   'pet.drawResultNew': { zh: '{name}（新获得！）', en: '{name} (NEW!)' },

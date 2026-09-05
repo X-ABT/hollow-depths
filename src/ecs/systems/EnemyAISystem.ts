@@ -49,9 +49,10 @@ export class EnemyAISystem {
     this.vfx = vfx;
   }
 
-  /** Boss 技能安全间歇（秒），2~3s 随机 */
-  private gap(rng: World['rng']): number {
-    return SKILL_GAP[0] + rng.next() * (SKILL_GAP[1] - SKILL_GAP[0]);
+  /** Boss 技能安全间歇（秒），2~3s 随机；按 e.castMul（>1 = 更高轮次 Boss）缩短出招频率 */
+  private gap(rng: World['rng'], e: Enemy): number {
+    const base = SKILL_GAP[0] + rng.next() * (SKILL_GAP[1] - SKILL_GAP[0]);
+    return base / e.castMul;
   }
   update(world: World, dt: number): void {
     const list = world.enemies.items;
@@ -237,7 +238,7 @@ export class EnemyAISystem {
                 }
                 this.vfx?.burst(e.x, e.y, 10, 0x7c5cff);
                 this.vfx?.explosion(e.x, e.y, 8, 0x7c5cff);
-                e.timer = this.gap(rng);
+                e.timer = this.gap(rng, e);
               }
             } else if (e.timer <= 0) {
               // 进入 0.7s 蓄力警示
@@ -271,7 +272,7 @@ export class EnemyAISystem {
                   pr.rotSpeed = -0.4;
                 });
                 this.vfx?.burst(e.tx, e.ty, 12, 0x43e0ff);
-                e.timer = this.gap(rng);
+                e.timer = this.gap(rng, e);
               }
             } else if (e.timer <= 0) {
               // 锁落点为玩家当前位置，进入更长的落点警示，给足走位反应时间
@@ -296,7 +297,7 @@ export class EnemyAISystem {
                   this.vfx?.burst(e.x, e.y, 8, 0xff5470);
                 }
               } else if (e.timer <= 0) {
-                e.timer = this.gap(rng);
+                e.timer = this.gap(rng, e);
                 e.cast = CAST_WINDOW;
               }
             } else {
@@ -343,7 +344,7 @@ export class EnemyAISystem {
                 });
               }
               this.vfx?.burst(e.x, e.y, 8, 0xff5470);
-              e.timer = this.gap(rng);
+              e.timer = this.gap(rng, e);
             }
           } else {
             e.timer -= dt;
@@ -388,7 +389,7 @@ export class EnemyAISystem {
                   });
                 }
                 this.vfx?.burst(e.x, e.y, 6, 0xf5c451);
-                e.sub = this.gap(rng);
+                e.sub = this.gap(rng, e);
               }
             } else if (e.sub > 0) {
               e.sub -= dt;
@@ -441,7 +442,7 @@ export class EnemyAISystem {
                   });
                 }
                 this.vfx?.burst(e.x, e.y, 6, 0x43e0ff);
-                e.sub = this.gap(rng);
+                e.sub = this.gap(rng, e);
               }
             } else if (e.sub > 0) {
               e.sub -= dt;
@@ -492,7 +493,7 @@ export class EnemyAISystem {
                   });
                 }
                 this.vfx?.burst(e.x, e.y, 6, 0xf5c451);
-                e.sub = this.gap(rng);
+                e.sub = this.gap(rng, e);
               }
             } else if (e.sub > 0) {
               e.sub -= dt;
@@ -574,12 +575,17 @@ export class EnemyAISystem {
                 }
               }
               this.vfx?.burst(cx, cy, 9, 0x43e0ff);
-              e.timer = this.gap(rng);
+              e.timer = this.gap(rng, e);
             }
-          } else if (e.timer <= 0) {
-            e.cast = CAST_WINDOW;
-            e.tx = p.x;
-            e.ty = p.y;
+          } else {
+            // 非蓄力期：技能冷却递减（泣灵原版漏掉这行递减，导致只放一轮就永久停摆，
+            // 也让本轮新增的 castMul 技能加速对泣灵完全失效）
+            e.timer -= dt;
+            if (e.timer <= 0) {
+              e.cast = CAST_WINDOW;
+              e.tx = p.x;
+              e.ty = p.y;
+            }
           }
           break;
         }
@@ -622,7 +628,8 @@ export class EnemyAISystem {
                 }
               }
               this.vfx?.burst(e.tx, e.ty, 10, 0xff5470);
-              e.timer = def.p0;
+              // 渊喉全屏脉冲间隔：随 castMul 缩短（更高轮次 Boss 出招更频繁）
+              e.timer = def.p0 / e.castMul;
             }
           } else {
             e.timer -= dt;

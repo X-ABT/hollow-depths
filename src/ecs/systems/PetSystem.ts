@@ -1,5 +1,6 @@
 import { TAU } from '../../core/MathUtil';
-import { damageEnemy } from '../Damage';
+import { damageEnemy, explode } from '../Damage';
+import { PETS, petAtkFor, petFxColor } from '../../data/pets';
 import type { Pet, World } from '../World';
 import type { Vfx } from '../../render/Vfx';
 
@@ -26,6 +27,20 @@ const PET_HURT_CD = 0.6;
 const PET_FORM_R = 52;
 /** 宠物专属伤害来源（3000 + 槽位），避免与武器投射物 srcId 冲突 */
 const PET_SRC_BASE = 3000;
+/** sweep 扇形半角（弧度）：横扫覆盖主目标朝向两侧的范围 */
+const SWEEP_HALF_ANGLE = 0.95;
+/** sweep 扫击额外范围（相对 reach 的延伸） */
+const SWEEP_RANGE_EXTRA = 110;
+/** sweep 副目标伤害折算（主目标满伤，群怪收益在数量上） */
+const SWEEP_SUB_DMG = 0.6;
+/** smash 爆震半径相对 reach 的比例 */
+const SMASH_RADIUS_RATIO = 0.9;
+/** smash 最小半径（小体型宠保底，避免贴脸无圈） */
+const SMASH_RADIUS_MIN = 34;
+/** 横扫弧的基础视觉尺寸（随宠物体积微调，超巨兽不至于盖屏） */
+function slashSize(scale: number): number {
+  return Math.min(2.1, 0.9 + scale * 0.06);
+}
 
 export class PetSystem {
   private vfx: Vfx | null = null;
@@ -105,20 +120,56 @@ export class PetSystem {
             if (pet.atkCd <= 0) {
               pet.atkCd = PET_ATK_BASE + Math.min(0.9, pet.scale * PET_ATK_PER_SCALE);
               pet.flash = 0.14;
-              // 单体爪击：只打选定的最优目标，命中位置亮「三条竖线」
-              const dealt = damageEnemy(
-                world,
-                e,
-                pet.dmg,
-                PET_SRC_BASE + pet.slot,
-                -1,
-                0.45,
-                0,
-                1,
-              );
-              if (dealt > 0) {
-                this.vfx?.claw(e.x, e.y);
-                this.vfx?.hit(e.x, e.y - 10, dealt, false);
+              const def = PETS[pet.petIdx] ?? PETS[0];
+              const fxColor = petFxColor(def);
+              const src = PET_SRC_BASE + pet.slot;
+              const atk = petAtkFor(def);
+              if (atk === 'sweep') {
+                // —— 扇形横扫：主目标满伤，横扫范围内朝向一致的敌人 0.6 ——
+                const dealt = damageEnemy(world, e, pet.dmg, src, -1, 0.45, 0, 1);
+                if (dealt > 0) {
+                  // 沿宠物→主目标方向亮出月牙弧
+                  const ang = Math.atan2(e.y - pet.y, e.x - pet.x);
+                  this.vfx?.slash(e.x, e.y, ang, fxColor, slashSize(pet.scale));
+                  this.vfx?.hit(e.x, e.y - 10, dealt, false);
+                }
+                // 扇形副目标判定：扫击沿宠物指向主目标方向的锥区（主目标已满伤，其余 0.6）
+                {
+                  const range = reach + SWEEP_RANGE_EXTRA;
+                  const found2 = world.hash.query(pet.x, pet.y, range, this.qbuf);
+                  const base = Math.atan2(e.y - pet.y, e.x - pet.x);
+                  for (let k = 0; k < found2; k++) {
+                    const o = world.enemies.items[this.qbuf[k]];
+                    if (!o || o.dead || o === e) continue;
+                    const ox = o.x - pet.x;
+                    const oy = o.y - pet.y;
+                    const od = Math.hypot(ox, oy) || 1;
+                    if (od > range + o.radius) continue;
+                    // 角度差归一化后判断是否落在横扫锥区
+                    let diff = Math.atan2(oy, ox) - base;
+                    while (diff > Math.PI) diff -= TAU;
+                    while (diff < -Math.PI) diff += TAU;
+                    if (Math.abs(diff) > SWEEP_HALF_ANGLE) continue;
+                    const dealt2 = damageEnemy(world, o, pet.dmg * SWEEP_SUB_DMG, src, -1, 0.45, 0, 1);
+                    if (dealt2 > 0) this.vfx?.hit(o.x, o.y - 10, dealt2, false);
+                  }
+                }
+              } else if (atk === 'smash') {
+                // —— 小范围拍击：以主目标为中心爆震（距离衰减由 explode 自带）——
+                const rad = Math.max(SMASH_RADIUS_MIN, reach * SMASH_RADIUS_RATIO);
+                const total = explode(world, e.x, e.y, rad, pet.dmg, src, -1, 0, 1, 0, 0, world.qbuf2);
+                if (total > 0) {
+                  this.vfx?.ring(e.x, e.y, fxColor, rad * 2);
+                  this.vfx?.burst(e.x, e.y, 6, fxColor);
+                  this.vfx?.hit(e.x, e.y - 10, total, false);
+                }
+              } else {
+                // —— 单体撕咬（bite）：只打最优目标，命中位置亮染色「三条竖线」——
+                const dealt = damageEnemy(world, e, pet.dmg, src, -1, 0.45, 0, 1);
+                if (dealt > 0) {
+                  this.vfx?.claw(e.x, e.y, fxColor);
+                  this.vfx?.hit(e.x, e.y - 10, dealt, false);
+                }
               }
             }
           } else {

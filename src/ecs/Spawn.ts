@@ -97,6 +97,7 @@ export function spawnEnemy(
   e.growT = gen;
   e.angle = 0;
   e.cast = 0;
+  e.castMul = 1; // 技能频率系数：池复用重置，防上一只无尽 Boss 的加速残留到普通怪
   e.sub = 0;
   e.tx = 0;
   e.ty = 0;

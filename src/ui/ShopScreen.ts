@@ -145,11 +145,13 @@ export class ShopScreen {
     const el = document.createElement('div');
     el.className = 'shop-item' + (owned ? ' shop-item--owned' : '');
     const base = this.baseLevel(def.id, 'passive');
+    const partner = WEAPONS.find((w) => w.evolveWith === def.id);
     el.innerHTML = `
       <div class="shop-item-icon"></div>
       <div class="shop-item-info">
         <div class="shop-item-name">${i18nName(def)}<span class="shop-item-tag">${t('shop.tagGear')}</span></div>
         <div class="shop-item-desc">${t('shop.itemDesc', { desc: i18nDesc(def), max: def.maxLevel, base })}</div>
+        ${partner ? `<div class="shop-item-evo">${t('shop.evoWith', { weapon: i18nName(partner) })}</div>` : ''}
       </div>
     `;
     (el.querySelector('.shop-item-icon') as HTMLElement).appendChild(atlas.icon(def.icon, 36));

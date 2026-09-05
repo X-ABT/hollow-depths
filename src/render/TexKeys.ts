@@ -68,7 +68,14 @@ export const enum Tex {
   /** 渊喉 Boss（无尽幽墟） */
   BossMaw = 59,
 
-  COUNT = 60,
+  /** 暴击星芒：四向光芒 + 发光核（白色主体，运行期 tint） */
+  SparkStar = 60,
+  /** 命中冲击环：中空扩散环带柔光（白色主体，运行期 tint） */
+  HitRing = 61,
+  /** 宠物横扫弧：横向月牙弧（飞翼系/扫击专用，白色主体，运行期 tint） */
+  PetSlash = 62,
+
+  COUNT = 63,
 }
 
 export const TEX_SIZE = 64;

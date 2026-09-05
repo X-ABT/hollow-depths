@@ -33,8 +33,9 @@ export class CleanupSystem {
       world.soulCents += e.isBoss ? 1000 : e.isElite ? 10 : 1;
 
       if (e.isBoss) {
-        // Boss：大爆炸 + 五个技能宝箱 + 全屏吸经验；无尽模式不再清空其余小怪
+        // Boss：大爆炸 + 金色冲击环 + 五个技能宝箱 + 全屏吸经验；无尽模式不再清空其余小怪
         this.vfx?.explosion(e.x, e.y, 46, 0xf5c451);
+        this.vfx?.ring(e.x, e.y, 0xf5c451, 150);
         for (let k = 0; k < 5; k++) {
           const a = (k / 5) * Math.PI * 2;
           spawnPickup(world, PickupKind.Chest, 1, e.x + Math.cos(a) * 46, e.y + Math.sin(a) * 46);
@@ -50,6 +51,7 @@ export class CleanupSystem {
       } else if (e.isElite) {
         // 精英（含深渊炮手）：不给宝箱，爆 5~7 颗黄色经验宝石（value>6 → 大经验渲染）
         this.vfx?.explosion(e.x, e.y, 18, 0xffd97a);
+        this.vfx?.ring(e.x, e.y, 0xffd97a, 92);
         const n = 5 + ((world.rng.next() * 3) | 0); // 5..7
         for (let k = 0; k < n; k++) {
           const a = (k / n) * Math.PI * 2;

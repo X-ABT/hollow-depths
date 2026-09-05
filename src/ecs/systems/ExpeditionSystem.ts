@@ -1,6 +1,16 @@
 import { Ai } from '../Components';
 import type { Enemy, Pet, World } from '../World';
-import { PETS, dmgFor, hpFor, skillFor, visualScale, type PetDef, type PetSkill } from '../../data/pets';
+import {
+  PETS,
+  EXPEDITION_BUFF_KINDS,
+  dmgFor,
+  hpFor,
+  petBuffFor,
+  skillFor,
+  visualScale,
+  type PetDef,
+  type PetSkill,
+} from '../../data/pets';
 import { stagePlan, type StagePlan } from '../../data/expedition';
 import { spawnEnemyById } from '../Spawn';
 import { damageEnemy, explode } from '../Damage';
@@ -76,6 +86,10 @@ export class ExpeditionSystem {
   private skillLevel = 0;
   private heroDmg = 3;
   private hero: Pet | null = null;
+  /** 宠物增益子集落地：攻速后的英雄平A间隔（默认 EXP_ATK_INTERVAL） */
+  private heroAtkInterval = EXP_ATK_INTERVAL;
+  /** 宠物回血增益子集落地：英雄每秒恢复量 */
+  private heroRegen = 0;
 
   private stage = 1;
   private queue: string[] = [];
@@ -98,6 +112,19 @@ export class ExpeditionSystem {
     this.skillLevel = skillLevel;
     this.heroDmg = dmgFor(def, petLevel);
 
+    // 宠物增益子集（远征英雄=所选宠物自身）：伤害/攻速/回血/生命上限生效，经验/移速无意义跳过
+    this.heroAtkInterval = EXP_ATK_INTERVAL;
+    this.heroRegen = 0;
+    let heroMaxHpBonus = 0;
+    const buff = petBuffFor(def);
+    if (buff && EXPEDITION_BUFF_KINDS.has(buff.kind)) {
+      const v = buff.perLevel * petLevel;
+      if (buff.kind === 'damage') this.heroDmg *= 1 + v;
+      else if (buff.kind === 'fireRate') this.heroAtkInterval = EXP_ATK_INTERVAL / (1 + v);
+      else if (buff.kind === 'regen') this.heroRegen = v;
+      else if (buff.kind === 'maxHp') heroMaxHpBonus = v;
+    }
+
     // 英雄宠物
     const scale = visualScale(def, petLevel);
     const petIdx = Math.max(0, PETS.findIndex((p) => p.id === def.id));
@@ -109,7 +136,7 @@ export class ExpeditionSystem {
       p.y = p.py = HERO_Y;
       p.vx = 0;
       p.vy = 0;
-      p.maxHp = hpFor(def, petLevel) * EXP_HP_MUL;
+      p.maxHp = hpFor(def, petLevel) * EXP_HP_MUL + heroMaxHpBonus;
       p.hp = p.maxHp;
       p.dmg = this.heroDmg;
       p.scale = scale;
@@ -228,6 +255,10 @@ export class ExpeditionSystem {
 
     // ——— 英雄自动平A 最近敌宠 ———
     if (hero) {
+      // 回血增益子集：每秒恢复 heroRegen（随伤害结算前恢复，防止濒死被连跳击杀不公平）
+      if (this.heroRegen > 0 && hero.hp > 0 && hero.hp < hero.maxHp) {
+        hero.hp = Math.min(hero.maxHp, hero.hp + this.heroRegen * dt);
+      }
       hero.atkCd -= dt;
       if (hero.atkCd <= 0) {
         let best = -1;
@@ -250,7 +281,7 @@ export class ExpeditionSystem {
             this.vfx?.claw(e.x, e.y);
             this.vfx?.hit(e.x, e.y - 10, dealt, false, true);
           }
-          hero.atkCd = EXP_ATK_INTERVAL;
+          hero.atkCd = this.heroAtkInterval;
         }
       }
 
