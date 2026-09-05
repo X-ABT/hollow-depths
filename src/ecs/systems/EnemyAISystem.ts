@@ -22,6 +22,9 @@ const SKILL_GAP: readonly [number, number] = [2.0, 3.0];
 const ENDLESS_INVULN = 15;
 /** 终焉破防窗口时长（秒）：窗口内可被击杀；超时未击杀则再次进入无敌（循环） */
 const ENDLESS_OPEN = 30;
+/** 亡魂 / 幻影 总表下标（新 Boss 召唤用，避免硬编码下标） */
+const WR_INDEX = ENEMY_BY_INDEX.findIndex((d) => d.id === 'wraith');
+const PH_INDEX = ENEMY_BY_INDEX.findIndex((d) => d.id === 'phantom');
 
 /**
  * 敌人 AI + 分离力 + 位移积分。
@@ -116,11 +119,10 @@ export class EnemyAISystem {
             e.radius = def.radius * e.scale;
             // 伤害固定不成长（只长体型与血量）
           }
-          // 被动型：未受到伤害时原地不动；挨过打（aggro）才开始追击玩家
-          if (e.aggro > 0) {
-            vx = nx * speed;
-            vy = ny * speed;
-          }
+          // 史莱姆：未受击时缓慢向角色蠕动（约 1/3 速）；受到伤害（aggro）后恢复正常追击速度
+          const moveMul = e.aggro > 0 ? 1 : 0.32;
+          vx = nx * speed * moveMul;
+          vy = ny * speed * moveMul;
           break;
         }
 
@@ -322,6 +324,45 @@ export class EnemyAISystem {
         }
 
         case Ai.BossEndless: {
+          // 无尽幽墟：终焉不做无敌/场地收缩循环，保持可击杀并持续锥形弹压制（标准局走下方原逻辑）
+          if (world.endless) {
+            vx = nx * speed;
+            vy = ny * speed;
+            if (e.cast > 0) {
+              e.cast -= dt;
+              if (e.cast <= 0) {
+                e.cast = 0;
+                const shots = 8;
+                const base = Math.atan2(dy, dx);
+                for (let k = 0; k < shots; k++) {
+                  const a = base + (k - (shots - 1) / 2) * 0.18;
+                  spawnProj(world, (pr) => {
+                    pr.behavior = Behavior.Linear;
+                    pr.hostile = 1;
+                    pr.x = pr.px = e.x;
+                    pr.y = pr.py = e.y;
+                    pr.vx = Math.cos(a) * 260;
+                    pr.vy = Math.sin(a) * 260;
+                    pr.radius = 11;
+                    pr.damage = 20;
+                    pr.life = pr.maxLife = 4;
+                    pr.pierce = 1;
+                    pr.srcId = 700 + i * 3 + k;
+                    pr.spriteKey = 14; // Tex.Shard
+                    pr.rot = a;
+                    pr.rotSpeed = 3;
+                  });
+                }
+                this.vfx?.burst(e.x, e.y, 6, 0xf5c451);
+                e.sub = this.gap(rng);
+              }
+            } else if (e.sub > 0) {
+              e.sub -= dt;
+            } else {
+              e.cast = CAST_WINDOW;
+            }
+            break;
+          }
           // 终焉：无敌 15s（环向弹幕、边界固定 900）↔ 破防 30s（近身锥形弹、可被击杀）循环
           if (e.state === 1) {
             // —— 无敌阶段：不受伤害（Damage 已拦截），只能躲避；边界固定 900 不再收缩 ——
@@ -423,6 +464,138 @@ export class EnemyAISystem {
               e.sub -= dt;
             } else {
               e.cast = CAST_WINDOW;
+            }
+          }
+          break;
+        }
+
+        case Ai.BossLament: {
+          // 泣灵：缓慢逼近，按血量阶段组合「螺旋弹幕 / 地面伤害区 / 召唤」
+          const ratio = e.hp / e.maxHp;
+          const phase = ratio > def.p0 ? 0 : ratio > def.p1 ? 1 : 2;
+          if (phase !== e.phase) {
+            e.phase = phase;
+            e.timer = 1.0;
+          }
+          vx = nx * speed * 0.55;
+          vy = ny * speed * 0.55;
+          if (e.cast > 0) {
+            e.cast -= dt;
+            if (e.cast <= 0) {
+              e.cast = 0;
+              const cx = e.x;
+              const cy = e.y;
+              // 阶段 1 起：在锁定的玩家附近布 2 个地面伤害区（逼走位）
+              if (phase >= 1) {
+                for (let k = 0; k < 2; k++) {
+                  const ox = (rng.next() * 2 - 1) * 170;
+                  const oy = (rng.next() * 2 - 1) * 170;
+                  spawnProj(world, (pr) => {
+                    pr.behavior = Behavior.Field;
+                    pr.hostile = 1;
+                    pr.x = pr.px = e.tx + ox;
+                    pr.y = pr.py = e.ty + oy;
+                    pr.radius = 100;
+                    pr.damage = 0;
+                    pr.dotDps = 11;
+                    pr.slowF = 1;
+                    pr.life = pr.maxLife = 2.4;
+                    pr.pierce = 9999;
+                    pr.srcId = 500 + i * 2 + k;
+                    pr.spriteKey = 17; // Tex.Frost
+                    pr.scale = 1.1;
+                    pr.rotSpeed = 0.3;
+                  });
+                }
+              }
+              // 阶段 0/1：旋转增量式环形弹幕
+              if (phase <= 1) {
+                const shots = 10 + phase * 4;
+                for (let k = 0; k < shots; k++) {
+                  const a = (k / shots) * TAU + e.angle;
+                  spawnProj(world, (pr) => {
+                    pr.behavior = Behavior.Linear;
+                    pr.hostile = 1;
+                    pr.x = pr.px = cx;
+                    pr.y = pr.py = cy;
+                    pr.vx = Math.cos(a) * 190;
+                    pr.vy = Math.sin(a) * 190;
+                    pr.radius = 10;
+                    pr.damage = def.damage * 0.8;
+                    pr.life = pr.maxLife = 4.5;
+                    pr.pierce = 1;
+                    pr.srcId = 510 + i * 2 + k;
+                    pr.spriteKey = 14; // Tex.Shard
+                    pr.rot = a;
+                    pr.rotSpeed = 4;
+                  });
+                }
+                e.angle += 0.35;
+              }
+              // 阶段 2：召唤 2 只亡魂护卫
+              if (phase === 2 && WR_INDEX >= 0) {
+                for (let k = 0; k < 2; k++) {
+                  const a = (k / 2) * TAU + 0.5;
+                  spawnEnemy(world, WR_INDEX, cx + Math.cos(a) * 70, cy + Math.sin(a) * 70, 3.2, 1);
+                }
+              }
+              this.vfx?.burst(cx, cy, 9, 0x43e0ff);
+              e.timer = this.gap(rng);
+            }
+          } else if (e.timer <= 0) {
+            e.cast = CAST_WINDOW;
+            e.tx = p.x;
+            e.ty = p.y;
+          }
+          break;
+        }
+
+        case Ai.BossMaw: {
+          // 渊喉：缓慢逼近 + 全屏预警脉冲 + 周期性召唤幻影
+          vx = nx * speed * 0.7;
+          vy = ny * speed * 0.7;
+          if (e.cast > 0) {
+            e.cast -= dt;
+            if (e.cast <= 0) {
+              e.cast = 0;
+              const cx = e.x;
+              const cy = e.y;
+              // 锁定落点处布一大一小两个预警爆圈
+              for (let k = 0; k < 2; k++) {
+                const ox = k === 0 ? 0 : rng.range(-140, 140);
+                const oy = k === 0 ? 0 : rng.range(-140, 140);
+                spawnProj(world, (pr) => {
+                  pr.behavior = Behavior.Telegraph;
+                  pr.hostile = 1;
+                  pr.x = pr.px = e.tx + ox;
+                  pr.y = pr.py = e.ty + oy;
+                  pr.radius = k === 0 ? 170 : 120;
+                  pr.damage = def.damage;
+                  pr.r0 = pr.radius;
+                  pr.r1 = pr.radius;
+                  pr.life = pr.maxLife = def.p1;
+                  pr.pierce = 9999;
+                  pr.srcId = 400 + i * 2 + k;
+                  pr.spriteKey = 26; // Tex.Ring
+                  pr.scale = 1.05;
+                });
+              }
+              // 每隔一轮召唤 2 只幻影护卫
+              if ((e.sub++ & 1) === 0 && PH_INDEX >= 0) {
+                for (let k = 0; k < 2; k++) {
+                  const a = rng.next() * TAU;
+                  spawnEnemy(world, PH_INDEX, cx + Math.cos(a) * 80, cy + Math.sin(a) * 80, 3.0, 1);
+                }
+              }
+              this.vfx?.burst(e.tx, e.ty, 10, 0xff5470);
+              e.timer = def.p0;
+            }
+          } else {
+            e.timer -= dt;
+            if (e.timer <= 0) {
+              e.cast = CAST_WINDOW;
+              e.tx = p.x;
+              e.ty = p.y;
             }
           }
           break;

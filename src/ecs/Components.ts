@@ -20,6 +20,8 @@ export const enum Ai {
   BossCalamity = 9, // 灾厄：全屏预警 AOE
   BossEndless = 10, // 终焉：边界收缩 + 弹幕
   Gunner = 11, // 深渊炮手（精英）：朝玩家周期发射弹幕
+  BossLament = 12, // 泣灵（无尽）：螺旋弹幕 + 地面伤害区
+  BossMaw = 13, // 渊喉（无尽）：全屏脉冲 + 召唤幻影
 }
 
 /** 投射物行为 */

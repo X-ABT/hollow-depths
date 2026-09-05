@@ -109,6 +109,15 @@ export class Game {
   private bossTimer = 0;
   /** 是否触屏/手机端：初始视野 0.5、可缩放到 0.3 */
   private mobile = false;
+  /** 无尽幽墟模式：true 时 Boss 定时刷新 / 击杀不清屏 / 无胜利目标（死亡结算） */
+  private endless = false;
+  /** 自适应渲染分辨率档位（从设备基准逐级下调；低帧持续则自动降档，回升再恢复） */
+  private resSteps: readonly number[] = [];
+  private resLevel = 0;
+  private perfAcc = 0;
+  private perfFrames = 0;
+  private lowT = 0;
+  private highT = 0;
 
   /** 该设备的默认视野倍率：手机 0.5，桌面 1.0（重置视野也回到它） */
   private get defaultZoom(): number {
@@ -120,6 +129,16 @@ export class Game {
   constructor(app: Application, uiRoot: HTMLElement) {
     this.app = app;
     this.uiRoot = uiRoot;
+    // 画质档位：以初始 devicePixelRatio（≤2）为基准，逐级向下到约 0.6
+    {
+      const base = Math.min(window.devicePixelRatio || 1, 2);
+      const steps: number[] = [base];
+      for (const v of [1.5, 1.25, 1, 0.85, 0.7, 0.6]) {
+        if (v < steps[steps.length - 1] - 0.01) steps.push(v);
+      }
+      if (steps.length < 2) steps.push(0.7);
+      this.resSteps = steps;
+    }
     this.hud = new Hud(uiRoot);
     this.hud.onZoomIn = () => this.renderer.setZoom(this.renderer.zoom + 0.15);
     this.hud.onZoomOut = () => this.renderer.setZoom(this.renderer.zoom - 0.15);
@@ -158,6 +177,8 @@ export class Game {
     });
     this.cleanup.onBossKilled = (name) => {
       this.camera.addShake(22);
+      // 无尽幽墟：Boss 由定时调度接管，无胜利目标，也不启用古神后剧情开关
+      if (this.endless) return;
       // 击败古神：开启深渊炮手的周期刷新（Boss 存活期间暂停）
       if (name === 'herald') this.spawn.onHeraldDown();
       // Boss 已死 → 安排下一个 Boss 在 4 分钟后出现（终焉被击败即通关，无需再排）
@@ -359,7 +380,7 @@ export class Game {
     // 标题页/结算页不播战斗 BGM
     this.bgm.stop();
     this.title.show(this.uiRoot, this.save, {
-      onStart: () => this.startRun(),
+      onStart: (mode) => this.startRun(mode === 'endless'),
       onClearData: () => {
         Storage.reset();
         location.reload();
@@ -411,7 +432,7 @@ export class Game {
     });
   }
 
-  startRun(): void {
+  startRun(endless = false): void {
     this.title.hide();
     this.gameOver.hide();
     this.levelUp.hide();
@@ -420,18 +441,27 @@ export class Game {
     this.bgm.start();
 
     this.world.reset((Math.random() * 0xffffffff) >>> 0);
+    this.endless = endless;
+    this.world.endless = endless;
     this.build = new Build(DEFAULT_CHARACTER, {
       weapons: this.save.weaponLevels,
       passives: this.save.passiveLevels,
     });
     this.build.addWeapon(DEFAULT_CHARACTER.startWeapon);
     this.weapon.reset();
-    this.spawn.reset();
+    this.spawn.reset(this.world);
     this.pickup.reset();
     this.vfx.reset();
     this.hud.reset();
     this.hud.setVisible(true);
-    // 每局重置视野到该设备默认倍率（手机 0.5 / 桌面 1.0）
+    this.hud.setMode(endless);
+    // 每局重置视野与自适应分辨率到该设备基准（手机视野 0.5 / 桌面 1.0）
+    this.resLevel = 0;
+    this.perfAcc = 0;
+    this.perfFrames = 0;
+    this.lowT = 0;
+    this.highT = 0;
+    this.applyResolution();
     this.renderer.setZoom(this.defaultZoom);
     this.hud.setZoomLabel(this.defaultZoom);
 
@@ -665,7 +695,7 @@ export class Game {
     this.gameOver.show(
       this.uiRoot,
       result,
-      () => this.startRun(),
+      () => this.startRun(this.endless),
       () => this.showTitle(),
       () => this.copyResult(result),
     );
@@ -881,8 +911,8 @@ export class Game {
       this.endRun(false);
       return;
     }
-    // 宽限时间上限兜底：未击败终焉却撑满时长 → 判失败
-    if (world.time >= RUN_SECONDS) {
+    // 宽限时间上限兜底：未击败终焉却撑满时长 → 判失败（无尽模式无上限，直到角色死亡）
+    if (!world.endless && world.time >= RUN_SECONDS) {
       this.endRun(false);
       return;
     }
@@ -893,7 +923,53 @@ export class Game {
 
   // ——————————————————— 每渲染帧 ———————————————————
 
+  /** 自适应渲染分辨率：低帧持续 3s 降一档，帧率稳定回升 8s 再恢复一档（仅对局中） */
+  private adaptQuality(fps: number): void {
+    if (this.state !== 'playing' && this.state !== 'levelup') return;
+    if (fps < 40) {
+      this.lowT++;
+      this.highT = 0;
+    } else if (fps > 56) {
+      this.highT++;
+      this.lowT = 0;
+    } else {
+      this.lowT = 0;
+      this.highT = 0;
+    }
+    if (this.lowT >= 3 && this.resLevel < this.resSteps.length - 1) {
+      this.resLevel++;
+      this.lowT = 0;
+      this.applyResolution();
+    } else if (this.highT >= 8 && this.resLevel > 0) {
+      this.resLevel--;
+      this.highT = 0;
+      this.applyResolution();
+    }
+  }
+
+  private applyResolution(): void {
+    if (this.resSteps.length === 0) return;
+    const target = this.resSteps[this.resLevel];
+    if (Math.abs(this.app.renderer.resolution - target) < 0.001) return;
+    try {
+      this.app.renderer.resolution = target;
+      this.app.renderer.resize(window.innerWidth, window.innerHeight);
+      this.renderer.resize(this.app.screen.width, this.app.screen.height);
+    } catch {
+      /* 降载失败不影响游戏运行 */
+    }
+  }
+
   private render(alpha: number, frameDt: number): void {
+    // 帧率统计：每秒采样一次，驱动自适应渲染分辨率（低帧降档、恢复升档）
+    this.perfAcc += frameDt;
+    this.perfFrames++;
+    if (this.perfAcc >= 1) {
+      const fps = this.perfFrames / this.perfAcc;
+      this.perfAcc = 0;
+      this.perfFrames = 0;
+      this.adaptQuality(fps);
+    }
     const w = this.app.screen.width;
     const h = this.app.screen.height;
     // 宠物园打开时：隐藏世界/特效层仍在绘制但不可见；推进公园待机动画

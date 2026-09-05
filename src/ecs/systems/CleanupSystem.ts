@@ -1,5 +1,6 @@
 import { PickupKind, type Enemy } from '../Components';
 import { spawnPickup } from '../Spawn';
+import { ENEMY_BY_INDEX } from '../../data/enemies';
 import type { World } from '../World';
 import type { Vfx } from '../../render/Vfx';
 
@@ -32,8 +33,7 @@ export class CleanupSystem {
       world.soulCents += e.isBoss ? 1000 : e.isElite ? 10 : 1;
 
       if (e.isBoss) {
-        // Boss：大爆炸 + 五个技能宝箱 + 全屏吸经验 + 清空其余小怪
-        this.wipeAfterBoss = true;
+        // Boss：大爆炸 + 五个技能宝箱 + 全屏吸经验；无尽模式不再清空其余小怪
         this.vfx?.explosion(e.x, e.y, 46, 0xf5c451);
         for (let k = 0; k < 5; k++) {
           const a = (k / 5) * Math.PI * 2;
@@ -43,7 +43,10 @@ export class CleanupSystem {
         for (let k = 0; k < world.pickups.count; k++) {
           if (plist[k].kind === PickupKind.Xp) plist[k].magnet = true;
         }
-        this.onBossKilled(e.bossIdx === 2 ? 'endless' : e.bossIdx === 1 ? 'calamity' : 'herald');
+        if (!world.endless) this.wipeAfterBoss = true;
+        // 击杀名直接取自敌人定义表（支持 5+ 只 Boss 而不依赖 bossIdx 硬映射）
+        const defName = ENEMY_BY_INDEX[e.defIdx]?.id ?? '';
+        this.onBossKilled(defName);
       } else if (e.isElite) {
         // 精英（含深渊炮手）：不给宝箱，爆 5~7 颗黄色经验宝石（value>6 → 大经验渲染）
         this.vfx?.explosion(e.x, e.y, 18, 0xffd97a);

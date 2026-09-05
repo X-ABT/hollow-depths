@@ -60,17 +60,17 @@ export const ENEMIES: readonly EnemyDef[] = [
     id: 'slime',
     name: '史莱姆',
     sprite: Tex.Slime,
-    hp: 60, // 被动型怪：不主动逼近、血偏厚，作为"软障碍"
+    hp: 60, // 软障碍型：缓慢贴近但不主动追击，血偏厚
     speed: 44,
-    damage: 4,
+    damage: 3, // 实际伤害固定 3（生成时强制覆盖，不受时间成长影响）
     radius: 17,
     xp: 4,
     ai: Ai.Grow,
     armor: 0,
     elite: false,
     boss: false,
-    // 每 6s 体型与血量 +18%，最多叠 6 层
-    p0: 6,
+    // 每 4s 体型与血量 +18%，最多叠 6 层
+    p0: 4,
     p1: 0.18,
   },
   {
@@ -233,6 +233,40 @@ export const BOSSES: readonly EnemyDef[] = [
     // 首轮无敌 15s（期间只能躲避、边界固定 900）；之后循环：破防 30s → 无敌 15s
     p0: 15,
     p1: 0.55,
+  },
+  {
+    id: 'lament',
+    name: '泣灵',
+    sprite: Tex.BossLament,
+    hp: 9000,
+    speed: 50,
+    damage: 30,
+    radius: 56,
+    xp: 900,
+    ai: Ai.BossLament,
+    armor: 7,
+    elite: false,
+    boss: true,
+    // 阶段血量阈值（同古神）：>0.7 螺旋弹幕 / 0.4~0.7 叠加地面伤害区 / <0.4 叠加召唤
+    p0: 0.7,
+    p1: 0.4,
+  },
+  {
+    id: 'maw',
+    name: '渊喉',
+    sprite: Tex.BossMaw,
+    hp: 13000,
+    speed: 44,
+    damage: 34,
+    radius: 62,
+    xp: 1200,
+    ai: Ai.BossMaw,
+    armor: 12,
+    elite: false,
+    boss: true,
+    // 全屏脉冲释放间隔 / 落点预警时长
+    p0: 4.6,
+    p1: 1.3,
   },
 ];
 

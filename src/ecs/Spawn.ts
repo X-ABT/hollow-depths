@@ -81,6 +81,8 @@ export function spawnEnemy(
   e.maxHp = def.hp * hpMul * scale;
   e.hp = e.maxHp;
   e.damage = def.damage * dmgMul;
+  // 史莱姆伤害固定 3：不随战斗时间成长
+  if (def.id === 'slime') e.damage = 3;
   e.speed = def.speed;
   e.armor = def.armor;
   e.xp = def.xp;
@@ -111,10 +113,14 @@ export function spawnEnemy(
   e.spriteKey = def.sprite;
   e.rot = 0;
 
-  // 终焉：开局进入无敌倒计时
+  // 终焉：开局进入无敌倒计时（无尽幽墟不做无敌开场，保持可被击杀）
   if (def.ai === Ai.BossEndless) {
-    e.state = 1;
-    e.timer = def.p0;
+    if (world.endless) {
+      e.state = 0;
+    } else {
+      e.state = 1;
+      e.timer = def.p0;
+    }
   }
   return e;
 }
@@ -183,8 +189,10 @@ export function spawnPickup(
   p.kind = kind;
   p.value = value;
   p.radius = kind === PickupKind.Chest ? 14 : 9;
-  p.life = kind === PickupKind.Chest ? 120 : 150;
-  p.magnet = false;
+  // 经验宝石掉落后 6 分钟内未拾取自动清除（防止长期堆积）；宝箱与其他保持原样
+  p.life = kind === PickupKind.Chest ? 120 : kind === PickupKind.Xp ? 360 : 150;
+  // 经验宝石生成即「磁吸」：自动飞向玩家，取消走近才吸附的范围限制（仅对 Xp）
+  p.magnet = kind === PickupKind.Xp;
   p.bob = world.rng.range(0, Math.PI * 2);
   return p;
 }

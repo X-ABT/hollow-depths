@@ -63,7 +63,12 @@ export const enum Tex {
   /** 宠物爪击特效：三条竖线 */
   PetClaw = 57,
 
-  COUNT = 58,
+  /** 泣灵 Boss（无尽幽墟） */
+  BossLament = 58,
+  /** 渊喉 Boss（无尽幽墟） */
+  BossMaw = 59,
+
+  COUNT = 60,
 }
 
 export const TEX_SIZE = 64;

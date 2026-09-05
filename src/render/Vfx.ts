@@ -62,6 +62,9 @@ export class Vfx {
     x: 0, y: 0, vy: -46, life: 0, maxLife: 0.7, value: 0, crit: false,
   }));
   private readonly tObjs: Text[] = [];
+  /** 每个飘字槽最近一次写入的文本/样式（内容不变不触发 Pixi Text 重建贴图） */
+  private readonly lastVal: string[] = [];
+  private readonly lastCrit: boolean[] = [];
 
   private readonly claws = new Pool<Claw>(MAX_CLAWS, () => ({
     x: 0, y: 0, life: 0, maxLife: 0.16, size: 1,
@@ -109,6 +112,8 @@ export class Vfx {
       t.anchor.set(0.5);
       t.visible = false;
       this.tObjs.push(t);
+      this.lastVal.push('');
+      this.lastCrit.push(false);
       this.tLayer.addChild(t);
       // 预留两种样式，切换时只改 style 而不新建对象
       void critStyle;
@@ -134,12 +139,12 @@ export class Vfx {
 
   /**
    * 命中粒子 + 飘字。
-   * force=true 时跳过节流（远征内每次真实命中都显示）；仍受 MAX_TEXTS 同屏上限保护。
+   * 主局（无 force）：只显示暴击飘字，普通伤害不再飘字（避免满屏数字）。
+   * force=true（远征）：保持每次真实命中都飘字。
    */
   hit(x: number, y: number, damage: number, crit: boolean, force = false): void {
-    // 节流：普通伤害隔几次才飘字，暴击始终显示
-    this.hitCounter++;
-    const show = force || crit || this.hitCounter % 4 === 0;
+    // 仅暴击（主局）或强制显示（远征）时生成飘字
+    const show = force || crit;
     if (show && this.texts.count < MAX_TEXTS) {
       const f = this.texts.spawn();
       if (f) {
@@ -285,14 +290,23 @@ export class Vfx {
     for (let i = 0; i < this.texts.count; i++) {
       const f = tl[i];
       const t = this.tObjs[i];
-      if (t.text !== String(f.value)) t.text = String(f.value);
-      t.style = f.crit ? this.critStyle : this.normalStyle;
+      // 仅当内容/暴击样式变化时才写入，避免每个生效槽每帧重建文字贴图
+      const crit = f.crit;
+      if (crit !== this.lastCrit[i]) {
+        t.style = crit ? this.critStyle : this.normalStyle;
+        this.lastCrit[i] = crit;
+      }
+      const val = String(f.value);
+      if (val !== this.lastVal[i]) {
+        t.text = val;
+        this.lastVal[i] = val;
+      }
       t.visible = true;
       t.x = f.x;
       t.y = f.y;
       const k = f.life / f.maxLife;
       t.alpha = k > 0.6 ? 1 : k / 0.6;
-      t.scale.set(f.crit ? 1 + (1 - k) * 0.25 : 1);
+      t.scale.set(crit ? 1 + (1 - k) * 0.25 : 1);
     }
     for (let i = this.texts.count; i < MAX_TEXTS; i++) this.tObjs[i].visible = false;
   }

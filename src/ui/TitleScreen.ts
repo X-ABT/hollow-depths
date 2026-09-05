@@ -2,7 +2,8 @@ import { formatNum, formatTime, formatSouls } from '../core/MathUtil';
 import type { SaveData } from '../save/Storage';
 
 export interface TitleHandlers {
-  onStart: () => void;
+  /** 开局模式：标准一局 / 无尽幽墟 */
+  onStart: (mode: 'standard' | 'endless') => void;
   /** 清除全部存档并刷新页面重加载（由 Game 执行 Storage.reset + reload） */
   onClearData: () => void;
   onTogglePause: () => void;
@@ -22,6 +23,7 @@ export class TitleScreen {
   private soulsEl: HTMLElement | null = null;
   private root: HTMLElement | null = null;
   private clearEl: HTMLDivElement | null = null;
+  private startEl: HTMLDivElement | null = null;
 
   show(root: HTMLElement, save: SaveData, h: TitleHandlers): void {
     this.hide();
@@ -69,7 +71,7 @@ export class TitleScreen {
       best.textContent = '首次进入幽墟，祝你好运';
     }
 
-    el.querySelector('[data-act="start"]')?.addEventListener('click', h.onStart);
+    el.querySelector('[data-act="start"]')?.addEventListener('click', () => this.openStartChoice(h));
     el.querySelector('[data-act="shop"]')?.addEventListener('click', h.onShop);
     el.querySelector('[data-act="pet"]')?.addEventListener('click', h.onPet);
     el.querySelector('[data-act="park"]')?.addEventListener('click', h.onPark);
@@ -116,6 +118,47 @@ export class TitleScreen {
     this.clearEl = null;
   }
 
+  /** 开局模式选择：标准一局 / 无尽幽墟 */
+  private openStartChoice(h: TitleHandlers): void {
+    this.closeStartChoice();
+    if (!this.root) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'start-select';
+    overlay.innerHTML = `
+      <div class="start-card">
+        <h2 class="start-title">选择幽墟模式</h2>
+        <button class="btn btn--primary start-opt" data-mode="standard">
+          <b>标准一局</b>
+          <span>击败最终 Boss「终焉」逃出幽墟</span>
+        </button>
+        <button class="btn start-opt start-opt--endless" data-mode="endless">
+          <b>无尽幽墟</b>
+          <span>Boss 定时刷新 · 无终点 · 战至倒下</span>
+        </button>
+        <button class="btn btn--ghost start-cancel" data-act="cancel">返回</button>
+      </div>
+    `;
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) this.closeStartChoice();
+    });
+    overlay.querySelector('[data-mode="standard"]')?.addEventListener('click', () => {
+      this.closeStartChoice();
+      h.onStart('standard');
+    });
+    overlay.querySelector('[data-mode="endless"]')?.addEventListener('click', () => {
+      this.closeStartChoice();
+      h.onStart('endless');
+    });
+    overlay.querySelector('[data-act="cancel"]')?.addEventListener('click', () => this.closeStartChoice());
+    this.root.appendChild(overlay);
+    this.startEl = overlay;
+  }
+
+  private closeStartChoice(): void {
+    this.startEl?.remove();
+    this.startEl = null;
+  }
+
   /** 商店购买/结算入账后刷新灵魂余额显示（标题 DOM 仍保留） */
   refreshSouls(cents: number): void {
     if (this.soulsEl) this.soulsEl.textContent = formatSouls(cents);
@@ -123,6 +166,7 @@ export class TitleScreen {
 
   hide(): void {
     this.closeClearConfirm();
+    this.closeStartChoice();
     this.el?.remove();
     this.el = null;
     this.soulsEl = null;

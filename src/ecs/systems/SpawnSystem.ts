@@ -4,6 +4,8 @@ import {
   ELITE_FIRST,
   ELITE_INTERVAL,
   ELITE_TABLE,
+  ENDLESS_FIRST_BOSS_AT,
+  ENDLESS_ORDER,
   FIRST_BOSS_AT,
   MAX_ALIVE,
   NEXT_BOSS_GAP,
@@ -87,23 +89,24 @@ export class SpawnSystem {
     this.bossSpawnAt = now + NEXT_BOSS_GAP;
   }
 
-  /** 下一次 Boss 倒计时信息（含血量倍率）；当前无待出的 Boss 或 Boss 正在场时返回 null */
+  /** 下一次 Boss 倒计时信息（含血量倍率）；标准局中 Boss 正在场时返回 null，无尽模式常显 */
   nextBossInfo(world: World): { name: string; remain: number; mul: number } | null {
-    if (this.nextBoss >= BOSS_ORDER.length) return null;
-    if (this.hasLiveBoss(world)) return null;
+    const bossOrder = world.endless ? ENDLESS_ORDER : BOSS_ORDER;
+    if (this.nextBoss >= bossOrder.length) return null;
+    if (!world.endless && this.hasLiveBoss(world)) return null;
     if (!Number.isFinite(this.bossSpawnAt)) return null;
     const remain = this.bossSpawnAt - world.time;
     if (remain <= 0) return null;
-    const idx = IDX.get(BOSS_ORDER[this.nextBoss]) ?? -1;
+    const idx = IDX.get(bossOrder[this.nextBoss]) ?? -1;
     const name = idx >= 0 ? ENEMY_BY_INDEX[idx].name : '';
     return { name, remain, mul: this.nextBossHpMul };
   }
 
-  reset(): void {
+  reset(world?: World): void {
     this.acc = 0;
     this.eliteT = ELITE_FIRST;
     this.nextBoss = 0;
-    this.bossSpawnAt = FIRST_BOSS_AT;
+    this.bossSpawnAt = world?.endless ? ENDLESS_FIRST_BOSS_AT : FIRST_BOSS_AT;
     this.bossBornAt = 0;
     this.nextBossHpMul = 1;
     this.minionRushMul = 1;
@@ -119,15 +122,23 @@ export class SpawnSystem {
     const t = world.time;
     const p = world.player;
 
-    // ——— Boss：事件驱动（古神 5:00 出场；之后每击败一个，隔 4 分钟出下一个）———
+    // ——— Boss：标准局事件驱动（古神 5:00 出场，之后每击败一个隔 4 分钟出下一只）；
+    // 无尽幽墟按时间每 4 分钟固定刷一只（可多只并存），5 只 Boss 无限循环 ———
+    const bossOrder = world.endless ? ENDLESS_ORDER : BOSS_ORDER;
     if (
-      this.nextBoss < BOSS_ORDER.length &&
+      this.nextBoss < bossOrder.length &&
       t >= this.bossSpawnAt &&
-      !this.hasLiveBoss(world)
+      (world.endless || !this.hasLiveBoss(world))
     ) {
-      const id = BOSS_ORDER[this.nextBoss];
-      this.nextBoss++;
-      this.bossSpawnAt = Number.POSITIVE_INFINITY; // 出完后等击败再排下一只
+      const id = bossOrder[this.nextBoss];
+      if (world.endless) {
+        // 无尽：刷完即排定下一只（到点就刷），不断循环
+        this.nextBoss = (this.nextBoss + 1) % bossOrder.length;
+        this.bossSpawnAt = t + NEXT_BOSS_GAP;
+      } else {
+        this.nextBoss++;
+        this.bossSpawnAt = Number.POSITIVE_INFINITY; // 出完后等击败再排下一只
+      }
       const idx = IDX.get(id) ?? -1;
       if (idx >= 0) {
         const a = world.rng.next() * TAU;
@@ -217,7 +228,8 @@ export class SpawnSystem {
     // 大幅降低普通怪的补充刷新，让 Boss 战聚焦在 Boss 本体与其主动召唤物上，
     // 避免「Boss 带着铺天盖地的小怪」同时追着玩家。
     let rate = spawnRate(t) * densityMul(t) * this.earlySpawnMul * this.minionRushMul;
-    if (this.hasLiveBoss(world)) rate *= 0.12;
+    // 标准局 Boss 战聚焦本体；无尽模式 Boss 定时并存，普通怪继续按密度刷新
+    if (!world.endless && this.hasLiveBoss(world)) rate *= 0.12;
     this.acc += rate * dt;
 
     // 方向轮换：普通怪不四面八方同时涌来，而是按「上 → 右 → 下 → 左」顺时针，

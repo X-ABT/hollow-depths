@@ -120,6 +120,8 @@ export class World {
   /** 战斗区域圆心（终焉所在位置） */
   arenaX = 0;
   arenaY = 0;
+  /** 运行模式：true = 无尽幽墟（Boss 定时刷新 / 击杀不清屏 / 无胜利目标）。每次 startRun 设置，reset 后归 false */
+  endless = false;
   /** 玩家受伤回调（供 HUD 做受击闪白与震屏） */
   onPlayerHurt: ((amount: number) => void) | null = null;
 

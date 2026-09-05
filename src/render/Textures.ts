@@ -663,6 +663,50 @@ export function drawTex(g: G, key: number): void {
       }
       break;
     }
+    case Tex.BossLament: {
+      // 泣灵：幽蓝漩涡母体（螺旋旋臂 + 冰冷内核）
+      glow(g, 32, 32, 30, 0x43e0ff, 0.5);
+      g.circle(32, 32, 27).fill({ color: 0x0a2333, alpha: 0.92 });
+      g.circle(32, 32, 27).stroke({ width: 2, color: hsl(198, 85, 60), alpha: 0.85 });
+      g.circle(32, 32, 20).stroke({ width: 1.6, color: hsl(198, 80, 42), alpha: 0.6 });
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        g.moveTo(32 + Math.cos(a) * 9, 32 + Math.sin(a) * 9)
+          .quadraticCurveTo(
+            32 + Math.cos(a + 0.9) * 20,
+            32 + Math.sin(a + 0.9) * 20,
+            32 + Math.cos(a + 1.8) * 28,
+            32 + Math.sin(a + 1.8) * 28,
+          )
+          .stroke({ width: 3, color: hsl(198, 75, 68), alpha: 0.75 });
+      }
+      // 冰冷内核对眼（邪气）
+      glow(g, 32, 32, 9, 0xbdf1ff, 0.9);
+      g.circle(32, 32, 4.6).fill({ color: 0xeaffff, alpha: 0.95 });
+      g.circle(32, 32, 1.6).fill({ color: 0x0a2333, alpha: 0.95 });
+      break;
+    }
+    case Tex.BossMaw: {
+      // 渊喉：黑洞巨口（吸积光点环 + 内黑口 + 利齿）
+      glow(g, 32, 32, 30, 0x7c5cff, 0.4);
+      g.circle(32, 32, 27).fill({ color: 0x0b0622, alpha: 0.98 });
+      g.circle(32, 32, 27).stroke({ width: 2, color: 0x9b7dff, alpha: 0.8 });
+      // 吸积光点
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2 + i * 0.7;
+        const r = 21 + (i % 3) * 2;
+        g.circle(32 + Math.cos(a) * r, 32 + Math.sin(a) * r, 1.6).fill({ color: 0xff8a5c, alpha: 0.85 });
+      }
+      g.circle(32, 32, 13).fill({ color: 0x000000, alpha: 1 });
+      g.circle(32, 32, 13).stroke({ width: 1.8, color: 0xff5470, alpha: 0.9 });
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        g.moveTo(32 + Math.cos(a) * 12, 32 + Math.sin(a) * 12)
+          .lineTo(32 + Math.cos(a) * 17, 32 + Math.sin(a) * 17)
+          .stroke({ width: 2.4, color: 0xffe9ef, alpha: 0.9 });
+      }
+      break;
+    }
 
     // ——————————————— 投射物 ———————————————
     case Tex.OrbHalo: {

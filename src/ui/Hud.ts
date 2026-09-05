@@ -33,6 +33,12 @@ export class Hud {
 
   private lastHp = -1;
   private buildSig = '';
+  private lastClock = '';
+  private lastKills = '';
+  private lastLv = '';
+  private lastBossHp = -1;
+  private lastBossCd = '';
+  private readonly modeEl: HTMLElement;
 
   constructor(root: HTMLElement) {
     const el = document.createElement('div');
@@ -44,6 +50,7 @@ export class Hud {
         <div class="hud-lv"></div>
         <div class="hud-clock"></div>
         <div class="hud-kills"></div>
+        <div class="hud-mode" hidden></div>
       </div>
       <div class="hud-boss">
         <div class="hud-boss-name"><span class="hud-boss-title"></span><span class="hud-boss-hp"></span></div>
@@ -78,6 +85,7 @@ export class Hud {
     this.weaponRow = el.querySelector('[data-row="w"]') as HTMLElement;
     this.passiveRow = el.querySelector('[data-row="p"]') as HTMLElement;
     this.zoomResetBtn = el.querySelector('[data-zoom="reset"]') as HTMLElement;
+    this.modeEl = el.querySelector('.hud-mode') as HTMLElement;
 
     el.querySelector('[data-zoom="in"]')?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -105,6 +113,13 @@ export class Hud {
     this.el.style.display = v ? '' : 'none';
   }
 
+  /** 无尽幽墟模式徽标（标准局隐藏） */
+  setMode(endless: boolean): void {
+    if (!this.modeEl) return;
+    this.modeEl.hidden = !endless;
+    if (endless) this.modeEl.textContent = '无尽幽墟';
+  }
+
   update(hp: number, maxHp: number, xp: number, xpNext: number, level: number, time: number, kills: number): void {
     // 用 transform 缩放而非改 width，避免触发布局重排
     this.hpFill.style.transform = `scaleX(${Math.max(0, Math.min(1, hp / maxHp))})`;
@@ -119,35 +134,58 @@ export class Hud {
       }
       this.lastHp = hpInt;
     }
-    this.lvText.textContent = `Lv ${level}`;
-    this.clockText.textContent = formatTime(time);
-    this.killsText.textContent = `${formatNum(kills)} 击杀`;
+    // 值变化才写 DOM，避免每帧重复赋值造成布局/渲染抖动
+    const lv = `Lv ${level}`;
+    if (lv !== this.lastLv) {
+      this.lvText.textContent = lv;
+      this.lastLv = lv;
+    }
+    const clock = formatTime(time);
+    if (clock !== this.lastClock) {
+      this.clockText.textContent = clock;
+      this.lastClock = clock;
+    }
+    const ks = `${formatNum(kills)} 击杀`;
+    if (ks !== this.lastKills) {
+      this.killsText.textContent = ks;
+      this.lastKills = ks;
+    }
   }
 
   setBoss(name: string | null, hp: number, maxHp: number): void {
     if (name === null) {
-      this.bossWrap.classList.remove('is-on');
+      if (this.bossWrap.classList.contains('is-on')) this.bossWrap.classList.remove('is-on');
+      this.lastBossHp = -1;
       return;
     }
-    const ratio = Math.max(0, Math.min(1, hp / maxHp));
     if (!this.bossWrap.classList.contains('is-on')) {
       this.bossName.textContent = name;
       this.bossWrap.classList.add('is-on');
     }
-    // 血条即时吸附真实 HP（无平滑过渡），避免爆发伤害下血条滞后于实际数值
-    this.bossFill.style.transform = `scaleX(${ratio})`;
-    this.bossHp.textContent = `${Math.ceil(hp)} / ${Math.ceil(maxHp)}`;
+    const hpInt = Math.ceil(hp);
+    if (hpInt !== this.lastBossHp) {
+      const ratio = Math.max(0, Math.min(1, hp / maxHp));
+      // 血条即时吸附真实 HP（无平滑过渡），避免爆发伤害下血条滞后于实际数值
+      this.bossFill.style.transform = `scaleX(${ratio})`;
+      this.bossHp.textContent = `${hpInt} / ${Math.ceil(maxHp)}`;
+      this.lastBossHp = hpInt;
+    }
   }
 
   /** 左上角显示下一个 Boss 出现的倒计时（name 为 null 时隐藏）；mul 为快杀叠加的血量倍率 */
   setBossCountdown(name: string | null, remain: number, mul = 1): void {
     if (name === null || remain <= 0) {
-      this.bossCd.hidden = true;
+      if (!this.bossCd.hidden) this.bossCd.hidden = true;
       return;
     }
-    this.bossCd.hidden = false;
+    // 内容不变时跳过，倒计时每秒才变化一次，避免每帧重建 DOM
     const tag = mul > 1 ? `<em class="cd-mul">×${mul}</em>` : '';
-    this.bossCd.innerHTML = `⚔ ${name}${tag} ${formatTime(Math.ceil(remain))}`;
+    const content = `⚔ ${name}${tag} ${formatTime(Math.max(1, Math.ceil(remain)))}`;
+    if (content !== this.lastBossCd) {
+      this.bossCd.innerHTML = content;
+      this.lastBossCd = content;
+    }
+    if (this.bossCd.hidden) this.bossCd.hidden = false;
   }
 
   /** build 变化时重建图标槽（用签名避免每帧重建 DOM） */
