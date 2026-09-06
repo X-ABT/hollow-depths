@@ -52,7 +52,7 @@ export interface WeaponDef {
   isEvolved?: boolean;
 }
 
-const lv = (level: number): number => Math.min(level, 10) - 1;
+const lv = (level: number): number => Math.min(level, 12) - 1;
 
 /** 取最近敌人（null 表示场上无敌人） */
 function nearestEnemy(world: World, x: number, y: number, r: number): Enemy | null {
@@ -311,7 +311,7 @@ function fireFrost(d: WeaponDef, ctx: FireCtx): void {
   });
 }
 
-const LV10 = 10;
+const LV12 = 12;
 
 export const WEAPONS: readonly WeaponDef[] = [
   {
@@ -321,11 +321,11 @@ export const WEAPONS: readonly WeaponDef[] = [
     desc: '撕裂最近敌人脚下的大地，短暂延迟后爆发；每处 12 点基础伤害，可标记多名敌人。',
     enDesc: 'Tears the earth under nearby enemies, erupting after a short delay for 12 base damage per mark. Can mark several foes at once.',
     icon: Tex.IconRift,
-    maxLevel: LV10,
-    cd: [2.4, 2.24, 2.09, 1.95, 1.83, 1.72, 1.6, 1.48, 1.37, 1.25],
-    dmg: [12, 15, 18, 22, 27, 31, 37, 44, 53, 62],
-    a: [56, 59, 63, 67, 71, 75, 81, 88, 95, 104],
-    b: [1, 1, 2, 2, 2, 3, 3, 3, 4, 5],
+    maxLevel: LV12,
+    cd: [2.4, 2.27, 2.14, 2.03, 1.92, 1.82, 1.73, 1.63, 1.53, 1.44, 1.35, 1.25],
+    dmg: [12, 14, 17, 20, 23, 27, 31, 35, 41, 47, 55, 62],
+    a: [56, 58, 62, 65, 68, 71, 75, 79, 85, 91, 97, 104],
+    b: [1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 5],
     aName: '爆发半径',
     bName: '印记数量',
     fire: fireRift,
@@ -339,12 +339,12 @@ export const WEAPONS: readonly WeaponDef[] = [
     desc: '光球环绕身边旋转，灼烧并轻微击退靠近的敌人；每次接触造成 8 点伤害。',
     enDesc: 'Orbs orbit around you, searing and lightly knocking back approaching foes; each contact deals 8 damage.',
     icon: Tex.IconHalo,
-    maxLevel: LV10,
+    maxLevel: LV12,
     persistent: true,
     cd: [999],
-    dmg: [8, 10, 12, 14, 16, 20, 23, 27, 32, 38],
-    a: [1, 2, 2, 2, 3, 3, 4, 4, 4, 6],
-    b: [70, 73, 76, 80, 85, 89, 94, 100, 107, 116],
+    dmg: [8, 10, 11, 13, 15, 16, 20, 22, 25, 29, 33, 38],
+    a: [1, 2, 2, 2, 2, 3, 3, 4, 4, 4, 4, 6],
+    b: [70, 72, 75, 78, 81, 85, 89, 93, 97, 103, 109, 116],
     aName: '光球数量',
     bName: '环绕半径',
     fire: fireHalo,
@@ -358,11 +358,11 @@ export const WEAPONS: readonly WeaponDef[] = [
     desc: '自动锁定最近的敌人，射出追踪符文追击；每发造成 10 点基础伤害。',
     enDesc: 'Auto-locks the nearest enemy and fires homing runes in pursuit; each bolt deals 10 base damage.',
     icon: Tex.IconSeeker,
-    maxLevel: LV10,
-    cd: [1.6, 1.52, 1.44, 1.37, 1.29, 1.21, 1.13, 1.06, 0.98, 0.9],
-    dmg: [10, 12, 15, 17, 21, 24, 28, 34, 40, 48],
-    a: [1, 1, 2, 2, 2, 3, 3, 3, 4, 5],
-    b: [300, 312, 323, 335, 347, 358, 370, 384, 399, 415],
+    maxLevel: LV12,
+    cd: [1.6, 1.53, 1.47, 1.41, 1.35, 1.28, 1.22, 1.15, 1.09, 1.03, 0.97, 0.9],
+    dmg: [10, 12, 14, 16, 18, 21, 24, 27, 31, 36, 41, 48],
+    a: [1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 5],
+    b: [300, 310, 319, 328, 338, 348, 357, 367, 378, 389, 402, 415],
     aName: '符文数量',
     bName: '飞行速度',
     fire: fireSeeker,
@@ -376,11 +376,11 @@ export const WEAPONS: readonly WeaponDef[] = [
     desc: '以自身为中心炸开冲击波并强力击退敌人；每次命中造成 18 点伤害。',
     enDesc: 'Blasts a shockwave from your position with strong knockback; each hit deals 18 damage.',
     icon: Tex.IconShock,
-    maxLevel: LV10,
-    cd: [3.2, 3.04, 2.89, 2.73, 2.58, 2.42, 2.27, 2.11, 1.96, 1.8],
-    dmg: [18, 21, 25, 29, 34, 39, 45, 52, 61, 72],
-    a: [110, 118, 127, 136, 146, 157, 167, 180, 194, 210],
-    b: [260, 276, 291, 307, 322, 338, 353, 369, 389, 420],
+    maxLevel: LV12,
+    cd: [3.2, 3.07, 2.94, 2.82, 2.69, 2.57, 2.43, 2.31, 2.18, 2.06, 1.93, 1.8],
+    dmg: [18, 20, 24, 27, 30, 34, 39, 43, 49, 55, 63, 72],
+    a: [110, 117, 124, 131, 139, 147, 156, 164, 174, 185, 197, 210],
+    b: [260, 273, 286, 298, 311, 323, 337, 349, 362, 376, 395, 420],
     aName: '爆发半径',
     bName: '击退力度',
     fire: fireShock,
@@ -394,12 +394,12 @@ export const WEAPONS: readonly WeaponDef[] = [
     desc: '向四周散射星屑弹幕，专治成群的敌人；每颗造成 10 点基础伤害。',
     enDesc: 'Scatters star-shard projectiles in all directions, shredding crowds; each shard deals 10 base damage.',
     icon: Tex.IconShard,
-    maxLevel: LV10,
-    cd: [0.55, 0.51, 0.48, 0.45, 0.42, 0.38, 0.35, 0.32, 0.29, 0.26],
+    maxLevel: LV12,
+    cd: [0.55, 0.52, 0.49, 0.47, 0.44, 0.42, 0.38, 0.36, 0.33, 0.31, 0.28, 0.26],
     // 单发伤害整体抬升：Lv1 单颗即可一发秒亡魂(9 HP)
-    dmg: [10, 11, 12, 14, 15, 17, 19, 21, 24, 27],
-    a: [2, 3, 3, 3, 4, 4, 5, 5, 6, 8],
-    b: [400, 416, 431, 447, 462, 478, 493, 509, 529, 560],
+    dmg: [10, 11, 12, 13, 14, 15, 17, 18, 20, 22, 25, 27],
+    a: [2, 3, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8],
+    b: [400, 413, 426, 438, 451, 463, 477, 489, 502, 516, 535, 560],
     aName: '碎片数量',
     bName: '飞行速度',
     fire: fireShard,
@@ -413,11 +413,11 @@ export const WEAPONS: readonly WeaponDef[] = [
     desc: '朝最近的敌人射出一道贯穿光柱，扫过沿途所有敌人；每道 16 点基础伤害。',
     enDesc: 'Fires a piercing beam toward the nearest enemy, cutting through everything along its path; each beam deals 16 base damage.',
     icon: Tex.IconBeam,
-    maxLevel: LV10,
-    cd: [2.6, 2.44, 2.29, 2.13, 1.98, 1.87, 1.75, 1.63, 1.52, 1.4],
-    dmg: [16, 19, 23, 27, 32, 37, 43, 50, 59, 70],
-    a: [300, 323, 347, 370, 393, 417, 440, 463, 493, 540],
-    b: [3, 4, 5, 5, 6, 7, 8, 10, 12, 14],
+    maxLevel: LV12,
+    cd: [2.6, 2.47, 2.34, 2.22, 2.09, 1.97, 1.88, 1.78, 1.68, 1.59, 1.5, 1.4],
+    dmg: [16, 18, 22, 25, 28, 32, 37, 41, 47, 53, 61, 70],
+    a: [300, 319, 338, 357, 376, 395, 415, 434, 453, 474, 502, 540],
+    b: [3, 4, 5, 5, 5, 6, 7, 8, 9, 11, 12, 14],
     aName: '光柱长度',
     bName: '最大穿透',
     fire: fireBeam,
@@ -431,11 +431,11 @@ export const WEAPONS: readonly WeaponDef[] = [
     desc: '在原地凝出寒霜领域，减速闯入的敌人并持续侵蚀，每秒约 6 点伤害。',
     enDesc: 'Conjures a frost field that slows and continuously erodes enemies within, about 6 damage per second.',
     icon: Tex.IconFrost,
-    maxLevel: LV10,
-    cd: [4.5, 4.27, 4.09, 3.9, 3.67, 3.43, 3.2, 2.97, 2.73, 2.5],
-    dmg: [6, 8, 9, 11, 13, 16, 19, 22, 26, 31],
-    a: [90, 96, 102, 109, 117, 125, 134, 143, 154, 168],
-    b: [2.5, 2.66, 2.81, 3, 3.22, 3.38, 3.6, 3.83, 4.11, 4.5],
+    maxLevel: LV12,
+    cd: [4.5, 4.31, 4.16, 4, 3.84, 3.65, 3.45, 3.26, 3.07, 2.88, 2.69, 2.5],
+    dmg: [6, 8, 9, 10, 12, 13, 16, 18, 21, 23, 27, 31],
+    a: [90, 95, 100, 105, 111, 118, 124, 132, 139, 147, 157, 168],
+    b: [2.5, 2.63, 2.76, 2.9, 3.06, 3.23, 3.37, 3.54, 3.73, 3.93, 4.18, 4.5],
     aName: '领域半径',
     bName: '持续秒数',
     fire: fireFrost,
@@ -445,7 +445,7 @@ export const WEAPONS: readonly WeaponDef[] = [
 ];
 
 /**
- * 由基础武器派生进化形态：以「满级 Lv10 行」为数值锚点 × 进化系数，再替换开火逻辑。
+ * 由基础武器派生进化形态：以「满级 Lv12 行」为数值锚点 × 进化系数，再替换开火逻辑。
  * 进化是终局质变（单层，maxLevel=1），因此数值绝不能低于满级基础，
  * 否则等于没收玩家已投入的升级；机制强的形态（必暴/溅射/双向…）数值系数会适当下调。
  */
