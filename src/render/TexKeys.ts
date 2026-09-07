@@ -75,7 +75,22 @@ export const enum Tex {
   /** 宠物横扫弧：横向月牙弧（飞翼系/扫击专用，白色主体，运行期 tint） */
   PetSlash = 62,
 
-  COUNT = 63,
+  /** 游侠玩家动画帧：IdleA 与 Tex.Player 同款（旧引用仍安全）；追加在 Pet 之后以防宠物偏移错乱 */
+  PlayerIdleA = 63,
+  PlayerIdleB = 64,
+  PlayerWalkA = 65,
+  PlayerWalkB = 66,
+  PlayerWalkC = 67,
+  PlayerWalkD = 68,
+  PlayerWalkE = 69,
+  PlayerWalkF = 70,
+  PlayerWalkG = 71,
+  PlayerWalkH = 72,
+
+  /** 巢母 Boss（关卡3 最终） */
+  BossNest = 73,
+
+  COUNT = 74,
 }
 
 export const TEX_SIZE = 64;

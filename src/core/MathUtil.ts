@@ -31,9 +31,16 @@ export function angleLerp(a: number, b: number, t: number): number {
   return a + d * t;
 }
 
-/** 指数增长的升级经验曲线 */
+/** 升级经验曲线「10 级后放缓」的起效等级（达到 10 级起，即 10→11 这一档开始生效） */
+const XP_SOFTEN_LEVEL = 10;
+/** 起效后指数递增项乘数：×1.15 ≈ 升级放缓约 15%（仅作用于指数递增部分，保持每级所需严格递增不倒退） */
+const XP_SOFTEN_MUL = 1.15;
+
+/** 指数增长的升级经验曲线；达到 10 级后（level>=10）指数递增项 ×1.15，升级放缓约 15% */
 export function xpForLevel(level: number): number {
-  return Math.floor(5 + level * 6 + Math.pow(level, 1.55) * 2.2);
+  let growth = Math.pow(level, 1.55) * 2.2;
+  if (level >= XP_SOFTEN_LEVEL) growth *= XP_SOFTEN_MUL;
+  return Math.floor(5 + level * 6 + growth);
 }
 
 export function formatTime(sec: number): string {

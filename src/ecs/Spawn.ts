@@ -78,10 +78,12 @@ export function spawnEnemy(
   e.vy = 0;
   e.radius = def.radius * scale;
   e.scale = scale;
-  e.maxHp = def.hp * hpMul * scale;
+  // 关卡3 小怪倍率：仅对非 Boss 且非深渊炮手的敌人生效（普通/精英/召唤全覆盖）；其余模式 minion 倍率恒 1，行为不变
+  const bossOrGunner = def.boss || def.id === 'gunner';
+  e.maxHp = def.hp * hpMul * scale * world.enemyHpMul * (bossOrGunner ? 1 : world.minionHpMul);
   e.hp = e.maxHp;
-  e.damage = def.damage * dmgMul;
-  // 史莱姆伤害固定 3：不随战斗时间成长
+  e.damage = def.damage * dmgMul * (bossOrGunner ? 1 : world.minionDmgMul);
+  // 史莱姆伤害固定 3：不随战斗时间成长（也不吃关卡3伤害倍率）
   if (def.id === 'slime') e.damage = 3;
   e.speed = def.speed;
   e.armor = def.armor;
@@ -114,14 +116,11 @@ export function spawnEnemy(
   e.spriteKey = def.sprite;
   e.rot = 0;
 
-  // 终焉：开局进入无敌倒计时（无尽幽墟不做无敌开场，保持可被击杀）
+  // 终焉：开局进入 p0(15s) 无敌倒计时（标准局之后循环「无敌 15s ↔ 破防 30s」；
+  // 无尽局仅开场无敌 15s，倒计时结束由 EnemyAISystem 解除免疫，不做场地收缩循环）
   if (def.ai === Ai.BossEndless) {
-    if (world.endless) {
-      e.state = 0;
-    } else {
-      e.state = 1;
-      e.timer = def.p0;
-    }
+    e.state = 1;
+    e.timer = def.p0;
   }
   return e;
 }

@@ -114,6 +114,12 @@ export class Game {
   private mobile = false;
   /** 无尽幽墟模式：true 时 Boss 定时刷新 / 击杀不清屏 / 无胜利目标（死亡结算） */
   private endless = false;
+  /** 当前关卡全局敌人血量倍率：关卡1=1、关卡2=2、特殊关卡=3（重开一局时保持） */
+  private enemyHpMul = 1;
+  /** 特殊关卡模式：Boss 每 180s 同种×3（古神→灾厄→终焉），3×终焉通关 */
+  private special = false;
+  /** 关卡3模式：Boss 泣灵→渊喉→巢母（击杀巢母通关）；小怪（除炮手）HP×3/伤害×2（重开一局时保持） */
+  private stage3 = false;
   /** 自适应渲染分辨率档位（从设备基准逐级下调；低帧持续则自动降档，回升再恢复） */
   private resSteps: readonly number[] = [];
   private resLevel = 0;
@@ -185,19 +191,31 @@ export class Game {
       this.camera.addShake(14);
       this.bossTimer = 3.2;
     });
+    // 特殊关卡：3×终焉全灭 → 通关
+    this.spawn.onSpecialCleared(() => {
+      if (this.state === 'playing') this.endRun(true);
+    });
     this.cleanup.onBossKilled = (name) => {
       this.camera.addShake(22);
-      // 高光时刻：任何 Boss 被击杀（含无尽模式）
+      // 高光时刻：任何 Boss 被击杀（含无尽/特殊模式）
       happyTime();
       // 无尽幽墟：Boss 由定时调度接管，无胜利目标，也不启用古神后剧情开关
       if (this.endless) return;
-      // 击败古神：开启深渊炮手的周期刷新（Boss 存活期间暂停）
+      // 特殊关卡：三连批调度（击杀计数满 3 才推进/通关；古神批触发炮手）
+      if (this.special) {
+        if (name === 'herald') this.spawn.onHeraldDown();
+        this.spawn.onSpecialBossKilled(this.world.time);
+        return;
+      }
+      // 击败古神：开启深渊炮手的周期刷新（Boss 存活期间暂停；关卡3的炮手改固定时间点刷新，不走此开关）
       if (name === 'herald') this.spawn.onHeraldDown();
-      // Boss 已死 → 安排下一个 Boss 在 4 分钟后出现（终焉被击败即通关，无需再排）
-      if (name !== 'endless') this.spawn.scheduleNextBoss(this.world.time);
-      // 通关条件：击败最终 Boss「终焉」即胜利
-      if (name === 'endless') {
-        // 终焉被击杀 → 立即胜利（endRun 自带 gameover 重入保护，不会重复触发）
+      // 关卡3：Boss 流程无古神，首只泣灵被击败即把普通怪生成基础倍率升满 1.0（无尽/特殊已早退，不会误触发）
+      if (this.stage3 && name === 'lament') this.spawn.onStage3BossDown();
+      // Boss 已死 → 安排下一个 Boss 在 4 分钟后出现（最终 Boss 被击败即通关，无需再排）
+      if (name !== 'endless' && name !== 'nest') this.spawn.scheduleNextBoss(this.world.time);
+      // 通关条件：击败最终 Boss 即胜利（关卡1-3「终焉」；关卡3 为「巢母」）
+      if (name === 'endless' || name === 'nest') {
+        // 最终 Boss 被击杀 → 立即胜利（endRun 自带 gameover 重入保护，不会重复触发）
         this.endRun(true);
       }
     };
@@ -306,52 +324,64 @@ export class Game {
     this.musicBtn = music;
     this.refreshMusicBtn();
 
-    // —— 隐蔽兑换码按钮（外观极小、低存在感）：惊喜码「10000」由运营口头告知，每人每档限兑一次 ——
-    const cheat = document.createElement('button');
-    cheat.className = 'cheat-btn';
-    cheat.setAttribute('aria-label', t('code.redeemAria'));
-    cheat.textContent = '·';
-    const cheatInput = document.createElement('input');
-    cheatInput.className = 'cheat-input';
-    cheatInput.type = 'text';
-    cheatInput.inputMode = 'numeric';
-    cheatInput.autocomplete = 'off';
-    cheatInput.maxLength = 12;
-    cheatInput.placeholder = t('code.placeholder');
-    cheatInput.style.display = 'none';
-    this.uiRoot.appendChild(cheat);
-    this.uiRoot.appendChild(cheatInput);
-    // —— 一次性兑换码表：每个码每档存档只生效一次（「清除数据」重置后才可再用）——
-    const applyCode: Record<string, () => void> = {
-      // 惊喜码：发放 10000 灵魂（1 灵魂 = 100 分）
-      '10000': () => {
-        this.save.soulCents += 10000 * 100;
-      },
-    };
-    cheat.addEventListener('click', () => {
-      cheatInput.style.display = cheatInput.style.display === 'none' ? 'block' : 'none';
-      if (cheatInput.style.display === 'block') cheatInput.focus();
-    });
-    cheatInput.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter') return;
-      const code = cheatInput.value.trim();
-      const action = applyCode[code];
-      if (action && !this.save.usedCodes.includes(code)) {
-        action();
-        this.save.usedCodes.push(code);
-        Storage.save(this.save);
-        this.title.refreshSouls(this.save.soulCents);
-        if (this.shop.visible) this.shop.refresh();
-        if (this.pet.visible) this.pet.refresh();
-        cheatInput.value = '';
-        cheatInput.style.display = 'none';
-        cheat.classList.add('is-done');
-        window.setTimeout(() => cheat.classList.remove('is-done'), 600);
-      } else {
-        // 无效或已用过的代码：仅清空，便于重输其它代码
-        cheatInput.value = '';
-      }
-    });
+    // —— 兑换码（仅本地开发）：生产构建（CrazyGames 等）不渲染入口，杜绝线上白嫖 ——
+    const isLocalDev =
+      import.meta.env.DEV === true ||
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname === '::1' ||
+      window.location.hostname === '[::1]';
+    if (isLocalDev) {
+      const cheat = document.createElement('button');
+      cheat.className = 'cheat-btn';
+      cheat.setAttribute('aria-label', t('code.redeemAria'));
+      cheat.textContent = '·';
+      const cheatInput = document.createElement('input');
+      cheatInput.className = 'cheat-input';
+      cheatInput.type = 'text';
+      cheatInput.inputMode = 'numeric';
+      cheatInput.autocomplete = 'off';
+      cheatInput.maxLength = 12;
+      cheatInput.placeholder = t('code.placeholder');
+      cheatInput.style.display = 'none';
+      this.uiRoot.appendChild(cheat);
+      this.uiRoot.appendChild(cheatInput);
+      // —— 一次性兑换码表：每个码每档存档只生效一次（「清除数据」重置后才可再用）——
+      const applyCode: Record<string, () => void> = {
+        // 本地调试：发放 1 万灵魂
+        '10000': () => {
+          this.save.soulCents += 10000 * 100;
+        },
+        // 本地调试：发放 10 亿灵魂
+        '541888': () => {
+          this.save.soulCents += 1000000000 * 100;
+        },
+      };
+      cheat.addEventListener('click', () => {
+        cheatInput.style.display = cheatInput.style.display === 'none' ? 'block' : 'none';
+        if (cheatInput.style.display === 'block') cheatInput.focus();
+      });
+      cheatInput.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        const code = cheatInput.value.trim();
+        const action = applyCode[code];
+        if (action && !this.save.usedCodes.includes(code)) {
+          action();
+          this.save.usedCodes.push(code);
+          Storage.save(this.save);
+          this.title.refreshSouls(this.save.soulCents);
+          if (this.shop.visible) this.shop.refresh();
+          if (this.pet.visible) this.pet.refresh();
+          cheatInput.value = '';
+          cheatInput.style.display = 'none';
+          cheat.classList.add('is-done');
+          window.setTimeout(() => cheat.classList.remove('is-done'), 600);
+        } else {
+          // 无效或已用过的代码：仅清空，便于重输其它代码
+          cheatInput.value = '';
+        }
+      });
+    }
   }
 
   /** 更新音乐按钮的外观（静音态置灰 + 划横线） */
@@ -409,7 +439,13 @@ export class Game {
     // 标题页/结算页不播战斗 BGM
     this.bgm.stop();
     this.title.show(this.uiRoot, this.save, {
-      onStart: (mode) => this.startRun(mode === 'endless'),
+      onStart: (mode) => {
+        if (mode === 'endless') this.startRun(true, 1, false);
+        else if (mode === 'special') this.startRun(false, 3, true);
+        else if (mode === 'stage2') this.startRun(false, 2, false);
+        else if (mode === 'stage3') this.startRun(false, 1, false, true);
+        else this.startRun(false, 1, false); // standard = 关卡1
+      },
       onClearData: () => {
         Storage.reset();
         location.reload();
@@ -461,7 +497,7 @@ export class Game {
     });
   }
 
-  startRun(endless = false): void {
+  startRun(endless = false, enemyHpMul = 1, special = false, stage3 = false): void {
     this.title.hide();
     this.gameOver.hide();
     this.levelUp.hide();
@@ -472,6 +508,16 @@ export class Game {
     this.world.reset((Math.random() * 0xffffffff) >>> 0);
     this.endless = endless;
     this.world.endless = endless;
+    this.enemyHpMul = enemyHpMul;
+    this.world.enemyHpMul = enemyHpMul;
+    this.special = special;
+    this.world.special = special;
+    this.stage3 = stage3;
+    this.world.stage3 = stage3;
+    // 关卡3：Boss 不吃全局倍率（enemyHpMul=1），仅非 Boss（普通/精英/召唤，炮手豁免）套小怪倍率
+    this.world.minionHpMul = stage3 ? 3 : 1;
+    this.world.minionDmgMul = stage3 ? 2 : 1;
+    this.world.minionBurstMul = 1;
     this.build = new Build(DEFAULT_CHARACTER, {
       weapons: this.save.weaponLevels,
       passives: this.save.passiveLevels,
@@ -764,7 +810,7 @@ export class Game {
     this.gameOver.show(
       this.uiRoot,
       result,
-      () => this.startRun(this.endless),
+      () => this.startRun(this.endless, this.enemyHpMul, this.special, this.stage3),
       () => this.showTitle(),
       () => this.copyResult(result),
       onDouble,
@@ -974,7 +1020,9 @@ export class Game {
     if (p.regen > 0 && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
 
     // ——— 系统：生成 → 第一次建立空间哈希 → AI ———
-    this.spawn.update(world, dt, this.app.screen.width, this.app.screen.height);
+    // 传入「相机缩放下可见的世界范围」，保证生成点永远在视口外一圈（手机 zoom 0.5 与桌面一致）
+    const spawnZoom = this.renderer.zoom || 1;
+    this.spawn.update(world, dt, this.app.screen.width / spawnZoom, this.app.screen.height / spawnZoom);
     world.buildHash();
     this.ai.update(world, dt);
 

@@ -31,9 +31,22 @@ const SKILL_GAP: readonly [number, number] = [2.0, 3.0];
 const ENDLESS_INVULN = 15;
 /** 终焉破防窗口时长（秒）：窗口内可被击杀；超时未击杀则再次进入无敌（循环） */
 const ENDLESS_OPEN = 30;
-/** 亡魂 / 幻影 总表下标（新 Boss 召唤用，避免硬编码下标） */
+/** Boss 超距拉回阈值（px）：距玩家超过该距离且不在技能蓄力时拉回，防风筝/脱战（全模式） */
+const BOSS_PULL_DIST = 1000;
+/** Boss 被拉回后的落点距玩家距离（px） */
+const BOSS_PULL_RANGE = 300;
+/** 亡魂 / 幻影 / 甲壳兽 总表下标（Boss 召唤与回血判定用，避免硬编码下标） */
 const WR_INDEX = ENEMY_BY_INDEX.findIndex((d) => d.id === 'wraith');
 const PH_INDEX = ENEMY_BY_INDEX.findIndex((d) => d.id === 'phantom');
+const CA_INDEX = ENEMY_BY_INDEX.findIndex((d) => d.id === 'carapace');
+/** 巢母「狂潮」：普通怪刷新倍率 ×10、持续 3s、结束后 12s 再入下一轮（周期 15s） */
+const NEST_SURGE_MUL = 10;
+const NEST_SURGE_DUR = 3;
+const NEST_SURGE_GAP = 12;
+/** 巢母：场上存在甲壳兽时每秒回血 0.5% 最大生命 */
+const NEST_HEAL_PER_SEC = 0.005;
+/** 巢母每轮召唤甲壳兽只数 */
+const NEST_SUMMON_COUNT = 2;
 
 /**
  * 敌人 AI + 分离力 + 位移积分。
@@ -53,6 +66,16 @@ export class EnemyAISystem {
   private gap(rng: World['rng'], e: Enemy): number {
     const base = SKILL_GAP[0] + rng.next() * (SKILL_GAP[1] - SKILL_GAP[0]);
     return base / e.castMul;
+  }
+
+  /** 场上是否有存活甲壳兽（巢母回血触发条件） */
+  private hasCarapace(world: World): boolean {
+    if (CA_INDEX < 0) return false;
+    const list = world.enemies.items;
+    for (let i = 0; i < world.enemies.count; i++) {
+      if (!list[i].dead && list[i].defIdx === CA_INDEX) return true;
+    }
+    return false;
   }
   update(world: World, dt: number): void {
     const list = world.enemies.items;
@@ -107,6 +130,17 @@ export class EnemyAISystem {
       let d = Math.hypot(dx, dy) || 1;
       const nx = dx / d;
       const ny = dy / d;
+
+      // Boss 超距拉回：全模式生效（含无尽多 Boss 并存）。距玩家超过阈值且不在技能蓄力时，
+      // 拉到玩家朝向该 Boss 的一侧约 300px，避免风筝/刷在屏外导致脱战或难以追击；
+      // px/py 同步更新，防止渲染插值从远处拖回造成跳变。
+      if (e.isBoss && e.cast <= 0 && d > BOSS_PULL_DIST) {
+        e.x = p.x - nx * BOSS_PULL_RANGE;
+        e.y = p.y - ny * BOSS_PULL_RANGE;
+        e.px = e.x;
+        e.py = e.y;
+        d = BOSS_PULL_RANGE;
+      }
 
       let vx = 0;
       let vy = 0;
@@ -359,8 +393,13 @@ export class EnemyAISystem {
         }
 
         case Ai.BossEndless: {
-          // 无尽幽墟：终焉不做无敌/场地收缩循环，保持可击杀并持续锥形弹压制（标准局走下方原逻辑）
+          // 无尽幽墟：终焉不做场地收缩循环，但保留「开场 15s 无敌」——
+          // 无敌期间持续锥形弹压制，timer 归零解除免疫后可被击杀（标准局走下方原逻辑）
           if (world.endless) {
+            if (e.state === 1) {
+              e.timer -= dt;
+              if (e.timer <= 0) e.state = 0;
+            }
             vx = nx * speed;
             vy = ny * speed;
             if (e.cast > 0) {
@@ -642,6 +681,51 @@ export class EnemyAISystem {
           break;
         }
 
+        case Ai.BossNest: {
+          // 巢母（关卡3 最终 Boss）：笨重母体缓慢蠕动逼近。
+          // 两套独立定时：狂潮通道（cast=当前狂潮剩余秒，sub=距下一轮狂潮）与召唤通道（timer=距召唤甲壳兽）。
+          // 出生即开 10× 刷怪狂潮 3s → t+p0 召唤 2 甲壳兽 → 每 p1 秒一轮召唤；狂潮周期 15s。
+          if (e.state === 0) {
+            e.state = 1;
+            e.cast = NEST_SURGE_DUR; // 立即进入狂潮
+            e.timer = def.p0; // 距首次召唤甲壳兽
+            e.sub = NEST_SURGE_GAP; // 狂潮结束后距下一轮狂潮
+          }
+          vx = nx * speed * 0.45;
+          vy = ny * speed * 0.45;
+          // —— 狂潮通道：持续 NEST_SURGE_DUR 秒后停，经 NEST_SURGE_GAP 秒再开 ——
+          if (e.cast > 0) {
+            e.cast -= dt;
+            if (e.cast <= 0) e.cast = 0;
+          } else if (e.sub > 0) {
+            e.sub -= dt;
+            if (e.sub <= 0) {
+              e.cast = NEST_SURGE_DUR;
+              e.sub = NEST_SURGE_GAP;
+              this.vfx?.burst(e.x, e.y, 12, 0xd15a3f);
+            }
+          }
+          // 狂潮乘数逐帧写进 World（SpawnSystem 仅在巢母存活时读取，巢母死后不残留生效）
+          world.minionBurstMul = e.cast > 0 ? NEST_SURGE_MUL : 1;
+          // —— 召唤通道：每轮在巢母周围召唤 2 只甲壳兽 ——
+          e.timer -= dt;
+          if (e.timer <= 0) {
+            e.timer = def.p1;
+            if (CA_INDEX >= 0) {
+              for (let k = 0; k < NEST_SUMMON_COUNT; k++) {
+                const a = rng.next() * TAU;
+                spawnEnemy(world, CA_INDEX, e.x + Math.cos(a) * 80, e.y + Math.sin(a) * 80, 1, 1);
+              }
+            }
+            this.vfx?.burst(e.x, e.y, 12, 0xd15a3f);
+          }
+          // —— 甲壳兽存活回血：场上任意存活甲壳兽（含精英波刷出）存在时每秒回 0.5% 最大生命 ——
+          if (CA_INDEX >= 0 && this.hasCarapace(world)) {
+            e.hp = Math.min(e.maxHp, e.hp + e.maxHp * NEST_HEAL_PER_SEC * dt);
+          }
+          break;
+        }
+
         case Ai.Gunner: {
           // 深渊炮手：缓慢逼近，周期性朝玩家射出单发直线弹（带蓄力警示）
           vx = nx * speed;
@@ -658,9 +742,9 @@ export class EnemyAISystem {
                 pr.y = pr.py = e.y;
                 pr.vx = Math.cos(a) * def.p1;
                 pr.vy = Math.sin(a) * def.p1;
-                pr.radius = 14; // 体积加大，配合发光造型，弹幕清晰可辨
+                pr.radius = 20; // 体积加大，配合发光造型，弹幕清晰可辨
                 pr.damage = e.damage;
-                pr.life = pr.maxLife = 4;
+                pr.life = pr.maxLife = 5;
                 pr.pierce = 1;
                 pr.srcId = 650 + i;
                 pr.spriteKey = 13; // Tex.OrbSeeker：发光菱形，明显区别于玩家弹幕

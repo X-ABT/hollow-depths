@@ -122,6 +122,18 @@ export class World {
   arenaY = 0;
   /** 运行模式：true = 无尽幽墟（Boss 定时刷新 / 击杀不清屏 / 无胜利目标）。每次 startRun 设置，reset 后归 false */
   endless = false;
+  /** 全局敌人血量倍率：关卡2=2、特殊关卡=3（所有怪物 HP 等比例翻倍，机制不变）；无尽/远征/宠物园=1。reset 后归 1 */
+  enemyHpMul = 1;
+  /** 特殊关卡：true = 每 180s 同种 Boss×3（古神→灾厄→终焉）、全怪 HP×3；与 endless 互斥。reset 后归 false */
+  special = false;
+  /** 关卡3：true = Boss 泣灵→渊喉→巢母（击杀巢母胜利）、非 Boss（除炮手）HP×3/伤害×2。reset 后归 false */
+  stage3 = false;
+  /** 关卡3 非 Boss（普通/精英/召唤，炮手豁免）额外血量倍率；其余模式恒 1。reset 后归 1 */
+  minionHpMul = 1;
+  /** 关卡3 非 Boss（同上）额外伤害倍率；其余模式恒 1。reset 后归 1 */
+  minionDmgMul = 1;
+  /** 巢母「狂潮」时的普通怪刷新倍率（默认 1；由巢母 AI 按狂潮状态逐帧写 10/1）。reset 后归 1 */
+  minionBurstMul = 1;
   /** 玩家受伤回调（供 HUD 做受击闪白与震屏） */
   onPlayerHurt: ((amount: number) => void) | null = null;
 
@@ -150,6 +162,12 @@ export class World {
     this.arenaX = 0;
     this.arenaY = 0;
     this.endless = false;
+    this.enemyHpMul = 1;
+    this.special = false;
+    this.stage3 = false;
+    this.minionHpMul = 1;
+    this.minionDmgMul = 1;
+    this.minionBurstMul = 1;
     if (seed !== undefined) this.rng.reseed(seed);
   }
 

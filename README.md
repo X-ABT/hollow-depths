@@ -2,7 +2,7 @@
 
 > 纯前端、零后端的浏览器幸存者类 Roguelite。打开链接即玩，无需下载、无需注册、没有冷启动。**中英双语可切换**，并已接入 **CrazyGames SDK**（激励视频变现 + 平台事件），适配海外发行。
 
-**[在线游玩 →](https://hollow-depths.onrender.com)** · **[CrazyGames 上架与 SDK 指南 →](docs/crazygames-guide.md)**
+**[在线游玩 →](https://hollow-depths.onrender.com)** · **[数值与机制总表 →](docs/game-balance/数值与机制总表.md)** · **[CrazyGames 上架与 SDK 指南 →](docs/crazygames-guide.md)**
 
 一个 Vite + TypeScript + PixiJS v8 从零实现的 Vampire Survivors 风格游戏：控制游侠在无限地牢中走位求生，武器自动开火，击杀掉落灵魂碎片，升级时三选一构筑属于这一局的流派。
 

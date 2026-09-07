@@ -475,6 +475,93 @@ function drawPet(g: G, def: PetDef): void {
   }
 }
 
+/**
+ * 游侠玩家绘制：四姿态（0 idleA / 1 idleB / 2 walkA / 3 walkB）。
+ * 比旧版纯剪影更「具体」：露出脸/头巾、胸甲开襟、背后弓、箭袋、发光眼、护符与交替步态。
+ * 玩家渲染只做水平镜像（face<0），因此不对称元素沿垂直中线两侧对称放置即可。
+ */
+function drawRanger(g: G, pose: number): void {
+  const walk = pose >= 2;
+  const idleB = pose === 1;
+  // 行走八相位步态（q = 0..7，对应 WalkA..H）：
+  // 腿部按正弦采样逐帧渐变（0,2,3,2,0,-2,-3,-2），相邻帧步进 ≤1px，
+  // 弓臂/披风同表渐变，观感接近平滑行走而非 2/4 态跳变
+  const q = walk ? (pose - 2) & 7 : 0;
+  const LEG_SW = [0, 2, 3, 2, 0, -2, -3, -2][q]; // 前腿外摆幅度（px）
+  const swing = idleB ? 0.6 : walk ? [1.4, 0.9, 0, -0.9, -1.4, -0.9, 0, 0.9][q] : 0; // 弓臂/披风随步摆动
+  const skin = 0xe2a879;
+  const skinSh = 0xb67b4d;
+  const cloth = 0x2a1e52; // 斗篷主紫（比旧 deep 亮一档，提升存在感）
+  const clothDk = 0x150f28;
+  const clothHi = 0x3e2f79;
+  const trim = C.arcane;
+  const eyeC = C.soul;
+  const amber = C.amber;
+  const wood = 0x5e4627;
+  const woodHi = 0x98794a;
+  const quiverC = 0x3f5548;
+  const quiverHi = 0x93b8a1;
+  const band = 0x8f4f43; // 头巾布带（红棕，与暗紫斗篷拉开对比）
+
+  // ——— 腿 / 靴（底层；行走四相位步进更细，静止并脚） ———
+  const legX = [walk ? 26 + LEG_SW : 26, walk ? 38 - LEG_SW : 38];
+  for (let k = 0; k < 2; k++) {
+    const lx = legX[k];
+    const isBack = walk ? (k === 0 ? LEG_SW < 0 : LEG_SW > 0) : k === 1;
+    g.roundRect(lx - 3, 50, 6, 10.6, 2.6).fill({ color: isBack ? 0x1a1330 : clothDk, alpha: 0.97 });
+    g.roundRect(lx - 4.2, 59, 8.4, 3.7, 1.8).fill({ color: 0x0d0a1c, alpha: 1 });
+    g.roundRect(lx - 4.2, 59, 8.4, 1.3, 0.6).fill({ color: amber, alpha: isBack ? 0.2 : 0.45 }); // 靴口亮线
+  }
+
+  // ——— 躯干短袍（胸甲开襟 + 腰带 + 护符） ———
+  g.poly([22, 30, 42, 30, 46, 40, 45, 50, 38, 52, 32, 54, 26, 52, 19, 50, 18, 40]).fill({ color: cloth, alpha: 0.99 });
+  g.poly([22, 30, 42, 30, 46, 40, 45, 50, 38, 52, 32, 54, 26, 52, 19, 50, 18, 40]).stroke({ width: 1.4, color: trim, alpha: 0.5 });
+  // 左肩高光（模拟环境光）
+  g.poly([22, 30, 20, 40, 18, 40, 22, 30]).fill({ color: clothHi, alpha: 0.6 });
+  // 胸甲中缝
+  g.moveTo(32, 31).lineTo(32, 44).stroke({ width: 1, color: 0x0f0b1e, alpha: 0.85 });
+  // 腰带 + 铜扣
+  g.rect(20, 45, 24, 3.4).fill({ color: 0x0f0b1e, alpha: 1 });
+  g.rect(30.4, 44.4, 3.2, 4.4).fill({ color: amber, alpha: 0.9 });
+  // 胸口护符（琥珀微光）
+  glow(g, 32, 37, 3.2, amber, 0.45);
+  g.circle(32, 37, 1.9).fill({ color: amber, alpha: 1 });
+
+  // ——— 箭袋（右侧腰间，斜背露出羽尾） ———
+  g.roundRect(44, 42, 5.4, 14, 2.4).fill({ color: quiverC, alpha: 0.97 });
+  g.roundRect(44, 42, 5.4, 14, 2.4).stroke({ width: 1.1, color: quiverHi, alpha: 0.75 });
+  g.moveTo(42.6, 37).lineTo(46.4, 34.4).stroke({ width: 1.2, color: 0xe9e5ff, alpha: 0.85 });
+  g.moveTo(46.6, 37).lineTo(50.4, 34.4).stroke({ width: 1.2, color: 0xe9e5ff, alpha: 0.85 });
+
+  // ——— 背后弓（两端露出于肩侧，随步伐微摆） ———
+  g.moveTo(13 - swing, 12).quadraticCurveTo(10.6, 24, 14, 40).stroke({ width: 3.2, color: wood, alpha: 0.95 });
+  g.moveTo(51 + swing, 12).quadraticCurveTo(53.4, 24, 50, 40).stroke({ width: 3.2, color: wood, alpha: 0.95 });
+  g.moveTo(13 - swing, 12).quadraticCurveTo(10.6, 24, 14, 40).stroke({ width: 1, color: woodHi, alpha: 0.55 });
+  g.moveTo(51 + swing, 12).quadraticCurveTo(53.4, 24, 50, 40).stroke({ width: 1, color: woodHi, alpha: 0.55 });
+  // 弓弦（两端弓臂之间，略高于头顶，视觉成「弓背在身后」）
+  g.moveTo(12.4 - swing, 13).quadraticCurveTo(32, -1, 51.6 + swing, 13).stroke({ width: 1, color: 0xcfd6ff, alpha: 0.55 });
+
+  // ——— 兜帽后身（大穹顶，压住后脑，弧线描边） ———
+  g.poly([21, 27, 25, 12, 32, 4.5, 39, 12, 43, 27]).fill({ color: clothDk, alpha: 1 });
+  g.poly([21, 27, 25, 12, 32, 4.5, 39, 12, 43, 27]).stroke({ width: 1.8, color: trim, alpha: 0.85 });
+
+  // ——— 头巾（额头亮带）与脸 ———
+  g.moveTo(22.5, 21).quadraticCurveTo(32, 14.5, 41.5, 21).stroke({ width: 2.8, color: band, alpha: 0.95 });
+  g.ellipse(32, 29.5, 10, 8.8).fill({ color: skin, alpha: 0.99 });
+  // 脸侧阴影（体积感）
+  g.ellipse(23.4, 30, 2.7, 5.2).fill({ color: skinSh, alpha: 0.5 });
+  g.ellipse(40.6, 30, 2.7, 5.2).fill({ color: skinSh, alpha: 0.5 });
+  // 发光眼 + 白点
+  eyes(g, 32, 27.6, 4.4, 1.9, eyeC);
+  g.circle(27.4, 27, 0.8).fill({ color: 0xffffff, alpha: 0.95 });
+  g.circle(36.6, 27, 0.8).fill({ color: 0xffffff, alpha: 0.95 });
+  // 眉
+  g.moveTo(24.2, 23.6).lineTo(28.8, 23).stroke({ width: 1.2, color: 0x3a2717, alpha: 0.9 });
+  g.moveTo(39.8, 23.6).lineTo(35.2, 23).stroke({ width: 1.2, color: 0x3a2717, alpha: 0.9 });
+  // 嘴
+  g.moveTo(30.2, 34.4).quadraticCurveTo(32, 36, 33.8, 34.4).stroke({ width: 1.1, color: 0x8a4a34, alpha: 0.8 });
+}
+
 /** 单个纹理的绘制（坐标系固定为 0..64，烘焙时统一缩放） */
 export function drawTex(g: G, key: number): void {
   g.clear();
@@ -486,18 +573,37 @@ export function drawTex(g: G, key: number): void {
   }
   switch (key) {
     // ——————————————— 角色与敌人 ———————————————
-    case Tex.Player: {
-      // 兜帽斗篷
-      g.poly([32, 6, 50, 30, 54, 58, 10, 58, 14, 30]).fill({ color: C.deep, alpha: 0.96 });
-      g.poly([32, 6, 50, 30, 54, 58, 10, 58, 14, 30]).stroke({ width: 2, color: C.arcane, alpha: 0.85 });
-      // 兜帽内的阴影与发光眼
-      g.ellipse(32, 26, 15, 13).fill({ color: C.void, alpha: 0.95 });
-      eyes(g, 32, 26, 6, 2.6, C.soul);
-      g.circle(27, 26, 1.1).fill({ color: 0xffffff, alpha: 0.9 });
-      // 斗篷下摆
-      g.poly([10, 58, 32, 50, 54, 58, 32, 62]).fill({ color: C.stone, alpha: 0.9 });
+    case Tex.Player:
+    case Tex.PlayerIdleA:
+      drawRanger(g, 0);
       break;
-    }
+    case Tex.PlayerIdleB:
+      drawRanger(g, 1);
+      break;
+    case Tex.PlayerWalkA:
+      drawRanger(g, 2);
+      break;
+    case Tex.PlayerWalkB:
+      drawRanger(g, 3);
+      break;
+    case Tex.PlayerWalkC:
+      drawRanger(g, 4);
+      break;
+    case Tex.PlayerWalkD:
+      drawRanger(g, 5);
+      break;
+    case Tex.PlayerWalkE:
+      drawRanger(g, 6);
+      break;
+    case Tex.PlayerWalkF:
+      drawRanger(g, 7);
+      break;
+    case Tex.PlayerWalkG:
+      drawRanger(g, 8);
+      break;
+    case Tex.PlayerWalkH:
+      drawRanger(g, 9);
+      break;
     case Tex.Wraith: {
       // 飘带状幽灵
       g.poly([32, 8, 50, 24, 52, 50, 44, 58, 38, 50, 32, 58, 26, 50, 20, 58, 12, 50, 14, 24]).fill({
@@ -601,100 +707,261 @@ export function drawTex(g: G, key: number): void {
 
     // ——————————————— Boss ———————————————
     case Tex.BossHerald: {
+      // —— 背景符环：紫雾细双环 + 十二点符文星（身份标识）——
+      g.circle(32, 32, 30).stroke({ width: 1.1, color: C.arcane, alpha: 0.4 });
+      g.circle(32, 32, 27).stroke({ width: 1, color: C.arcane, alpha: 0.2 });
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        g.circle(32 + Math.cos(a) * 30, 32 + Math.sin(a) * 30, i % 3 === 0 ? 1.4 : 0.9).fill({
+          color: C.arcane,
+          alpha: i % 3 === 0 ? 0.9 : 0.45,
+        });
+      }
+      // —— 外发光：主题紫 + 眼琥珀双辉光 ——
       glow(g, 32, 32, 30, C.arcane, 0.5);
-      g.circle(32, 32, 24).fill({ color: 0x2a1a4d, alpha: 0.96 });
-      g.circle(32, 32, 24).stroke({ width: 2.6, color: C.amber, alpha: 0.8 });
-      // 多眼
-      eyes(g, 32, 28, 9, 4, C.amber);
-      g.circle(32, 40, 3.5).fill(C.amber);
-      // 触须
+      glow(g, 32, 32, 17, C.amber, 0.4);
+      // —— 主体暗紫球 + 粗深描边 ——
+      g.circle(32, 32, 23).fill({ color: 0x120a26, alpha: 0.98 });
+      g.circle(29, 26, 9).fill({ color: 0x2a1a4d, alpha: 0.9 }); // 左上体积色块
+      g.circle(32, 32, 23).stroke({ width: 3, color: 0x080313, alpha: 1 });
+      // —— 触须：暗底粗线 + 紫亮细线双层 ——
       for (let i = -2; i <= 2; i++) {
         const a = Math.PI / 2 + i * 0.42;
-        g.moveTo(32, 32)
-          .quadraticCurveTo(
-            32 + Math.cos(a) * 30,
-            32 + Math.sin(a) * 30,
-            32 + Math.cos(a) * 34 + i * 6,
-            32 + Math.sin(a) * 34,
-          )
-          .stroke({ width: 2.4, color: C.arcane, alpha: 0.75 });
+        const cx = 32 + Math.cos(a) * 26;
+        const cy = 32 + Math.sin(a) * 26;
+        const ex = 32 + Math.cos(a) * 32 + i * 6;
+        const ey = 32 + Math.sin(a) * 32;
+        g.moveTo(32, 32).quadraticCurveTo(cx, cy, ex, ey).stroke({ width: 3.2, color: 0x0d061f, alpha: 0.95 });
+        g.moveTo(32, 32).quadraticCurveTo(cx, cy, ex, ey).stroke({ width: 1.3, color: C.arcane, alpha: 0.7 });
       }
+      // —— 多眼（带眼睑光晕 + 高光瞳）——
+      const heraldEyes: ReadonlyArray<readonly [number, number, number]> = [
+        [32, 27, 4.2], [22, 34, 3.3], [42, 34, 3.3],
+      ];
+      for (const [ex, ey, er] of heraldEyes) {
+        glow(g, ex, ey, 8, C.amber, 0.5);
+        g.circle(ex, ey, er).fill({ color: 0x2b1503, alpha: 1 });
+        g.circle(ex - er * 0.3, ey - er * 0.3, er * 0.42).fill({ color: 0xffe9a8, alpha: 1 });
+      }
+      // —— 中央口/大眼（邪光）——
+      g.circle(32, 45, 4).fill({ color: C.amber, alpha: 1 });
+      g.circle(32, 45, 1.3).fill({ color: 0xffffff, alpha: 1 });
+      // —— 体积高光 + 琥珀 rim ——
+      g.circle(25, 21, 3).fill({ color: 0x7a5cc8, alpha: 0.5 });
+      g.circle(24, 20, 1.5).fill({ color: 0xc4b0ff, alpha: 0.85 });
+      g.circle(32, 32, 23).stroke({ width: 1.2, color: C.amber, alpha: 0.5 });
       break;
     }
     case Tex.BossCalamity: {
+      // —— 背景：绯红裂环 + 辉光 ——
+      g.circle(32, 32, 29).stroke({ width: 1.4, color: C.bad, alpha: 0.3 });
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2;
+        g.circle(32 + Math.cos(a) * 29, 32 + Math.sin(a) * 29, 1).fill({ color: C.bad, alpha: 0.55 });
+      }
+      glow(g, 32, 32, 30, C.bad, 0.45);
+      // —— 九芒风暴壳：暗底 + 双层描边 + 角尖灯点 ——
       const pts: number[] = [];
       for (let i = 0; i < 9; i++) {
         const a = (i / 9) * Math.PI * 2;
-        const r = i % 2 ? 18 : 28;
+        const r = i % 2 ? 17 : 26;
         pts.push(32 + Math.cos(a) * r, 32 + Math.sin(a) * r);
       }
-      g.poly(pts).fill({ color: 0x4a1220, alpha: 0.96 });
-      g.poly(pts).stroke({ width: 2.6, color: C.bad, alpha: 0.92 });
-      // 裂纹
-      g.moveTo(32, 8).lineTo(26, 26).lineTo(36, 34).lineTo(28, 54).stroke({
-        width: 2,
-        color: C.warn,
-        alpha: 0.85,
-      });
-      glow(g, 32, 32, 10, C.bad, 0.9);
+      g.poly(pts).fill({ color: 0x16040c, alpha: 0.98 });
+      g.poly(pts).stroke({ width: 3, color: 0x07010a, alpha: 1 });
+      g.poly(pts).stroke({ width: 1.1, color: C.bad, alpha: 0.85 });
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2;
+        const r = i % 2 ? 17 : 26;
+        g.circle(32 + Math.cos(a) * (r + 0.6), 32 + Math.sin(a) * (r + 0.6), 1.1).fill({
+          color: 0xff9aa8,
+          alpha: 0.95,
+        });
+      }
+      // —— 裂纹内透光（橙熔浆线）——
+      const cracks: ReadonlyArray<readonly [number, number, number, number]> = [
+        [34, 7, 26, 27], [27, 27, 38, 36], [38, 36, 29, 55], [19, 20, 25, 25], [44, 20, 38, 25],
+      ];
+      for (const [x1, y1, x2, y2] of cracks) {
+        g.moveTo(x1, y1).lineTo(x2, y2).stroke({ width: 2.2, color: C.warn, alpha: 0.8 });
+      }
+      // —— 内核熔芯：橙→白热 ——
+      g.circle(32, 32, 10).fill({ color: 0xffb020, alpha: 0.25 });
+      g.circle(32, 32, 5.4).fill({ color: 0xff8a4a, alpha: 0.95 });
+      g.circle(32, 32, 2).fill({ color: 0xfff4d0, alpha: 1 });
+      // —— 体积：左上暗反光 + 高光点 ——
+      g.circle(30, 26, 9).fill({ color: 0x5a1c24, alpha: 0.42 });
+      g.circle(24, 22, 2.2).fill({ color: 0xffa2ae, alpha: 0.65 });
       break;
     }
     case Tex.BossEndless: {
-      g.circle(32, 32, 30).fill({ color: 0x05030a, alpha: 0.98 });
-      g.circle(32, 32, 30).stroke({ width: 2, color: C.amber, alpha: 0.55 });
-      g.circle(32, 32, 22).stroke({ width: 3, color: C.amber, alpha: 0.9 });
-      g.circle(32, 32, 13).fill({ color: 0x000000, alpha: 1 });
-      // 时之刻度
+      // —— 背景：琥珀辉光 + 玄黑表盘 + 外环灯点 ——
+      glow(g, 32, 32, 31, C.amber, 0.4);
+      g.circle(32, 32, 30).fill({ color: 0x05030a, alpha: 0.97 });
+      g.circle(32, 32, 29).stroke({ width: 1.2, color: C.amber, alpha: 0.35 });
       for (let i = 0; i < 12; i++) {
         const a = (i / 12) * Math.PI * 2;
-        g.moveTo(32 + Math.cos(a) * 22, 32 + Math.sin(a) * 22)
-          .lineTo(32 + Math.cos(a) * 28, 32 + Math.sin(a) * 28)
-          .stroke({ width: 1.8, color: C.amber, alpha: 0.75 });
+        const big = i % 3 === 0;
+        g.circle(32 + Math.cos(a) * 30, 32 + Math.sin(a) * 30, big ? 1.9 : 1.1).fill({
+          color: C.amber,
+          alpha: big ? 0.95 : 0.5,
+        });
       }
+      // —— 双层表环 ——
+      g.circle(32, 32, 22).stroke({ width: 3, color: C.amber, alpha: 0.9 });
+      g.circle(32, 32, 18).stroke({ width: 1.1, color: C.amber, alpha: 0.35 });
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + 0.13;
+        g.moveTo(32 + Math.cos(a) * 18.5, 32 + Math.sin(a) * 18.5)
+          .lineTo(32 + Math.cos(a) * 21.5, 32 + Math.sin(a) * 21.5)
+          .stroke({ width: 1.3, color: C.amber, alpha: 0.85 });
+      }
+      // —— 内核黑洞 + 微尘星点 ——
+      g.circle(32, 32, 12).fill({ color: 0x000000, alpha: 1 });
+      g.circle(32, 32, 12).stroke({ width: 1.2, color: C.amber, alpha: 0.55 });
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + 0.4;
+        g.circle(32 + Math.cos(a) * 8, 32 + Math.sin(a) * 8, 0.8).fill({ color: C.amber, alpha: 0.6 });
+      }
+      // —— 指针：暗影层 + 亮边层（竖长针 + 横短针）——
+      g.moveTo(32, 32).lineTo(32, 15).stroke({ width: 2.8, color: 0x1a1004, alpha: 0.96 });
+      g.moveTo(32, 32).lineTo(32, 15).stroke({ width: 1.1, color: C.amber, alpha: 0.95 });
+      g.moveTo(32, 32).lineTo(44, 34).stroke({ width: 2.1, color: 0x1a1004, alpha: 0.92 });
+      g.moveTo(32, 32).lineTo(44, 34).stroke({ width: 0.9, color: C.amber, alpha: 0.85 });
+      g.circle(32, 32, 3).fill({ color: C.amber, alpha: 0.95 });
+      g.circle(32, 32, 1.2).fill({ color: 0xffffff, alpha: 1 });
+      // —— 体积高光 ——
+      g.circle(27, 26, 2.6).fill({ color: 0x6b5226, alpha: 0.6 });
+      g.circle(25, 24, 1.2).fill({ color: 0xffe9a8, alpha: 0.7 });
       break;
     }
     case Tex.BossLament: {
-      // 泣灵：幽蓝漩涡母体（螺旋旋臂 + 冰冷内核）
+      // —— 背景：幽蓝符文细环（身份标识）——
+      g.circle(32, 32, 30).stroke({ width: 1.1, color: hslToRgb(198, 80, 45), alpha: 0.4 });
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2;
+        g.circle(32 + Math.cos(a) * 30, 32 + Math.sin(a) * 30, 0.9).fill({ color: 0x43e0ff, alpha: 0.5 });
+      }
       glow(g, 32, 32, 30, 0x43e0ff, 0.5);
-      g.circle(32, 32, 27).fill({ color: 0x0a2333, alpha: 0.92 });
-      g.circle(32, 32, 27).stroke({ width: 2, color: hslToRgb(198, 85, 60), alpha: 0.85 });
-      g.circle(32, 32, 20).stroke({ width: 1.6, color: hslToRgb(198, 80, 42), alpha: 0.6 });
+      // —— 主体：幽蓝漩涡母体（暗底 + 粗描边）——
+      g.circle(32, 32, 27).fill({ color: 0x061a24, alpha: 0.95 });
+      g.circle(32, 32, 27).stroke({ width: 3, color: 0x02101a, alpha: 1 });
+      // 六旋臂：暗影底 + 亮蓝渐变线双层
       for (let i = 0; i < 6; i++) {
         const a = (i / 6) * Math.PI * 2;
-        g.moveTo(32 + Math.cos(a) * 9, 32 + Math.sin(a) * 9)
+        g.moveTo(32 + Math.cos(a) * 8, 32 + Math.sin(a) * 8)
           .quadraticCurveTo(
-            32 + Math.cos(a + 0.9) * 20,
-            32 + Math.sin(a + 0.9) * 20,
-            32 + Math.cos(a + 1.8) * 28,
-            32 + Math.sin(a + 1.8) * 28,
+            32 + Math.cos(a + 0.9) * 19,
+            32 + Math.sin(a + 0.9) * 19,
+            32 + Math.cos(a + 1.8) * 27,
+            32 + Math.sin(a + 1.8) * 27,
           )
-          .stroke({ width: 3, color: hslToRgb(198, 75, 68), alpha: 0.75 });
+          .stroke({ width: 4, color: 0x020f19, alpha: 0.9 });
+        g.moveTo(32 + Math.cos(a) * 8, 32 + Math.sin(a) * 8)
+          .quadraticCurveTo(
+            32 + Math.cos(a + 0.9) * 19,
+            32 + Math.sin(a + 0.9) * 19,
+            32 + Math.cos(a + 1.8) * 27,
+            32 + Math.sin(a + 1.8) * 27,
+          )
+          .stroke({ width: 1.8, color: hslToRgb(198, 85, 62), alpha: 0.85 });
       }
-      // 冰冷内核对眼（邪气）
-      glow(g, 32, 32, 9, 0xbdf1ff, 0.9);
-      g.circle(32, 32, 4.6).fill({ color: 0xeaffff, alpha: 0.95 });
-      g.circle(32, 32, 1.6).fill({ color: 0x0a2333, alpha: 0.95 });
+      // 冰晶光点（旋臂梢）
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + 1.8;
+        g.circle(32 + Math.cos(a) * 27, 32 + Math.sin(a) * 27, 1.4).fill({ color: 0xbdf1ff, alpha: 0.9 });
+      }
+      // —— 冷核：内层环 + 邪光瞳孔 ——
+      g.circle(32, 32, 9).fill({ color: 0x0a2f42, alpha: 0.9 });
+      g.circle(32, 32, 9).stroke({ width: 1.4, color: hslToRgb(198, 85, 60), alpha: 0.8 });
+      glow(g, 32, 32, 7, 0xbdf1ff, 0.9);
+      g.circle(32, 32, 4).fill({ color: 0xeaffff, alpha: 0.98 });
+      g.circle(32, 32, 1.5).fill({ color: 0x061a24, alpha: 0.98 });
+      // —— 体积高光 ——
+      g.circle(26, 24, 3).fill({ color: 0x2f8fa8, alpha: 0.6 });
+      g.circle(25, 23, 1.4).fill({ color: 0xc9f4ff, alpha: 0.85 });
       break;
     }
     case Tex.BossMaw: {
-      // 渊喉：黑洞巨口（吸积光点环 + 内黑口 + 利齿）
-      glow(g, 32, 32, 30, 0x7c5cff, 0.4);
-      g.circle(32, 32, 27).fill({ color: 0x0b0622, alpha: 0.98 });
-      g.circle(32, 32, 27).stroke({ width: 2, color: 0x9b7dff, alpha: 0.8 });
-      // 吸积光点
-      for (let i = 0; i < 10; i++) {
-        const a = (i / 10) * Math.PI * 2 + i * 0.7;
-        const r = 21 + (i % 3) * 2;
-        g.circle(32 + Math.cos(a) * r, 32 + Math.sin(a) * r, 1.6).fill({ color: 0xff8a5c, alpha: 0.85 });
+      // —— 背景：吸积盘外环（错相位微偏转感）+ 辉光 ——
+      glow(g, 32, 32, 30, 0x7c5cff, 0.45);
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2 + i * 0.13;
+        const r = i % 2 ? 29 : 27.5;
+        g.circle(32 + Math.cos(a) * r, 32 + Math.sin(a) * r, 0.8).fill({ color: 0x9b7dff, alpha: 0.45 });
       }
+      // —— 主体：暗黑洞体 + 粗描边 ——
+      g.circle(32, 32, 27).fill({ color: 0x0a0520, alpha: 0.98 });
+      g.circle(32, 32, 27).stroke({ width: 3, color: 0x040210, alpha: 1 });
+      // —— 吸积光点（带明暗差与暖橙渐变）——
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + i * 0.5;
+        const r = 19 + (i % 3) * 3;
+        const big = i % 3 === 1;
+        g.circle(32 + Math.cos(a) * r, 32 + Math.sin(a) * r, big ? 1.9 : 1.2).fill({
+          color: big ? 0xffcfa5 : 0xff8a5c,
+          alpha: 0.95,
+        });
+      }
+      // —— 口器黑洞 ——
       g.circle(32, 32, 13).fill({ color: 0x000000, alpha: 1 });
-      g.circle(32, 32, 13).stroke({ width: 1.8, color: 0xff5470, alpha: 0.9 });
+      // 利齿（8 只：暗影三角 + 亮芯）
       for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * Math.PI * 2;
-        g.moveTo(32 + Math.cos(a) * 12, 32 + Math.sin(a) * 12)
-          .lineTo(32 + Math.cos(a) * 17, 32 + Math.sin(a) * 17)
-          .stroke({ width: 2.4, color: 0xffe9ef, alpha: 0.9 });
+        const a = (i / 8) * Math.PI * 2 + 0.39;
+        g.poly([
+          32 + Math.cos(a - 0.3) * 12.8, 32 + Math.sin(a - 0.3) * 12.8,
+          32 + Math.cos(a) * 18, 32 + Math.sin(a) * 18,
+          32 + Math.cos(a + 0.3) * 12.8, 32 + Math.sin(a + 0.3) * 12.8,
+        ]).fill({ color: 0x0d0620, alpha: 1 });
+        g.poly([
+          32 + Math.cos(a - 0.16) * 13.6, 32 + Math.sin(a - 0.16) * 13.6,
+          32 + Math.cos(a) * 17.2, 32 + Math.sin(a) * 17.2,
+          32 + Math.cos(a + 0.16) * 13.6, 32 + Math.sin(a + 0.16) * 13.6,
+        ]).fill({ color: 0xfff2ec, alpha: 0.92 });
       }
+      // —— 口沿紫红警示 + 体积高光 ——
+      g.circle(32, 32, 14.2).stroke({ width: 1.2, color: 0xff5470, alpha: 0.7 });
+      g.circle(24, 24, 3.2).fill({ color: 0x3a1a4d, alpha: 0.6 });
+      g.circle(23, 23, 1.5).fill({ color: 0xc9b8ff, alpha: 0.85 });
+      break;
+    }
+    case Tex.BossNest: {
+      // —— 背景：琥珀巢缘细环 + 卵囊光点（身份标识）——
+      g.circle(32, 32, 30).stroke({ width: 1.1, color: 0xe8b64a, alpha: 0.35 });
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + 0.3;
+        g.circle(32 + Math.cos(a) * 29, 32 + Math.sin(a) * 29, 1.3).fill({ color: 0xd88a3f, alpha: 0.7 });
+      }
+      glow(g, 32, 32, 30, 0xd15a3f, 0.4);
+      // —— 主体孕腹：暗紫红底 + 三球剪影体积 + 粗深描边 ——
+      g.circle(32, 33, 23).fill({ color: 0x1c0818, alpha: 0.98 });
+      g.circle(25, 27, 13).fill({ color: 0x3a1228, alpha: 0.95 });
+      g.circle(40, 39, 11).fill({ color: 0x2a0b20, alpha: 0.95 });
+      g.circle(32, 33, 23).stroke({ width: 3.2, color: 0x0d0309, alpha: 1 });
+      // —— 蜂窝巢室：深腔 + 暖光缘 + 内部暗调（育婴格）——
+      const nests: ReadonlyArray<readonly [number, number, number]> = [
+        [32, 22, 4], [21, 32, 3.6], [43, 31, 3.6], [30, 44, 3.8], [23, 22, 3.2], [41, 44, 3.6],
+        [32, 33, 4.4], [25, 13, 3], [39, 16, 3.2],
+      ];
+      for (const [ox, oy, or] of nests) {
+        g.circle(ox, oy, or).fill({ color: 0x070309, alpha: 0.98 });
+        g.circle(ox, oy, or).stroke({ width: 1.2, color: 0xffd9a0, alpha: 0.85 });
+        g.circle(ox - or * 0.2, oy - or * 0.2, or * 0.28).fill({ color: 0x7a4a20, alpha: 0.7 });
+      }
+      // —— 卵囊：琥珀半透明卵 + 顶部高光 ——
+      const eggs: ReadonlyArray<readonly [number, number, number]> = [
+        [14, 40, 3.6], [48, 26, 4], [20, 50, 3.4], [45, 51, 3.6], [30, 54, 3],
+      ];
+      for (const [ex, ey, er] of eggs) {
+        g.circle(ex, ey, er).fill({ color: 0xd88a3f, alpha: 0.75 });
+        g.circle(ex, ey, er).stroke({ width: 1, color: 0xffe2b0, alpha: 0.9 });
+        g.circle(ex - er * 0.3, ey - er * 0.3, er * 0.32).fill({ color: 0xffe2b0, alpha: 0.9 });
+      }
+      // —— 母体邪光核心 + 顶部体积高光 ——
+      glow(g, 32, 33, 9, 0xff5470, 0.85);
+      g.circle(32, 33, 4).fill({ color: 0xff5470, alpha: 0.9 });
+      g.circle(32, 33, 1.4).fill({ color: 0xffd9a0, alpha: 1 });
+      g.circle(27, 22, 2.6).fill({ color: 0x6b2540, alpha: 0.6 });
       break;
     }
 

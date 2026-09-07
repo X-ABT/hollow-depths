@@ -3,8 +3,8 @@ import { isTampered, type SaveData } from '../save/Storage';
 import { isEn, setLang, t } from '../i18n';
 
 export interface TitleHandlers {
-  /** 开局模式：标准一局 / 无尽幽墟 */
-  onStart: (mode: 'standard' | 'endless') => void;
+  /** 开局模式：无尽幽墟 / 特殊关卡(special，怪血×3·3连Boss) / 关卡1 / 关卡2(stage2，怪血×2) / 关卡3(stage3，小怪HP×3伤害×2·泣灵→渊喉→巢母) */
+  onStart: (mode: 'standard' | 'stage2' | 'stage3' | 'special' | 'endless') => void;
   /** 清除全部存档并刷新页面重加载（由 Game 执行 Storage.reset + reload） */
   onClearData: () => void;
   onTogglePause: () => void;
@@ -133,13 +133,25 @@ export class TitleScreen {
     overlay.innerHTML = `
       <div class="start-card">
         <h2 class="start-title">${t('title.modeTitle')}</h2>
-        <button class="btn btn--primary start-opt" data-mode="standard">
-          <b>${t('title.modeStandard')}</b>
-          <span>${t('title.modeStandardDesc')}</span>
-        </button>
         <button class="btn start-opt start-opt--endless" data-mode="endless">
           <b>${t('title.modeEndless')}</b>
           <span>${t('title.modeEndlessDesc')}</span>
+        </button>
+        <button class="btn start-opt" data-mode="special">
+          <b>${t('title.modeSpecial')}</b>
+          <span>${t('title.modeSpecialDesc')}</span>
+        </button>
+        <button class="btn start-opt" data-mode="standard">
+          <b>${t('title.modeStandard')}</b>
+          <span>${t('title.modeStandardDesc')}</span>
+        </button>
+        <button class="btn start-opt" data-mode="stage2">
+          <b>${t('title.modeStage2')}</b>
+          <span>${t('title.modeStage2Desc')}</span>
+        </button>
+        <button class="btn start-opt" data-mode="stage3">
+          <b>${t('title.modeStage3')}</b>
+          <span>${t('title.modeStage3Desc')}</span>
         </button>
         <button class="btn btn--ghost start-cancel" data-act="cancel">${t('title.back')}</button>
       </div>
@@ -147,13 +159,25 @@ export class TitleScreen {
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) this.closeStartChoice();
     });
+    overlay.querySelector('[data-mode="endless"]')?.addEventListener('click', () => {
+      this.closeStartChoice();
+      h.onStart('endless');
+    });
+    overlay.querySelector('[data-mode="special"]')?.addEventListener('click', () => {
+      this.closeStartChoice();
+      h.onStart('special');
+    });
     overlay.querySelector('[data-mode="standard"]')?.addEventListener('click', () => {
       this.closeStartChoice();
       h.onStart('standard');
     });
-    overlay.querySelector('[data-mode="endless"]')?.addEventListener('click', () => {
+    overlay.querySelector('[data-mode="stage2"]')?.addEventListener('click', () => {
       this.closeStartChoice();
-      h.onStart('endless');
+      h.onStart('stage2');
+    });
+    overlay.querySelector('[data-mode="stage3"]')?.addEventListener('click', () => {
+      this.closeStartChoice();
+      h.onStart('stage3');
     });
     overlay.querySelector('[data-act="cancel"]')?.addEventListener('click', () => this.closeStartChoice());
     this.root.appendChild(overlay);

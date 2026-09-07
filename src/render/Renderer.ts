@@ -16,6 +16,25 @@ import { Rng } from '../core/Rng';
 
 /** 剔除边距：略大于视口，避免精灵在边缘突然弹出 */
 const CULL_PAD = 72;
+/** 玩家移动残影参数（预分配 Sprite，非热路径 new） */
+const GHOST_MAX = 3;
+const GHOST_INTERVAL = 0.05;
+const GHOST_LIFE = 0.3;
+/** Boss 本体呼吸缩放（渲染层）：幅值约 2.8%，频率 2.4Hz，相位按下标错开使多 Boss 不同步；不影响碰撞/技能 */
+const BOSS_BREATHE = 0.028;
+const BOSS_BREATHE_FREQ = 2.4;
+const BOSS_BREATHE_PHASE = 1.7;
+/** 游侠行走 8 帧序列（与 Textures.drawRanger 八相位步态一一对应） */
+const PLAYER_WALK_KEYS: readonly number[] = [
+  Tex.PlayerWalkA,
+  Tex.PlayerWalkB,
+  Tex.PlayerWalkC,
+  Tex.PlayerWalkD,
+  Tex.PlayerWalkE,
+  Tex.PlayerWalkF,
+  Tex.PlayerWalkG,
+  Tex.PlayerWalkH,
+];
 
 /** 非有限坐标告警：只打一次，避免日志刷屏（Pixi 对 NaN 静默不绘制 =「隐形实体」） */
 let warnedBadCoord = false;
@@ -103,6 +122,18 @@ export class WorldRenderer {
   private readonly pickSprites: Sprite[] = [];
   private readonly playerSprite = new Sprite();
   private readonly arenaRing = new Graphics();
+  /** 玩家脚底地面标记（轮廓柔光 + 软阴影 + 识别圈），随世界缩放投影 */
+  private readonly playerGround = new Graphics();
+  /** 玩家移动残影层（预分配，不热路径 new） */
+  private readonly ghostLayer = new Container();
+  private readonly ghostSprites: Sprite[] = [];
+  private readonly ghostBirth: number[] = [];
+  private ghostCursor = 0;
+  private ghostNextT = -1;
+  /** 玩家动画状态：行走里程相位 / 上一渲染帧插值位置 */
+  private playerWalkPhase = 0;
+  private prevRX = 0;
+  private prevRY = 0;
 
   /** 宠物紧凑显示：隐藏超过阈值的巨兽本体（保留玩家视野） */
   petCompact = false;
@@ -135,6 +166,8 @@ export class WorldRenderer {
     this.world.addChild(this.petLayer);
     this.world.addChild(this.warnLayer);
     this.world.addChild(this.projLayer);
+    this.world.addChild(this.playerGround); // 脚底标记压在玩家之下
+    this.world.addChild(this.ghostLayer); // 移动残影也在玩家之下
     this.world.addChild(this.playerSprite);
     this.root.addChild(this.bg);
     this.root.addChild(this.world);
@@ -184,6 +217,16 @@ export class WorldRenderer {
       s.texture = atlas.get(Tex.Ring);
       this.warnSprites.push(s);
       this.warnLayer.addChild(s);
+    }
+    // 玩家移动残影：预分配、运行期零分配
+    for (let i = 0; i < GHOST_MAX; i++) {
+      const s = new Sprite();
+      s.anchor.set(0.5);
+      s.visible = false;
+      s.alpha = 0;
+      this.ghostSprites.push(s);
+      this.ghostBirth.push(-1);
+      this.ghostLayer.addChild(s);
     }
     this.playerSprite.anchor.set(0.5);
     this.playerSprite.texture = atlas.get(Tex.Player);
@@ -251,8 +294,10 @@ export class WorldRenderer {
       s.x = x;
       s.y = y;
       const size = e.radius * 3;
-      s.width = size;
-      s.height = size;
+      // Boss 本体轻微呼吸缩放（仅渲染层，碰撞/技能半径不变）；相位用下标错开，多 Boss 并存不同步
+      const breathe = e.isBoss ? 1 + BOSS_BREATHE * Math.sin(world.time * BOSS_BREATHE_FREQ + i * BOSS_BREATHE_PHASE) : 1;
+      s.width = size * breathe;
+      s.height = size * breathe;
       if (e.flash > 0) {
         s.tint = 0xffffff;
         s.alpha = 1;
@@ -260,6 +305,9 @@ export class WorldRenderer {
       } else if (e.slowT > 0) {
         s.tint = 0x9fd8ff;
         s.alpha = 0.92;
+      } else if (e.isBoss) {
+        s.tint = 0xffffff;
+        s.alpha = 1;
       } else if (e.isElite) {
         s.tint = 0xffd9a0;
         s.alpha = 0.98;
@@ -484,8 +532,28 @@ export class WorldRenderer {
     const py = p.py + (p.y - p.py) * alpha;
     const playerOk = this.showPlayer && !badCoord(px, py);
     this.playerSprite.visible = playerOk;
-    if (this.showPlayer && !playerOk) warnBadCoord('player');
-    if (playerOk) {
+    this.playerGround.visible = playerOk;
+    if (!playerOk) {
+      if (this.showPlayer) warnBadCoord('player');
+      for (const s of this.ghostSprites) s.visible = false;
+      // 复位轨迹，避免重新出现（远征进出）时误判为高速移动
+      this.prevRX = px;
+      this.prevRY = py;
+    } else {
+      // —— 动画换帧：行走由「插值位移累积」驱动（帧率无关）；静止按逻辑时间低频呼吸 ——
+      const step = Math.hypot(px - this.prevRX, py - this.prevRY);
+      let frame: number;
+      if (step > 0.4) {
+        this.playerWalkPhase += step;
+        // 八相位平滑步态：每 14px 前进一帧（完整周期 112px），相邻帧腿步进≈1px，移动观感更顺
+        frame = PLAYER_WALK_KEYS[Math.floor(this.playerWalkPhase / 14) & 7];
+      } else {
+        frame = (Math.floor(world.time * 1.7) & 1) === 0 ? Tex.Player : Tex.PlayerIdleB;
+      }
+      this.prevRX = px;
+      this.prevRY = py;
+
+      this.playerSprite.texture = atlas.get(frame);
       this.playerSprite.x = px;
       this.playerSprite.y = py;
       this.playerSprite.width = p.radius * 3.4;
@@ -493,6 +561,42 @@ export class WorldRenderer {
       this.playerSprite.scale.x = Math.abs(this.playerSprite.scale.x) * (p.face < 0 ? -1 : 1);
       // 无敌帧闪烁
       this.playerSprite.alpha = p.iframe > 0 ? 0.35 + 0.65 * Math.abs(Math.sin(p.iframe * 26)) : 1;
+
+      // —— 脚下地面标记：轮廓柔光 + 软阴影 + 浅色识别圈（帮助怪潮中定位自己） ——
+      const ground = this.playerGround;
+      ground.clear();
+      const half = p.radius * 1.7; // 贴图半宽（世界 px）
+      const footY = py + half * 0.55; // 脚底附近
+      ground.circle(px, py, half * 1.08).fill({ color: 0x7c5cff, alpha: 0.1 }); // 轮廓柔光（紫）
+      ground.ellipse(px, footY, half * 0.9, half * 0.34).fill({ color: 0x000000, alpha: 0.3 }); // 软阴影
+      ground.circle(px, footY, half * 0.62).stroke({ width: 1.5, color: 0x7c5cff, alpha: 0.4 }); // 识别圈
+      ground.circle(px, footY, half * 0.34).stroke({ width: 1, color: 0x9a8cff, alpha: 0.25 }); // 内细圈
+
+      // —— 移动残影：移动中按间隔记录历史帧，静止后淡出（预分配） ——
+      if (step > 0.4 && world.time - this.ghostNextT >= GHOST_INTERVAL) {
+        this.ghostNextT = world.time;
+        const gs = this.ghostSprites[this.ghostCursor];
+        gs.texture = this.playerSprite.texture;
+        gs.x = px;
+        gs.y = py;
+        gs.width = this.playerSprite.width;
+        gs.height = this.playerSprite.height;
+        gs.scale.x = Math.abs(gs.scale.x) * (p.face < 0 ? -1 : 1);
+        gs.alpha = 0.18;
+        gs.visible = true;
+        this.ghostBirth[this.ghostCursor] = world.time;
+        this.ghostCursor = (this.ghostCursor + 1) % GHOST_MAX;
+      }
+      for (let i = 0; i < GHOST_MAX; i++) {
+        const gs = this.ghostSprites[i];
+        if (!gs.visible) continue;
+        const age = world.time - this.ghostBirth[i];
+        if (age < 0 || age >= GHOST_LIFE) {
+          gs.visible = false;
+          continue;
+        }
+        gs.alpha = 0.18 * (1 - age / GHOST_LIFE);
+      }
       visible++;
     }
 

@@ -194,7 +194,6 @@ function fireSeeker(d: WeaponDef, ctx: FireCtx): void {
       pr.critChance = ctx.critChance;
       pr.critMult = ctx.critMult;
       pr.turn = 7.5;
-      pr.knockback = 40;
       pr.splash = d.isEvolved ? 82 : 0;
       pr.spriteKey = Tex.OrbSeeker;
       pr.rotSpeed = 6;
@@ -299,7 +298,7 @@ function fireFrost(d: WeaponDef, ctx: FireCtx): void {
     pr.radius = radius;
     pr.damage = ctx.dmg;
     pr.dotDps = ctx.dmg;
-    pr.slowF = 0.6;
+    pr.slowF = 0.4;
     pr.life = pr.maxLife = dur;
     pr.pierce = 9999;
     pr.srcId = ctx.srcId;
@@ -322,10 +321,10 @@ export const WEAPONS: readonly WeaponDef[] = [
     enDesc: 'Tears the earth under nearby enemies, erupting after a short delay for 12 base damage per mark. Can mark several foes at once.',
     icon: Tex.IconRift,
     maxLevel: LV12,
-    cd: [2.4, 2.27, 2.14, 2.03, 1.92, 1.82, 1.73, 1.63, 1.53, 1.44, 1.35, 1.25],
+    cd: [2.88, 2.72, 2.57, 2.44, 2.3, 2.18, 2.08, 1.96, 1.84, 1.73, 1.62, 1.5],
     dmg: [12, 14, 17, 20, 23, 27, 31, 35, 41, 47, 55, 62],
-    a: [56, 58, 62, 65, 68, 71, 75, 79, 85, 91, 97, 104],
-    b: [1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 5],
+    a: [56, 58, 62, 65, 68, 70, 72, 74, 77, 80, 83, 86],
+    b: [1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4],
     aName: '爆发半径',
     bName: '印记数量',
     fire: fireRift,
@@ -359,10 +358,10 @@ export const WEAPONS: readonly WeaponDef[] = [
     enDesc: 'Auto-locks the nearest enemy and fires homing runes in pursuit; each bolt deals 10 base damage.',
     icon: Tex.IconSeeker,
     maxLevel: LV12,
-    cd: [1.6, 1.53, 1.47, 1.41, 1.35, 1.28, 1.22, 1.15, 1.09, 1.03, 0.97, 0.9],
+    cd: [1.76, 1.68, 1.62, 1.55, 1.49, 1.41, 1.34, 1.27, 1.2, 1.13, 1.07, 0.99],
     dmg: [10, 12, 14, 16, 18, 21, 24, 27, 31, 36, 41, 48],
     a: [1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 5],
-    b: [300, 310, 319, 328, 338, 348, 357, 367, 378, 389, 402, 415],
+    b: [200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200],
     aName: '符文数量',
     bName: '飞行速度',
     fire: fireSeeker,
@@ -380,7 +379,7 @@ export const WEAPONS: readonly WeaponDef[] = [
     cd: [3.2, 3.07, 2.94, 2.82, 2.69, 2.57, 2.43, 2.31, 2.18, 2.06, 1.93, 1.8],
     dmg: [18, 20, 24, 27, 30, 34, 39, 43, 49, 55, 63, 72],
     a: [110, 117, 124, 131, 139, 147, 156, 164, 174, 185, 197, 210],
-    b: [260, 273, 286, 298, 311, 323, 337, 349, 362, 376, 395, 420],
+    b: [260, 266.5, 273, 279, 285.5, 291.5, 298.5, 304.5, 311, 318, 327.5, 340],
     aName: '爆发半径',
     bName: '击退力度',
     fire: fireShock,
@@ -398,8 +397,8 @@ export const WEAPONS: readonly WeaponDef[] = [
     cd: [0.55, 0.52, 0.49, 0.47, 0.44, 0.42, 0.38, 0.36, 0.33, 0.31, 0.28, 0.26],
     // 单发伤害整体抬升：Lv1 单颗即可一发秒亡魂(9 HP)
     dmg: [10, 11, 12, 13, 14, 15, 17, 18, 20, 22, 25, 27],
-    a: [2, 3, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8],
-    b: [400, 413, 426, 438, 451, 463, 477, 489, 502, 516, 535, 560],
+    a: [2, 3, 3, 3, 3, 4, 4, 5, 5, 5, 6, 7],
+    b: [200, 218, 236, 255, 273, 291, 309, 327, 345, 364, 382, 400],
     aName: '碎片数量',
     bName: '飞行速度',
     fire: fireShard,
@@ -434,7 +433,7 @@ export const WEAPONS: readonly WeaponDef[] = [
     maxLevel: LV12,
     cd: [4.5, 4.31, 4.16, 4, 3.84, 3.65, 3.45, 3.26, 3.07, 2.88, 2.69, 2.5],
     dmg: [6, 8, 9, 10, 12, 13, 16, 18, 21, 23, 27, 31],
-    a: [90, 95, 100, 105, 111, 118, 124, 132, 139, 147, 157, 168],
+    a: [100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210],
     b: [2.5, 2.63, 2.76, 2.9, 3.06, 3.23, 3.37, 3.54, 3.73, 3.93, 4.18, 4.5],
     aName: '领域半径',
     bName: '持续秒数',

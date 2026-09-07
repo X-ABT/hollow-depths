@@ -29,7 +29,7 @@ export class ProjectileSystem {
           pr.retarget -= dt;
           if (pr.retarget <= 0) {
             pr.retarget = 0.18;
-            pr.targetIdx = world.hash.queryNearest(pr.x, pr.y, 900);
+            pr.targetIdx = world.hash.queryNearest(pr.x, pr.y, 800);
           }
           if (pr.targetIdx >= 0 && pr.targetIdx < world.enemies.count) {
             const e = world.enemies.items[pr.targetIdx];

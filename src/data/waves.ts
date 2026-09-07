@@ -54,6 +54,8 @@ export const DENSITY_STEPS: readonly { t: number; mul: number }[] = [
 export const BOSS_ORDER: readonly string[] = ['herald', 'calamity', 'endless'];
 /** 无尽幽墟 Boss 循环（5 只，每 4 分钟固定刷一只，可并存） */
 export const ENDLESS_ORDER: readonly string[] = ['herald', 'calamity', 'lament', 'maw', 'endless'];
+/** 关卡3 Boss 流程（照关卡1 节奏）：泣灵 5:00 → 击杀后 4 分钟渊喉 → 再 4 分钟巢母（击杀巢母即胜利） */
+export const STAGE3_ORDER: readonly string[] = ['lament', 'maw', 'nest'];
 /** 首个 Boss（古神）出现的延迟（秒） */
 export const FIRST_BOSS_AT = 300;
 /** 无尽模式首只 Boss 出现时间（秒） */
@@ -156,14 +158,23 @@ export const ENDLESS_ELITE_FIRST = 80;
 /** 无尽精英刷新间隔（秒）：标准 26 → 14，中后期精英密度明显更高 */
 export const ENDLESS_ELITE_INTERVAL = 14;
 
-/** 无尽深渊炮手开始周期刷新时间（秒）：约 5 分钟 */
-export const ENDLESS_GUNNER_FROM = 300;
+/** 无尽深渊炮手开始周期刷新时间（秒）：约 3 分钟 */
+export const ENDLESS_GUNNER_FROM = 180;
 /** 无尽炮手批量刷新间隔（秒） */
-export const ENDLESS_GUNNER_INTERVAL = 20;
+export const ENDLESS_GUNNER_INTERVAL = 15;
 /** 无尽炮手同屏上限 */
 export const ENDLESS_GUNNER_MAX = 3;
 /** 无尽炮手首次一次性补几只（之后每批 1 只） */
 export const ENDLESS_GUNNER_FIRST_BATCH = 2;
+
+/** 关卡3 深渊炮手：约 3:00 起固定周期刷新（与 Boss 是否在场无关；不豁免于同屏上限） */
+export const STAGE3_GUNNER_FROM = 180;
+/** 关卡3 炮手批量刷新间隔（秒） */
+export const STAGE3_GUNNER_INTERVAL = 15;
+/** 关卡3 炮手同屏上限 */
+export const STAGE3_GUNNER_MAX = 3;
+/** 关卡3 炮手首次一次性补几只（之后每批 1 只） */
+export const STAGE3_GUNNER_FIRST_BATCH = 3;
 
 /** Boss 轮次：每刷一只轮次 +1（第 1 轮 = 首只，系数均从 1 起步、逐轮递增） */
 /** 无尽 Boss 每轮额外血量倍率（基础 hpScale(t) 之上再乘）：第 r 轮 = 1+0.5×(r-1) */

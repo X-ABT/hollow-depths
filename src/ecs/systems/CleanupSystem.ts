@@ -68,10 +68,16 @@ export class CleanupSystem {
       world.enemies.releaseAt(i);
     }
 
-    // ——— Boss 死亡后清场：把场上仍在的敌人全部移除（不给掉落，直接清屏） ———
+    // ——— Boss 死亡后清场：只清普通怪（不给掉落，直接清屏），精英与 Boss 全部保留 ———
+    // 只清：普通怪（swarmling/wraith/slime/phantom/grub）与普通召唤物（同为普通定义），以及分裂魔分身；
+    // 保留：分裂魔本体/甲壳兽/欺诈者/炮手等精英、全部 Boss。
+    // 特殊关卡同批 Boss×3 逐杀、下一批倒计时均不受影响（连坐清除会绕过 onBossKilled 计数导致停摆）。
     if (this.wipeAfterBoss) {
       for (let i = world.enemies.count - 1; i >= 0; i--) {
-        world.enemies.releaseAt(i);
+        const o = list[i];
+        // 分裂魔分身：defIdx 同为 splinter 且是精英，需用 e.growT(=分裂代数 gen，本体 0、分身 ≥1) 区分
+        const splinterMinion = o.isElite && ENEMY_BY_INDEX[o.defIdx]?.id === 'splinter' && o.growT >= 1;
+        if ((!o.isBoss && !o.isElite) || splinterMinion) world.enemies.releaseAt(i);
       }
     }
   }
