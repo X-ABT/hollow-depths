@@ -1588,6 +1588,59 @@ body.is-touch .hud-zoom {
   background: rgba(67, 224, 255, 0.22);
 }
 
+/* 主动技能「瞬闪」按钮：屏幕左侧下方（避开左侧武器/被动槽与右下暂停键） */
+.hud-skill {
+  position: absolute;
+  left: calc(14px + var(--safe-l));
+  bottom: calc(122px + var(--safe-b));
+  z-index: 30;
+  pointer-events: auto;
+}
+.hud-skill[hidden] {
+  display: none;
+}
+.hud-skill-btn {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  min-height: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(245, 196, 81, 0.75);
+  background: rgba(26, 16, 4, 0.72);
+  color: var(--p-amber);
+  box-shadow: 0 0 18px rgba(245, 196, 81, 0.35), inset 0 0 12px rgba(245, 196, 81, 0.18);
+}
+.hud-skill-btn:hover {
+  transform: scale(1.06);
+  border-color: var(--p-amber);
+}
+.hud-skill-btn:active {
+  transform: scale(0.9);
+}
+.hud-skill-key {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+.hud-skill-cd {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+  background: rgba(5, 3, 10, 0.62);
+  text-shadow: 0 0 10px rgba(255, 84, 112, 0.8);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.hud-skill-btn.is-cd .hud-skill-cd {
+  opacity: 1;
+}
+
 /* 缩放提示（当前倍率），可点清零 */
 .hud-zoom .zoom-reset {
   width: 36px;

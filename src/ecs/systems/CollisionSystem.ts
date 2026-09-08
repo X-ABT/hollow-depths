@@ -62,7 +62,8 @@ export class CollisionSystem {
       switch (pr.behavior) {
         case Behavior.Linear:
         case Behavior.Homing:
-        case Behavior.Orbit: {
+        case Behavior.Orbit:
+        case Behavior.Sword: {
           const found = world.hash.query(pr.x, pr.y, pr.radius + 30, qbuf);
           for (let k = 0; k < found; k++) {
             if (pr.behavior !== Behavior.Orbit && pr.pierce <= 0) break;

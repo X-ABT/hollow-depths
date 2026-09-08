@@ -35,6 +35,7 @@ export const enum Behavior {
   Field = 5, // 持续领域
   Mark = 6, // 延迟落点爆炸（裂地印记）
   Telegraph = 7, // 预警圈（Boss AOE，倒计时结束后爆发）
+  Sword = 8, // 飞剑：朝方向飞行至 r0 距离后停驻 0.5s，路径与落点都能命中敌人
 }
 
 /** 拾取物类型 */
@@ -208,6 +209,9 @@ export interface Player {
   pendingLevels: number;
 
   face: number; // 朝向（用于渲染翻转）
+  /** 最近一次移动方向的单位向量（停止移动时保持，武器/主动技能按此瞄准） */
+  aimX: number;
+  aimY: number;
 }
 
 /** 伤害飘字 / 粒子（渲染层专用，见 render/Vfx.ts） */

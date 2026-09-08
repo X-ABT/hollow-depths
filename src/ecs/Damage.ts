@@ -164,6 +164,8 @@ export function immuneFor(behavior: Behavior): number {
       return 0.4;
     case Behavior.Mark:
       return 1.0;
+    case Behavior.Sword:
+      return 0.6; // 飞剑 0.6s：飞行(≤0.5s)+停驻(0.5s)期间同剑对同一敌人只结算一次
     default:
       return 0.2;
   }

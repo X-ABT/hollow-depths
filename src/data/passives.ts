@@ -38,6 +38,14 @@ export interface PassiveDef {
 
 const LV7 = 7;
 
+/** 主动技能「瞬闪」固定参数：瞬移距离(px)/击退力度/冷却秒/无敌秒 */
+export const DASH_DIST = 300;
+export const DASH_KNOCK = 200;
+export const DASH_CD = 10;
+export const DASH_IFRAME = 0.25;
+/** 瞬闪金色震击波半径（随被动等级 Lv1→Lv7：100→200） */
+export const DASH_RADIUS = [100, 116, 133, 150, 166, 183, 200];
+
 /** 各被动 Lv1→Lv7 的累计数值表（满级总效果 = 原 5 级满级；护心甲每级 +1 属小幅加强） */
 const HASTE = [8, 16, 25, 33, 42, 51, 60]; // 攻速 %，满级 +60
 const BOOTS = [6, 12, 18, 24, 30, 35, 40]; // 移速 %，满级 +40
@@ -168,6 +176,22 @@ export const PASSIVES: readonly PassiveDef[] = [
     apply: (s, lv) => {
       s.critChance += CRIT_RATE[lv - 1] / 100;
       s.critMult += CRIT_MULT[lv - 1] / 100;
+    },
+  },
+  {
+    // 「瞬闪」是主动技能类被动：不叠加任何派生属性，只解锁主动键（Q/左侧按钮，CD10s）。
+    // 其等级决定金色震击波半径（Lv1=100 → Lv7=200），其余数值在 Game 侧按等级读取。
+    id: 'dash_shift',
+    name: '瞬闪',
+    en: 'Blink Shift',
+    icon: Tex.IconDash,
+    maxLevel: LV7,
+    desc: '解锁主动技能：朝移动方向瞬移后震退周围敌人（金色冲击波·仅击退）。',
+    enDesc: 'Unlocks an active skill: blink toward movement then repel foes with a golden shockwave (knockback only).',
+    lvlText: (lv) => `瞬移 ${DASH_DIST} · 冲击半径 ${DASH_RADIUS[lv - 1]} · 击退 ${DASH_KNOCK} · CD ${DASH_CD}s`,
+    enLvlText: (lv) => `Blink ${DASH_DIST} · Radius ${DASH_RADIUS[lv - 1]} · Knock ${DASH_KNOCK} · CD ${DASH_CD}s`,
+    apply: () => {
+      /* 主动技能，无派生属性 */
     },
   },
 ];

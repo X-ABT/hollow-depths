@@ -28,6 +28,8 @@ export class Hud {
   onZoomIn: () => void = () => {};
   onZoomOut: () => void = () => {};
   onZoomReset: () => void = () => {};
+  /** 主动技能按钮回调（持有「瞬闪」被动时可用；Game 注入） */
+  onSkill: () => void = () => {};
 
   private readonly weaponRow: HTMLElement;
   private readonly passiveRow: HTMLElement;
@@ -39,7 +41,11 @@ export class Hud {
   private lastLv = '';
   private lastBossHp = -1;
   private lastBossCd = '';
+  private lastSkillCd = -1;
   private readonly modeEl: HTMLElement;
+  private readonly skillWrap: HTMLElement;
+  private readonly skillBtn: HTMLElement;
+  private readonly skillCdText: HTMLElement;
 
   constructor(root: HTMLElement) {
     const el = document.createElement('div');
@@ -67,6 +73,12 @@ export class Hud {
         <button data-zoom="reset" class="zoom-reset" aria-label="${t('hud.zoomReset')}"></button>
         <button data-zoom="out" aria-label="${t('hud.zoomOut')}">－</button>
       </div>
+      <div class="hud-skill" hidden>
+        <button class="hud-skill-btn" data-act="skill" aria-label="${t('hud.skill')}">
+          <span class="hud-skill-key">Q</span>
+          <span class="hud-skill-cd"></span>
+        </button>
+      </div>
     `;
     root.appendChild(el);
     this.el = el;
@@ -87,7 +99,14 @@ export class Hud {
     this.passiveRow = el.querySelector('[data-row="p"]') as HTMLElement;
     this.zoomResetBtn = el.querySelector('[data-zoom="reset"]') as HTMLElement;
     this.modeEl = el.querySelector('.hud-mode') as HTMLElement;
+    this.skillWrap = el.querySelector('.hud-skill') as HTMLElement;
+    this.skillBtn = el.querySelector('.hud-skill-btn') as HTMLElement;
+    this.skillCdText = el.querySelector('.hud-skill-cd') as HTMLElement;
 
+    el.querySelector('[data-act="skill"]')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onSkill();
+    });
     el.querySelector('[data-zoom="in"]')?.addEventListener('click', (e) => {
       e.stopPropagation();
       this.onZoomIn();
@@ -119,6 +138,19 @@ export class Hud {
     if (!this.modeEl) return;
     this.modeEl.hidden = !endless;
     if (endless) this.modeEl.textContent = t('hud.endless');
+  }
+
+  /** 主动技能按钮：visible=是否持有「瞬闪」被动；冷却中显示剩余秒数并置 is-cd */
+  setSkill(visible: boolean, cd: number, total: number): void {
+    if (this.skillWrap) this.skillWrap.hidden = !visible;
+    if (!visible) return;
+    const remain = cd > 0 ? Math.max(1, Math.ceil(cd)) : 0;
+    if (remain !== this.lastSkillCd) {
+      this.lastSkillCd = remain;
+      this.skillCdText.textContent = remain > 0 ? String(remain) : '';
+    }
+    if (cd > 0 && !this.skillBtn.classList.contains('is-cd')) this.skillBtn.classList.add('is-cd');
+    else if (cd <= 0 && this.skillBtn.classList.contains('is-cd')) this.skillBtn.classList.remove('is-cd');
   }
 
   update(hp: number, maxHp: number, xp: number, xpNext: number, level: number, time: number, kills: number): void {
@@ -249,7 +281,9 @@ export class Hud {
   reset(): void {
     this.lastHp = -1;
     this.buildSig = '';
+    this.lastSkillCd = -1;
     this.setBoss(null, 0, 0);
     this.setBossCountdown(null, 0);
+    this.setSkill(false, 0, 1);
   }
 }

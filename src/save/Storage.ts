@@ -30,8 +30,8 @@ const XOR_TABLE = [0x1f, 0xa7, 0x4c, 0x62, 0xd5, 0x0b, 0x8e, 0x39, 0x73, 0xc1, 0
 /** 分隔符（payload 与签名） */
 const SEP = '.';
 
-/** 新玩家默认解锁（进入每局升级随机池）：武器＝裂地印记(角色自带)＋贯穿光束；被动＝智慧卷轴 */
-export const DEFAULT_UNLOCKED_WEAPONS: readonly string[] = ['rift', 'beam'];
+/** 新玩家默认解锁（进入每局升级随机池）：武器＝追猎印记(角色自带)＋贯穿光束；被动＝智慧卷轴 */
+export const DEFAULT_UNLOCKED_WEAPONS: readonly string[] = ['seeker', 'beam'];
 export const DEFAULT_UNLOCKED_PASSIVES: readonly string[] = ['wisdom'];
 
 /**
@@ -40,11 +40,12 @@ export const DEFAULT_UNLOCKED_PASSIVES: readonly string[] = ['wisdom'];
  * Storage 作为最底层设施引入它们会污染依赖方向并带来潜在循环。
  */
 const WEAPON_MAX_LV: Readonly<Record<string, number>> = {
-  rift: 8, halo: 8, seeker: 8, shock: 8, shard: 8, beam: 8, frost: 8,
+  rift: 12, halo: 12, seeker: 12, shock: 12, shard: 12, beam: 12, frost: 12, flying_blade: 12,
   rift_abyss: 1, halo_twin: 1, seeker_chain: 1, shock_instant: 1, shard_rain: 1, beam_twin: 1, frost_follow: 1,
+  flying_blade_twin: 1,
 };
 const PASSIVE_MAX_LV: Readonly<Record<string, number>> = {
-  haste: 5, boots: 5, mirror: 5, rage: 5, life: 5, armor: 5, wisdom: 5, crit: 5,
+  haste: 7, boots: 7, mirror: 7, rage: 7, life: 7, armor: 7, wisdom: 7, crit: 7, dash_shift: 7,
 };
 /** 全部宠物 id（含免费宠 budling） */
 const PET_IDS: ReadonlySet<string> = new Set([

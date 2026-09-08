@@ -90,7 +90,14 @@ export const enum Tex {
   /** 巢母 Boss（关卡3 最终） */
   BossNest = 73,
 
-  COUNT = 74,
+  /** 新武器「飞剑」图标 */
+  IconBlade = 74,
+  /** 新被动「瞬闪」图标 */
+  IconDash = 75,
+  /** 飞剑实体贴图（投射物用） */
+  Blade = 76,
+
+  COUNT = 77,
 }
 
 export const TEX_SIZE = 64;

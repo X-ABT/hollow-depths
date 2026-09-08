@@ -43,6 +43,7 @@ import { DEFAULT_CHARACTER } from '../data/characters';
 import { ENEMY_BY_INDEX } from '../data/enemies';
 import { RUN_SECONDS } from '../data/waves';
 import { PETS, PET_BY_ID, applyLoadoutPetBonus, skillLevel } from '../data/pets';
+import { DASH_CD, DASH_DIST, DASH_IFRAME, DASH_KNOCK, DASH_RADIUS } from '../data/passives';
 import { spawnPet } from '../ecs/Spawn';
 import { ads } from '../ads/index';
 import { gameplayStart, gameplayStop, happyTime } from '../ads/crazygames';
@@ -110,6 +111,8 @@ export class Game {
   private pauseDialog: HTMLDivElement | null = null;
   private pauseSoulEl: HTMLElement | null = null;
   private bossTimer = 0;
+  /** 主动技能「瞬闪」剩余冷却（秒） */
+  private dashCd = 0;
   /** 是否触屏/手机端：初始视野 0.5、可缩放到 0.3 */
   private mobile = false;
   /** 无尽幽墟模式：true 时 Boss 定时刷新 / 击杀不清屏 / 无胜利目标（死亡结算） */
@@ -159,6 +162,7 @@ export class Game {
     this.hud.onZoomIn = () => this.renderer.setZoom(this.renderer.zoom + 0.15);
     this.hud.onZoomOut = () => this.renderer.setZoom(this.renderer.zoom - 0.15);
     this.hud.onZoomReset = () => this.renderer.setZoom(this.defaultZoom);
+    this.hud.onSkill = () => this.castDash();
     this.hud.setZoomLabel(this.renderer.zoom);
 
     atlas.build(app.renderer);
@@ -182,6 +186,10 @@ export class Game {
       if (this.state === 'expedition' && !this.expResolved && (e.key === '1' || e.key === ' ')) {
         e.preventDefault();
         this.expedition.castSkill(this.world);
+      } else if (this.state === 'playing' && e.code === 'KeyQ') {
+        // 主动技能「瞬闪」：主局 Q 键（需持有瞬闪被动）
+        e.preventDefault();
+        this.castDash();
       }
     });
     this.pickup.onChest = (times) => {
@@ -532,6 +540,7 @@ export class Game {
     this.pickup.reset();
     this.vfx.reset();
     this.hud.reset();
+    this.dashCd = 0;
     this.hud.setVisible(true);
     this.hud.setMode(endless);
     // 每局重置视野与自适应分辨率到该设备基准（手机视野 0.5 / 桌面 1.0）
@@ -962,6 +971,65 @@ export class Game {
     }
   }
 
+  /** 主动技能「瞬闪」：Q 键 / 左下按钮触发（需持有「瞬闪」被动且冷却就绪） */
+  private castDash(): void {
+    if (this.state !== 'playing') return;
+    const dash = this.build.passiveById('dash_shift');
+    if (!dash || this.dashCd > 0) return;
+    const p = this.world.player;
+    this.dashCd = DASH_CD;
+    const lvl = Math.min(Math.max(1, dash.level), DASH_RADIUS.length);
+    const radius = DASH_RADIUS[lvl - 1];
+
+    let ax = p.aimX || (p.face > 0 ? 1 : -1);
+    let ay = p.aimY || 0;
+    const len = Math.hypot(ax, ay) || 1;
+    ax /= len;
+    ay /= len;
+    let tx = p.x + ax * DASH_DIST;
+    let ty = p.y + ay * DASH_DIST;
+    // 终焉收缩圈内不越界
+    const w = this.world;
+    if (w.arenaR > 0) {
+      const dx = tx - w.arenaX;
+      const dy = ty - w.arenaY;
+      const d = Math.hypot(dx, dy);
+      const limit = w.arenaR - p.radius;
+      if (d > limit && d > 0) {
+        tx = w.arenaX + (dx / d) * limit;
+        ty = w.arenaY + (dy / d) * limit;
+      }
+    }
+    p.x = tx;
+    p.y = ty;
+    p.px = tx; // 同步上一帧位置，防止渲染插值把角色从原点拖回造成跳变
+    p.py = ty;
+    p.iframe = Math.max(p.iframe, DASH_IFRAME);
+
+    // 金色震击波：视觉冲击环 + 粒子；随后只击退不造成伤害
+    this.vfx.explosion(tx, ty, 16, 0xf5c451);
+    this.vfx.ring(tx, ty, 0xf5c451, radius * 1.05);
+    this.dashKnock(w, tx, ty, radius);
+  }
+
+  /** 瞬闪金色震击波：对落点半径内敌人施加纯径向击退（0 伤害） */
+  private dashKnock(w: World, x: number, y: number, r: number): void {
+    w.buildHash(); // 用最新敌人位置做击退判定（该技能 10s 一次，重建开销可忽略）
+    const found = w.hash.query(x, y, r + 40, w.qbuf);
+    const list = w.enemies.items;
+    for (let i = 0; i < found; i++) {
+      const e = list[w.qbuf[i]];
+      if (e.dead) continue;
+      const dx = e.x - x;
+      const dy = e.y - y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d <= r + e.radius) {
+        e.knockX += (dx / d) * DASH_KNOCK;
+        e.knockY += (dy / d) * DASH_KNOCK;
+      }
+    }
+  }
+
   private fixed(dt: number): void {
     if (this.state === 'expedition') {
       this.fixedExpedition(dt);
@@ -992,6 +1060,12 @@ export class Game {
     p.x += mx * p.speed * dt;
     p.y += my * p.speed * dt;
     if (mx !== 0) p.face = mx > 0 ? 1 : -1;
+    // 记录最近一次移动方向（单位向量），停止移动时保持——飞剑/瞬闪等方向型技能以此瞄准
+    if (mx !== 0 || my !== 0) {
+      const mlen = Math.hypot(mx, my) || 1;
+      p.aimX = mx / mlen;
+      p.aimY = my / mlen;
+    }
 
     // 终焉收缩边界：把玩家钳制在竞技圈内
     if (world.arenaR > 0) {
@@ -1040,6 +1114,7 @@ export class Game {
 
     this.camera.update(p.x, p.y, dt);
     if (this.bossTimer > 0) this.bossTimer -= dt;
+    if (this.dashCd > 0) this.dashCd = Math.max(0, this.dashCd - dt);
 
     // ——— 结束条件 ———
     if (p.hp <= 0) {
@@ -1124,6 +1199,7 @@ export class Game {
       const p = this.world.player;
       this.hud.update(p.hp, p.maxHp, p.xp, p.xpNext, p.level, this.world.time, this.world.kills);
       this.hud.syncBuild(this.build);
+      this.hud.setSkill(this.build.passiveById('dash_shift') !== undefined, this.dashCd, DASH_CD);
       this.hud.setZoomLabel(this.renderer.zoom);
 
       const boss: Enemy | null = findBoss(this.world);

@@ -25,6 +25,20 @@ export class ProjectileSystem {
           break;
         }
 
+        case Behavior.Sword: {
+          // 飞剑：沿 vx/vy 直线飞行，消耗 r0=剩余飞行距离；r0 归零后停驻（停留时间走 life，由 fire 预设）
+          if (pr.r0 > 0) {
+            pr.x += pr.vx * dt;
+            pr.y += pr.vy * dt;
+            pr.r0 -= Math.hypot(pr.vx, pr.vy) * dt;
+            if (pr.r0 <= 0) {
+              pr.vx = 0;
+              pr.vy = 0;
+            }
+          }
+          break;
+        }
+
         case Behavior.Homing: {
           pr.retarget -= dt;
           if (pr.retarget <= 0) {

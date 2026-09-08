@@ -310,6 +310,49 @@ function fireFrost(d: WeaponDef, ctx: FireCtx): void {
   });
 }
 
+// ——————————————————— 8. 飞剑（移动方向·飞行停驻剑） ———————————————————
+/** 飞剑最大飞行距离（px） */
+const BLADE_RANGE = 300;
+/** 飞剑飞行速度（px/s）：约 0.33s 飞满距离 */
+const BLADE_SPEED = 900;
+/** 飞剑停驻时长（s）：飞抵 BLADE_RANGE 后原地停留，触碰敌人仍受伤 */
+const BLADE_HOLD = 0.5;
+
+function launchBlade(d: WeaponDef, ctx: FireCtx, dir: 1 | -1): void {
+  const i = lv(ctx.level);
+  const width = d.a[i]; // 剑身宽度/体型：随级小幅增长（Lv1 很小、满级也不大）
+  // 瞄准方向：最近一次移动方向（停止时保持上一次）；兜底 face 朝右
+  const ax = ctx.p.aimX || (ctx.p.face > 0 ? 1 : -1);
+  const ay = ctx.p.aimY || 0;
+  const len = Math.hypot(ax, ay) || 1;
+  const nx = (ax / len) * dir;
+  const ny = (ay / len) * dir;
+  const travel = BLADE_RANGE / BLADE_SPEED;
+  spawnProj(ctx.world, (pr) => {
+    pr.behavior = Behavior.Sword;
+    pr.x = pr.px = ctx.p.x;
+    pr.y = pr.py = ctx.p.y;
+    pr.vx = nx * BLADE_SPEED;
+    pr.vy = ny * BLADE_SPEED;
+    pr.r0 = BLADE_RANGE; // 剩余飞行距离，归零后停驻
+    pr.radius = width; // 接触判定半径
+    pr.damage = ctx.dmg;
+    pr.life = pr.maxLife = travel + BLADE_HOLD; // 飞行 + 停驻 0.5s
+    pr.pierce = 9999;
+    pr.srcId = ctx.srcId;
+    pr.critChance = ctx.critChance;
+    pr.critMult = ctx.critMult;
+    pr.spriteKey = Tex.Blade;
+    pr.rot = Math.atan2(ny, nx);
+  });
+}
+
+/** 飞剑：朝移动方向掷出；进化后反方向同时再掷一剑 */
+function fireBlade(d: WeaponDef, ctx: FireCtx): void {
+  launchBlade(d, ctx, 1);
+  if (d.isEvolved) launchBlade(d, ctx, -1);
+}
+
 const LV12 = 12;
 
 export const WEAPONS: readonly WeaponDef[] = [
@@ -379,7 +422,7 @@ export const WEAPONS: readonly WeaponDef[] = [
     cd: [3.2, 3.07, 2.94, 2.82, 2.69, 2.57, 2.43, 2.31, 2.18, 2.06, 1.93, 1.8],
     dmg: [18, 20, 24, 27, 30, 34, 39, 43, 49, 55, 63, 72],
     a: [110, 117, 124, 131, 139, 147, 156, 164, 174, 185, 197, 210],
-    b: [260, 266.5, 273, 279, 285.5, 291.5, 298.5, 304.5, 311, 318, 327.5, 340],
+    b: [130, 133.25, 136.5, 139.5, 142.75, 145.75, 149.25, 152.25, 155.5, 159, 163.75, 170],
     aName: '爆发半径',
     bName: '击退力度',
     fire: fireShock,
@@ -440,6 +483,24 @@ export const WEAPONS: readonly WeaponDef[] = [
     fire: fireFrost,
     evolveWith: 'wisdom',
     evolved: 'frost_follow',
+  },
+  {
+    id: 'flying_blade',
+    name: '飞剑',
+    en: 'Flying Blade',
+    desc: '朝移动方向掷出一柄飞剑：飞行至 300 距离后停驻片刻，路径与落点触碰的敌人都会受到 200 点伤害；体型随等级缓慢变大。',
+    enDesc: 'Hurls a blade toward your movement: it flies 300 and lingers briefly, damaging every foe it touches en route and at rest for 200 damage. Size grows slowly with level.',
+    icon: Tex.IconBlade,
+    maxLevel: LV12,
+    cd: [4, 3.8, 3.6, 3.45, 3.25, 3.05, 2.85, 2.65, 2.45, 2.3, 2.15, 2],
+    dmg: [200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200],
+    a: [12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34],
+    b: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    aName: '剑身宽度',
+    bName: '（未用）',
+    fire: fireBlade,
+    evolveWith: 'dash_shift',
+    evolved: 'flying_blade_twin',
   },
 ];
 
@@ -560,6 +621,19 @@ export const EVOLVED: readonly WeaponDef[] = [
     },
     // 跟随机制让领域持续覆盖移动路径，范围/时长/伤害小幅提升
     { dmg: 1.2, a: 1.15, b: 1.1, cd: 0.85 },
+  ),
+  derive(
+    WEAPONS[7],
+    {
+      id: 'flying_blade_twin',
+      name: '双生飞剑',
+      en: 'Twin Flying Blades',
+      desc: '进化·飞剑：朝移动方向与反方向同时掷出双剑，剑光如潮；每柄 200 点伤害。',
+      enDesc: 'Evolved Flying Blade: hurls twin blades forward and backward in one motion; each deals 200 damage.',
+      icon: Tex.IconBlade,
+    },
+    // 机制「正反双剑」= 覆盖翻倍，冷却/尺寸/伤害保持满级锚点
+    { dmg: 1, a: 1, b: 1, cd: 1 },
   ),
 ];
 

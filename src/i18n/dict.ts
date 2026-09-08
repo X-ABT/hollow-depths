@@ -120,6 +120,7 @@ export const DICT: Record<string, DictEntry> = {
   // —————————————————— HUD / 暂停 ——————————————————
   'hud.kills': { zh: '{n} 击杀', en: '{n} kills' },
   'hud.endless': { zh: '无尽幽墟', en: 'ENDLESS' },
+  'hud.skill': { zh: '瞬闪（Q）', en: 'Blink Shift (Q)' },
   'hud.zoomIn': { zh: '放大视野', en: 'Zoom in' },
   'hud.zoomOut': { zh: '缩小视野', en: 'Zoom out' },
   'hud.zoomReset': { zh: '重置视野', en: 'Reset zoom' },

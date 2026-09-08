@@ -965,6 +965,49 @@ export function drawTex(g: G, key: number): void {
       break;
     }
 
+    // ——————————————— 飞剑 / 新图标 ———————————————
+    case Tex.Blade: {
+      // 飞剑本体：横向剑刃（剑尖朝右），发射时按移动方向旋转
+      glow(g, 40, 32, 13, C.arcane, 0.45);
+      // 剑刃：银白主体 + 亮锋 + 反光
+      g.poly([46, 20, 58, 32, 46, 44, 40, 42, 40, 22]).fill({ color: 0xdfe8ff, alpha: 0.98 });
+      g.poly([46, 20, 58, 32, 46, 44, 40, 42, 40, 22]).stroke({ width: 1.1, color: 0x0a0713, alpha: 0.9 });
+      g.poly([46, 32, 46, 44, 40, 42, 40, 32]).fill({ color: 0x7c8bd0, alpha: 0.55 });
+      g.circle(44, 32, 5).fill({ color: 0xffffff, alpha: 0.3 });
+      // 剑格（琥珀横挡）
+      g.rect(36, 17, 5, 30).fill({ color: C.amber, alpha: 0.95 });
+      g.rect(36, 17, 5, 30).stroke({ width: 1, color: 0x0a0713, alpha: 0.9 });
+      // 剑柄（深紫）与尾坠宝石
+      g.rect(20, 27, 16, 10).fill({ color: 0x1e1636, alpha: 1 });
+      g.rect(20, 27, 16, 10).stroke({ width: 1, color: 0x0a0713, alpha: 0.9 });
+      g.rect(14, 29, 6, 6).fill({ color: C.arcane, alpha: 0.95 });
+      g.circle(17, 32, 2.4).fill({ color: C.arcane, alpha: 1 });
+      g.circle(17, 32, 1).fill({ color: 0xffffff, alpha: 0.95 });
+      break;
+    }
+    case Tex.IconBlade: {
+      // 图标·飞剑：斜贯的亮银剑 + 紫光晕
+      glow(g, 32, 32, 25, C.arcane, 0.4);
+      g.poly([31, 10, 37, 18, 24, 54, 18, 48]).fill({ color: 0xdfe8ff, alpha: 0.95 });
+      g.poly([31, 10, 37, 18, 24, 54, 18, 48]).stroke({ width: 1.2, color: 0x0a0713, alpha: 0.9 });
+      g.poly([27, 22, 34, 25, 28, 44, 22, 41]).fill({ color: 0x7c8bd0, alpha: 0.6 });
+      // 剑格琥珀
+      g.poly([40, 18, 48, 28, 44, 32, 36, 22]).fill({ color: C.amber, alpha: 0.95 });
+      break;
+    }
+    case Tex.IconDash: {
+      // 图标·瞬闪：金色闪现菱形 + 运动拖尾
+      glow(g, 32, 32, 26, C.amber, 0.4);
+      g.poly([32, 12, 46, 32, 32, 52, 18, 32]).fill({ color: 0x1a1004, alpha: 0.9 });
+      g.poly([32, 12, 46, 32, 32, 52, 18, 32]).stroke({ width: 2, color: C.amber, alpha: 0.95 });
+      g.circle(32, 32, 4).fill({ color: 0xfff0c0, alpha: 1 });
+      // 右侧运动拖尾线
+      g.moveTo(50, 24).lineTo(58, 24).stroke({ width: 2, color: C.amber, alpha: 0.7 });
+      g.moveTo(52, 32).lineTo(60, 32).stroke({ width: 2, color: C.amber, alpha: 0.9 });
+      g.moveTo(50, 40).lineTo(57, 40).stroke({ width: 2, color: C.amber, alpha: 0.6 });
+      break;
+    }
+
     // ——————————————— 投射物 ———————————————
     case Tex.OrbHalo: {
       glow(g, 32, 32, 22, C.amber, 1);

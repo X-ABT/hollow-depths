@@ -95,6 +95,7 @@ function makePlayer(): Player {
     xpMul: 1, critChance: 0.05, critMult: 2, armor: 0, regen: 0,
     pickupRange: 60,
     level: 1, xp: 0, xpNext: 10, pendingLevels: 0, face: 1,
+    aimX: 1, aimY: 0,
   };
 }
 

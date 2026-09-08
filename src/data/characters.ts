@@ -59,7 +59,7 @@ export const CHARACTERS: readonly CharacterDef[] = [
       armor: 0,
       regen: 0,
     },
-    startWeapon: 'rift',
+    startWeapon: 'seeker',
     perkName: '拾荒者',
     perkDesc: '拾取范围 +20%',
     enPerkName: 'Scavenger',
