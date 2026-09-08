@@ -1879,6 +1879,7 @@ body.is-touch .hud-zoom {
 }
 .shop-item {
   display: flex;
+  flex-wrap: wrap; /* 操作区下沉到下一整行，避免挤占说明列宽度导致描述回流/高度抖动 */
   align-items: center;
   gap: 12px;
   padding: 9px 12px;
@@ -1931,9 +1932,15 @@ body.is-touch .hud-zoom {
   line-height: 1.4;
 }
 .shop-item-action {
-  flex: none;
-  min-width: 96px;
-  text-align: center;
+  /* 换行占满整行：卡片底部右侧放操作按钮，与说明行宽度解耦 */
+  flex: 1 1 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  min-width: 0;
+  text-align: right;
 }
 .shop-owned {
   font-size: 13px;
