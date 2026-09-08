@@ -448,12 +448,20 @@ body {
 }
 
 .title-help {
-  margin-top: 30px;
-  max-width: 560px;
+  margin-top: 14px;
+  /* 宽度/高度双向受限：窄窗可读不贴边，矮屏不高出屏幕；超高时面板内部滚动 */
+  width: min(560px, 88vw);
+  max-height: min(50vh, 380px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 14px 14px;
   text-align: center;
   font-size: 13px;
   line-height: 2;
   color: var(--t-dim);
+}
+.title-help[hidden] {
+  display: none;
 }
 
 .title-help kbd {
